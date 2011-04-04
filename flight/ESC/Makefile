@@ -100,6 +100,7 @@ SRC += $(FLIGHTLIB)/fifo_buffer.c
 SRC += $(PIOSSTM32F10X)/pios_adc.c
 SRC += $(PIOSSTM32F10X)/pios_sys.c
 SRC += $(PIOSSTM32F10X)/pios_led.c
+SRC += $(PIOSSTM32F10X)/pios_esc.c
 SRC += $(PIOSSTM32F10X)/pios_delay.c
 SRC += $(PIOSSTM32F10X)/pios_usart.c
 SRC += $(PIOSSTM32F10X)/pios_irq.c

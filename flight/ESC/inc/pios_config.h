@@ -29,7 +29,8 @@
 
 /* Enable/Disable PiOS Modules */
 #define PIOS_INCLUDE_ADC
-#define PIOS_INCLUDE_COM
+//#define PIOS_INCLUDE_COM
+#define PIOS_INCLUDE_DELAY
 #define PIOS_INCLUDE_ESC
 #define PIOS_INCLUDE_EXTI
 #define PIOS_INCLUDE_GPIO

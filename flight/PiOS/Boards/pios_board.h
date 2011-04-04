@@ -21,8 +21,10 @@
 #include "STM32F4xx_DiscoveryF4.h"
 #elif USE_STM32F30x_FLYINGF3
 #include "STM32F30x_FlyingF3.h"
+#elif USE_STM32F103CB_ESC_Rev1
+#include "STM32F103CB_ESC_Rev1.h"
 #else
-#error Board definition has not been provided.
+#error Undefined board type
 #endif
 
 #endif /* PIOS_BOARD_H_ */

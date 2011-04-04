@@ -26,8 +26,8 @@
  */
 
 /* OpenPilot Includes */
-//#include "pios.h"
-//#include "fifo_buffer.h"
+#include "pios.h"
+#include "fifo_buffer.h"
 
 
 /**

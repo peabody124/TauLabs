@@ -31,8 +31,65 @@
 
 /* Project Includes */
 #include "pios.h"
+#include "pios_esc_priv.h"
 
 #if defined(PIOS_INCLUDE_ESC)
+
+/*
+ 
+ struct pios_esc_cfg {
+ // PWM timer configuration
+ // Pin mappings
+ };
+ 
+ struct pios_esc_dev {
+ const struct pios_esc_cfg *const cfg;	
+ uint8_t state;
+ uint8_t mode;
+ uint8_t armed;
+ };
+ 
+ extern struct pios_esc_dev pios_esc_devs[];
+ extern uint8_t pios_esc_num_devices;
+*/
+
+
+/**
+ * @brief Initialize the driver outputs for PWM mode.  Configure base timer rate.
+ */
+void PIOS_Init()
+{
+}
+
+/**
+ * @brief Function for immediately shutting off the bridge (not a braking mode) in case of faults
+ * also disarms
+ */
+void PIOS_ESC_Off()
+{
+	//TOOD: Disarm
+}
+
+/**
+ * @brief Arm the ESC.  Required for any driver outputs to go high.
+ */
+void PIOS_ESC_Arm()
+{
+}
+
+/**
+ * @brief Take a step through the state chart of modes
+ */
+void PIOS_ESC_NextState() 
+{
+}
+
+/**
+ * @brief Sets the duty cycle of all PWM outputs
+ */
+void PIOS_ESC_SetDutyCycle(uint16_t duty_cycle)
+{
+}
 
 /**
  * @brief Set the ESC to the new state

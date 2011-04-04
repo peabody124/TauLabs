@@ -2,8 +2,8 @@
  ******************************************************************************
  * @addtogroup PIOS PIOS Core hardware abstraction layer
  * @{
- * @addtogroup PIOS_DELAY Delay Functions
- * @brief PiOS Delay functionality
+ * @addtogroup PIOS_ESC ESC Functions
+ * @brief PiOS ESC functionality
  * @{
  *
  * @file       pios_esc.h
@@ -32,9 +32,13 @@
 #ifndef PIOS_ESC_H
 #define PIOS_ESC_H
 
-typedef enum esc_bridge_mode {LOW_ON_PWM_HIGH = 0, LOW_ON_PWM_LOW = 1, LOW_ON_PWM_BOTH = 2, HIGH_ON_PWM_LOW = 3, HIGH_ON_PWM_HIGH = 4, HIGH_ON_PWM_BOTH = 5};
-typedef enum esc_state {ESC_STATE_AB = 0, ESC_STATE_AC = 1, ESC_STATE_BA = 2, ESC_STATE_BC = 3, ESC_STATE_CA = 4, ESC_STATE_CB = 5};
-void PIOS_ESC_SetState(esc_state new_state, uint16_t duty_cycle, esc_bridge_mode mode = 0);
+//TODO: Add ID to support multiple ESC outputs
+void PIOS_Init();
+void PIOS_ESC_Off();
+void PIOS_ESC_Arm();
+void PIOS_ESC_NextState();
+void PIOS_ESC_SetDutyCycle(uint16_t duty_cycle);
+void PIOS_ESC_SetState(uint8_t new_state, uint16_t duty_cycle, uint8_t mode = 0);
 
 #endif /* PIOS_DELAY_H */
 
