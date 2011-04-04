@@ -39,7 +39,7 @@ const struct pios_esc_cfg pios_esc_cfg = {
 	},
 	.tim_oc_init = {
 		.TIM_OCMode = TIM_OCMode_PWM1,
-		.TIM_OutputState = TIM_OutputState_Enable,
+		.TIM_OutputState = TIM_OutputState_Disable,
 		.TIM_OutputNState = TIM_OutputNState_Disable,
 		.TIM_Pulse = 0,		
 		.TIM_OCPolarity = TIM_OCPolarity_High,

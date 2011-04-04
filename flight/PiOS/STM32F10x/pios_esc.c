@@ -45,6 +45,8 @@ struct pios_esc_dev pios_esc_dev;
 #define LAST_STATE ESC_STATE_CB
 #define LAST_MODE  ESC_MODE_HIGH_ON_PWM_BOTH
 
+// TOOD: Add supervisor that times out and disarms
+
 /**
  * @brief Initialize the driver outputs for PWM mode.  Configure base timer rate.
  */
@@ -53,6 +55,108 @@ void PIOS_ESC_Init(const struct pios_esc_cfg * cfg)
 	pios_esc_dev.cfg = cfg;
 	PIOS_ESC_Off();
 	PIOS_ESC_SetMode(ESC_MODE_LOW_ON_PWM_HIGH);
+	
+	
+	for (uint8_t i = 0; i < 6; i++) {
+		GPIO_InitTypeDef GPIO_InitStructure = cfg->gpio_init;
+		TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure = cfg->tim_base_init;
+		TIM_OCInitTypeDef TIM_OCInitStructure = cfg->tim_oc_init;
+				
+		struct pios_gate_channel channel;
+		switch(i) {
+			case 1:
+				channel = cfg->phase_a_minus;
+				break;
+			case 2:
+				channel = cfg->phase_a_plus;
+				break;
+			case 3:
+				channel = cfg->phase_b_minus;
+				break;
+			case 4:
+				channel = cfg->phase_b_plus;
+				break;
+			case 5:
+				channel = cfg->phase_c_minus;
+				break;
+			case 6:
+				channel = cfg->phase_c_plus;
+				break;
+			default:
+				// Serious error
+				PIOS_ESC_Off();
+				return;
+		}
+		
+		/* Enable appropriate clock to timer module */
+		switch((int32_t) channel.timer) {
+			case (int32_t)TIM1:
+				RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM1, ENABLE);
+				break;
+			case (int32_t)TIM2:
+				RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);
+				break;
+			case (int32_t)TIM3:
+				RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM3, ENABLE);
+				break;
+			case (int32_t)TIM4:
+				RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM4, ENABLE);
+				break;
+			case (int32_t)TIM5:
+				RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM5, ENABLE);
+				break;
+			case (int32_t)TIM6:
+				RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM6, ENABLE);
+				break;
+			case (int32_t)TIM7:
+				RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM7, ENABLE);
+				break;
+			case (int32_t)TIM8:
+				RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM8, ENABLE);
+				break;
+		}
+		
+		/* Enable GPIO */
+		GPIO_InitStructure.GPIO_Pin = channel.pin;
+		GPIO_Init(channel.port, &GPIO_InitStructure);
+		
+		/* Enable time base */
+		TIM_TimeBaseInit(channel.timer,  &TIM_TimeBaseStructure);
+		
+		channel.timer->PSC = cfg->tim_base_init.TIM_Prescaler;
+		
+		/* Set up for output compare function */
+		switch(channel.channel) {
+			case TIM_Channel_1:
+				TIM_OC1Init(channel.timer, &TIM_OCInitStructure);
+				TIM_OC1PreloadConfig(channel.timer, TIM_OCPreload_Enable);
+				break;
+			case TIM_Channel_2:
+				TIM_OC2Init(channel.timer, &TIM_OCInitStructure);
+				TIM_OC2PreloadConfig(channel.timer, TIM_OCPreload_Enable);
+				break;
+			case TIM_Channel_3:
+				TIM_OC3Init(channel.timer, &TIM_OCInitStructure);
+				TIM_OC3PreloadConfig(channel.timer, TIM_OCPreload_Enable);
+				break;
+			case TIM_Channel_4:
+				TIM_OC4Init(channel.timer, &TIM_OCInitStructure);
+				TIM_OC4PreloadConfig(channel.timer, TIM_OCPreload_Enable);
+				break;
+		}
+		
+		RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
+		TIM_ARRPreloadConfig(channel.timer, ENABLE);
+		TIM_CtrlPWMOutputs(channel.timer, ENABLE);
+		TIM_Cmd(channel.timer, ENABLE);		
+		
+	}	
+	
+	if(cfg->remap) {
+		/* Warning, I don't think this will work for multiple remaps at once */
+		GPIO_PinRemapConfig(cfg->remap, ENABLE);
+	}
+	
 }
 
 /**
@@ -179,20 +283,20 @@ void PIOS_ESC_SetState(uint8_t new_state)
 		case ESC_MODE_HIGH_ON_PWM_LOW:
 			first_minus = ESC_GATE_MODE_OFF;
 			first_plus = ESC_GATE_MODE_ON;
-			second_minus = ESC_GATE_MODE_OFF;
-			second_plus = ESC_GATE_MODE_PWM;
+			second_minus = ESC_GATE_MODE_PWM;
+			second_plus = ESC_GATE_MODE_OFF;
 			break;
 		case ESC_MODE_HIGH_ON_PWM_HIGH:
 			first_minus = ESC_GATE_MODE_OFF;
 			first_plus = ESC_GATE_MODE_ON;
-			second_minus = ESC_GATE_MODE_PWM_INVERT;
-			second_plus = ESC_GATE_MODE_OFF;
+			second_minus = ESC_GATE_MODE_OFF;
+			second_plus = ESC_GATE_MODE_PWM_INVERT;
 			break;
 		case ESC_MODE_HIGH_ON_PWM_BOTH:
 			first_minus = ESC_GATE_MODE_OFF;
 			first_plus = ESC_GATE_MODE_ON;
-			second_minus = ESC_GATE_MODE_PWM_INVERT;
-			second_plus = ESC_GATE_MODE_PWM;
+			second_minus = ESC_GATE_MODE_PWM;
+			second_plus = ESC_GATE_MODE_PWM_INVERT;
 			break;
 		default: 
 			// Serious error
@@ -258,12 +362,60 @@ void PIOS_ESC_SetState(uint8_t new_state)
 }
 
 /**
- * @brief Update the outputs to the gates, taking into account armed state
+ * @brief Update a single gate output
+ */
+void PIOS_ESC_UpdateChannel(const struct pios_gate_channel * gate, uint8_t gate_mode) 
+{
+	
+	uint16_t duration = pios_esc_dev.duty_cycle;
+	uint8_t invert = false;
+	switch(gate_mode) {
+		case ESC_GATE_MODE_OFF:
+			duration = 0;
+			break;
+		case ESC_GATE_MODE_ON:
+			duration = 0xffff;
+			break;
+		case ESC_GATE_MODE_PWM_INVERT:
+			invert = true;
+		case ESC_GATE_MODE_PWM:
+			duration = pios_esc_dev.duty_cycle;
+			break;
+		default:
+			PIOS_ESC_Off();
+			return;
+	}	
+
+	// If disarmed set to zero
+	duration = pios_esc_dev.armed ? duration : 0;
+	
+	// TODO: Deal with when the output is inverted
+	switch(gate->channel) {
+		case TIM_Channel_1:
+			TIM_SetCompare1(gate->timer, 0);
+			break;
+		case TIM_Channel_2:
+			TIM_SetCompare2(gate->timer, 0);
+			break;
+		case TIM_Channel_3:
+			TIM_SetCompare3(gate->timer, 0);
+			break;
+		case TIM_Channel_4:
+			TIM_SetCompare4(gate->timer, 0);
+			break;								
+	}
+}
+/**
+ * @brief Update the outputs to the gates
  */
 static void PIOS_ESC_UpdateOutputs()
 {
-	
-	
+	PIOS_ESC_UpdateChannel(&pios_esc_dev.cfg->phase_a_minus, pios_esc_dev.phase_a_minus);
+	PIOS_ESC_UpdateChannel(&pios_esc_dev.cfg->phase_a_minus, pios_esc_dev.phase_a_plus);
+	PIOS_ESC_UpdateChannel(&pios_esc_dev.cfg->phase_b_minus, pios_esc_dev.phase_b_minus);
+	PIOS_ESC_UpdateChannel(&pios_esc_dev.cfg->phase_b_plus, pios_esc_dev.phase_b_plus);
+	PIOS_ESC_UpdateChannel(&pios_esc_dev.cfg->phase_c_minus, pios_esc_dev.phase_c_minus);
+	PIOS_ESC_UpdateChannel(&pios_esc_dev.cfg->phase_c_plus, pios_esc_dev.phase_c_plus);	
 }
 
 
