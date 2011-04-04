@@ -38,7 +38,7 @@ void PIOS_ESC_Off();
 void PIOS_ESC_Arm();
 void PIOS_ESC_NextState();
 void PIOS_ESC_SetDutyCycle(uint16_t duty_cycle);
-void PIOS_ESC_SetState(uint8_t new_state, uint16_t duty_cycle, uint8_t mode = 0);
+void PIOS_ESC_SetState(uint8_t new_state);
 
 #endif /* PIOS_DELAY_H */
 

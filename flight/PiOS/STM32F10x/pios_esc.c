@@ -32,26 +32,12 @@
 /* Project Includes */
 #include "pios.h"
 #include "pios_esc_priv.h"
+#include <stdbool.h>
 
 #if defined(PIOS_INCLUDE_ESC)
 
-/*
- 
- struct pios_esc_cfg {
- // PWM timer configuration
- // Pin mappings
- };
- 
- struct pios_esc_dev {
- const struct pios_esc_cfg *const cfg;	
- uint8_t state;
- uint8_t mode;
- uint8_t armed;
- };
- 
- extern struct pios_esc_dev pios_esc_devs[];
- extern uint8_t pios_esc_num_devices;
-*/
+//! Private functions
+static void PIOS_ESC_SetMode(uint8_t mode);
 
 
 /**
@@ -59,6 +45,8 @@
  */
 void PIOS_Init()
 {
+	PIOS_ESC_Off();
+	PIOS_ESC_SetMode(ESC_MODE_LOW_ON_PWM_HIGH);
 }
 
 /**
@@ -67,7 +55,8 @@ void PIOS_Init()
  */
 void PIOS_ESC_Off()
 {
-	//TOOD: Disarm
+	pios_esc_devs[0].armed = false;
+	PIOS_ESC_SetDutyCycle(0);
 }
 
 /**
@@ -75,6 +64,7 @@ void PIOS_ESC_Off()
  */
 void PIOS_ESC_Arm()
 {
+	pios_esc_devs[0].armed = true;
 }
 
 /**
@@ -82,6 +72,33 @@ void PIOS_ESC_Arm()
  */
 void PIOS_ESC_NextState() 
 {
+	uint8_t new_state;
+	
+	// Simple FSM
+	switch(pios_esc_devs[0].state) {
+		case ESC_STATE_AB:
+			new_state = ESC_STATE_CB;
+			break;
+		case ESC_STATE_AC:
+			new_state = ESC_STATE_AB;
+			break;
+		case ESC_STATE_BA:
+			new_state = ESC_STATE_BC;
+			break;
+		case ESC_STATE_BC:
+			new_state = ESC_STATE_AC;
+			break;
+		case ESC_STATE_CA:
+			new_state = ESC_STATE_BA;
+			break;
+		case ESC_STATE_CB:
+			new_state = ESC_STATE_CA;
+			break;
+		default: // should not happen
+			new_state = ESC_STATE_AB;
+	}
+			
+	PIOS_ESC_SetState(new_state);
 }
 
 /**
@@ -89,6 +106,17 @@ void PIOS_ESC_NextState()
  */
 void PIOS_ESC_SetDutyCycle(uint16_t duty_cycle)
 {
+	pios_esc_devs[0].duty_cycle = duty_cycle;
+	// TODO: Update the outputs accordingly
+}
+
+/**
+ * @brief Sets the duty cycle of all PWM outputs
+ */
+static void PIOS_ESC_SetMode(uint8_t mode)
+{
+	if(mode <= ESC_MODE_HIGH_ON_PWM_BOTH)
+		pios_esc_devs[0].mode = mode;
 }
 
 /**
@@ -98,7 +126,7 @@ void PIOS_ESC_SetDutyCycle(uint16_t duty_cycle)
  * @param[in] mode Allows selecting whether the high or low side is switched 
  * as well as active braking 
  */ 
-void PIOS_ESC_SetState(esc_state new_state, uint16_t duty_cycle, esc_bridge_mode mode = 0) 
+void PIOS_ESC_SetState(uint8_t new_state)
 {
 }
 

@@ -76,12 +76,23 @@ struct pios_esc_cfg {
 	// Pin mappings
 };
 
+#define ESC_GATE_MODE_OFF          0
+#define ESC_GATE_MODE_ON           1
+#define ESC_GATE_MODE_PWM          2
+#define ESC_GATE_MODE_PWM_INVERT   3
+
 struct pios_esc_dev {
 	const struct pios_esc_cfg *const cfg;	
 	uint8_t state;
 	uint8_t mode;
 	uint8_t armed;
 	uint16_t duty_cycle;
+	uint8_t phase_a_minus;
+	uint8_t phase_a_plus;
+	uint8_t phase_b_minus;
+	uint8_t phase_b_plus;
+	uint8_t phase_c_minus;
+	uint8_t phase_c_plus;
 };
 
 extern struct pios_esc_dev pios_esc_devs[];
