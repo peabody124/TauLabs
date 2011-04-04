@@ -100,18 +100,24 @@ TIM4  |  RC In 1  |  Servo 3  |  Servo 2  |  Servo 1
 //------------------------
 // PIOS_LED
 //------------------------
-#define PIOS_LED_LED1_GPIO_PORT			GPIOA
-#define PIOS_LED_LED1_GPIO_PIN			GPIO_Pin_6
-#define PIOS_LED_LED1_GPIO_CLK			RCC_APB2Periph_GPIOA
-#define PIOS_LED_NUM				1
-#define PIOS_LED_PORTS				{ PIOS_LED_LED1_GPIO_PORT }
-#define PIOS_LED_PINS				{ PIOS_LED_LED1_GPIO_PIN }
-#define PIOS_LED_CLKS				{ PIOS_LED_LED1_GPIO_CLK }
+#define PIOS_LED_LED1_GPIO_PORT			GPIOB
+#define PIOS_LED_LED1_GPIO_PIN			GPIO_Pin_12
+#define PIOS_LED_LED1_GPIO_CLK			RCC_APB2Periph_GPIOB
+#define PIOS_LED_LED2_GPIO_PORT			GPIOB
+#define PIOS_LED_LED2_GPIO_PIN			GPIO_Pin_13
+#define PIOS_LED_LED2_GPIO_CLK			RCC_APB2Periph_GPIOB
+#define PIOS_LED_LED3_GPIO_PORT			GPIOB
+#define PIOS_LED_LED3_GPIO_PIN			GPIO_Pin_14
+#define PIOS_LED_LED3_GPIO_CLK			RCC_APB2Periph_GPIOB
+#define PIOS_LED_NUM				3
+#define PIOS_LED_PORTS				{ PIOS_LED_LED1_GPIO_PORT, PIOS_LED_LED2_GPIO_PORT, PIOS_LED_LED3_GPIO_PORT }
+#define PIOS_LED_PINS				{ PIOS_LED_LED1_GPIO_PIN, PIOS_LED_LED2_GPIO_PIN, PIOS_LED_LED3_GPIO_PIN }
+#define PIOS_LED_CLKS				{ PIOS_LED_LED1_GPIO_CLK, PIOS_LED_LED2_GPIO_CLK, PIOS_LED_LED3_GPIO_CLK }
 
 //-------------------------
 // Delay Timer
 //-------------------------
-#define PIOS_DELAY_TIMER			TIM3
+#define PIOS_DELAY_TIMER			TIM4
 #define PIOS_DELAY_TIMER_RCC_FUNC		RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM3, ENABLE)
 
 //-------------------------

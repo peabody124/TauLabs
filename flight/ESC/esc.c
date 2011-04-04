@@ -30,12 +30,41 @@
 #include "fifo_buffer.h"
 
 
+/* Prototype of PIOS_Board_Init() function */
+extern void PIOS_Board_Init(void);
+
 /**
  * @brief ESC Main function
  */
 int main()
 {
-//	PIOS_Board_Init();
+	PIOS_Board_Init();
+	
+	PIOS_ESC_SetDutyCycle(10);
+	PIOS_ESC_Arm();
+	
+	uint8_t closed_loop = 0;
+	uint8_t step = 1;  // for testing leave at 1
+	uint8_t commutation_detected = 0;
+	
+	PIOS_LED_On(1);
+	while(1) {
+		
+		//Process analog data, detect commutation
+		commutation_detected = 0;
+		
+		if(closed_loop) {
+			// Update duty cycle and such 
+		} else {
+			// Run startup state machine
+		}
+		
+			
+		if(step) 
+			PIOS_ESC_NextState();
+
+		PIOS_DELAY_WaituS(1000);
+	}
 	return 0;
 }	
 
