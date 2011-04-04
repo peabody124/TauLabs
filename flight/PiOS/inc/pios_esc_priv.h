@@ -46,56 +46,52 @@
 #define ESC_STATE_CA              4
 #define ESC_STATE_CB              5
 
-//! Macros to determine if 100% driven leg is high or low
-#define ESC_LOW_ON(mode)  (mode == ESC_MODE_LOW_ON_PWM_HIGH || mode == ESC_MODE_LOW_ON_PWM_LOW || mode == ESC_MODE_LOW_ON_PWM_BOTH)
-#define ESC_HIGH_ON(mode)  (mode == ESC_MODE_HIGH_ON_PWM_LOW || mode == ESC_MODE_HIGH_ON_PWM_HIGH || mode == ESC_MODE_HIGH_ON_PWM_BOTH)
-
-//! Macros to determine if the high or low side (or both) should be PWM'd
-#define ESC_PWM_HIGH(mode) (mode == ESC_MODE_LOW_ON_PWM_HIGH || mode == ESC_MODE_HIGH_ON_PWM_HIGH \
-|| mode == ESC_MODE_LOW_ON_PWM_BOTH || mode == ESC_MODE_HIGH_ON_PWM_BOTH)
-#define ESC_PWM_LOW(mode) (mode == ESC_MODE_LOW_ON_PWM_LOW || mode == ESC_MODE_HIGH_ON_PWM_LOW \
-|| mode == ESC_MODE_LOW_ON_PWM_BOTH || mode == ESC_MODE_HIGH_ON_PWM_BOTH)
-
-//! Macros to determine if a leg is just driven on (100% duty cycle)
-#define ESC_A_STEADY(state) (state == ESC_STATE_AB || state == ESC_STATE_AC)
-#define ESC_B_STEADY(state) (state == ESC_STATE_BA || state == ESC_STATE_BC)
-#define ESC_C_STEADY(state) (state == ESC_STATE_CA || state == ESC_STATE_CB)
-
-//! Macros to determine if a leg is driven pwm
-#define ESC_A_PWM(state) (state == ESC_STATE_BA || state == ESC_STATE_CA)
-#define ESC_B_PWM(state) (state == ESC_STATE_AB || state == ESC_STATE_CB)
-#define ESC_C_PWM(state) (state == ESC_STATE_AC || state == ESC_STATE_BC)
-
-//! Macros to determine if a leg is not driven
-#define ESC_A_OFF(state) (state == ESC_STATE_BC || state == ESC_STATE_CB)
-#define ESC_B_OFF(state) (state == ESC_STATE_AC || state == ESC_STATE_CA)
-#define ESC_C_OFF(state) (state == ESC_STATE_AB || state == ESC_STATE_BA)
-
-struct pios_esc_cfg {
-	// PWM timer configuration
-	// Pin mappings
-};
+#define ESC_PHASE_A               1
+#define ESC_PHASE_B               2
+#define ESC_PHASE_C               3
 
 #define ESC_GATE_MODE_OFF          0
 #define ESC_GATE_MODE_ON           1
 #define ESC_GATE_MODE_PWM          2
 #define ESC_GATE_MODE_PWM_INVERT   3
 
-struct pios_esc_dev {
-	const struct pios_esc_cfg *const cfg;	
-	uint8_t state;
-	uint8_t mode;
-	uint8_t armed;
-	uint16_t duty_cycle;
-	uint8_t phase_a_minus;
-	uint8_t phase_a_plus;
-	uint8_t phase_b_minus;
-	uint8_t phase_b_plus;
-	uint8_t phase_c_minus;
-	uint8_t phase_c_plus;
+struct pios_gate_channel {
+	TIM_TypeDef * timer;
+	GPIO_TypeDef * port;
+	uint8_t channel;
+	uint16_t pin;
 };
 
-extern struct pios_esc_dev pios_esc_devs[];
-extern uint8_t pios_esc_num_devices;
+struct pios_esc_cfg {
+	TIM_TimeBaseInitTypeDef tim_base_init;
+	TIM_OCInitTypeDef tim_oc_init;
+	GPIO_InitTypeDef gpio_init;
+	uint32_t remap;
+	uint16_t pwm_base_rate;
+	struct pios_gate_channel phase_a_minus;
+	struct pios_gate_channel phase_a_plus;
+	struct pios_gate_channel phase_b_minus;
+	struct pios_gate_channel phase_b_plus;
+	struct pios_gate_channel phase_c_minus;
+	struct pios_gate_channel phase_c_plus;
+};
+
+struct pios_esc_dev {
+	const struct pios_esc_cfg * cfg;	
+	uint8_t state;
+	uint8_t mode;
+	volatile uint8_t armed;
+	volatile uint16_t duty_cycle;
+	volatile uint8_t phase_a_minus;
+	volatile uint8_t phase_a_plus;
+	volatile uint8_t phase_b_minus;
+	volatile uint8_t phase_b_plus;
+	volatile uint8_t phase_c_minus;
+	volatile uint8_t phase_c_plus;
+};
+
+extern struct pios_esc_dev pios_esc_dev;
+
+void PIOS_ESC_Init(const struct pios_esc_cfg * cfg);
 
 #endif

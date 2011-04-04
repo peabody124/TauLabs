@@ -33,7 +33,6 @@
 #define PIOS_ESC_H
 
 //TODO: Add ID to support multiple ESC outputs
-void PIOS_Init();
 void PIOS_ESC_Off();
 void PIOS_ESC_Arm();
 void PIOS_ESC_NextState();

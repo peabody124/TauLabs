@@ -38,13 +38,19 @@
 
 //! Private functions
 static void PIOS_ESC_SetMode(uint8_t mode);
+static void PIOS_ESC_UpdateOutputs();
 
+struct pios_esc_dev pios_esc_dev;
+
+#define LAST_STATE ESC_STATE_CB
+#define LAST_MODE  ESC_MODE_HIGH_ON_PWM_BOTH
 
 /**
  * @brief Initialize the driver outputs for PWM mode.  Configure base timer rate.
  */
-void PIOS_Init()
+void PIOS_ESC_Init(const struct pios_esc_cfg * cfg)
 {
+	pios_esc_dev.cfg = cfg;
 	PIOS_ESC_Off();
 	PIOS_ESC_SetMode(ESC_MODE_LOW_ON_PWM_HIGH);
 }
@@ -55,8 +61,9 @@ void PIOS_Init()
  */
 void PIOS_ESC_Off()
 {
-	pios_esc_devs[0].armed = false;
+	pios_esc_dev.armed = false;
 	PIOS_ESC_SetDutyCycle(0);
+	PIOS_ESC_UpdateOutputs();
 }
 
 /**
@@ -64,7 +71,7 @@ void PIOS_ESC_Off()
  */
 void PIOS_ESC_Arm()
 {
-	pios_esc_devs[0].armed = true;
+	pios_esc_dev.armed = true;
 }
 
 /**
@@ -75,7 +82,7 @@ void PIOS_ESC_NextState()
 	uint8_t new_state;
 	
 	// Simple FSM
-	switch(pios_esc_devs[0].state) {
+	switch(pios_esc_dev.state) {
 		case ESC_STATE_AB:
 			new_state = ESC_STATE_CB;
 			break;
@@ -106,17 +113,21 @@ void PIOS_ESC_NextState()
  */
 void PIOS_ESC_SetDutyCycle(uint16_t duty_cycle)
 {
-	pios_esc_devs[0].duty_cycle = duty_cycle;
+	pios_esc_dev.duty_cycle = duty_cycle;
 	// TODO: Update the outputs accordingly
 }
 
 /**
- * @brief Sets the duty cycle of all PWM outputs
+ * @brief Sets the driver mode (which is PWM, etc)
  */
 static void PIOS_ESC_SetMode(uint8_t mode)
 {
-	if(mode <= ESC_MODE_HIGH_ON_PWM_BOTH)
-		pios_esc_devs[0].mode = mode;
+	if(mode > LAST_MODE) {
+		PIOS_ESC_Off();
+		return;
+	}
+	
+	pios_esc_dev.mode = mode;
 }
 
 /**
@@ -128,6 +139,132 @@ static void PIOS_ESC_SetMode(uint8_t mode)
  */ 
 void PIOS_ESC_SetState(uint8_t new_state)
 {
+	// This would reflect a very serious error in the logic
+	if(new_state > LAST_STATE) {
+		PIOS_ESC_Off();
+		return;
+	}
+	
+	pios_esc_dev.state = new_state;
+	
+	uint8_t first_minus;
+	uint8_t first_plus;
+	uint8_t second_minus;
+	uint8_t second_plus;
+	
+	// All this logic can be made more efficient but for now making 
+	// it intuitive
+	
+	// Based on the mode determine which gates are switching and which
+	// are permanently on
+	switch(pios_esc_dev.mode) {
+		case ESC_MODE_LOW_ON_PWM_HIGH:
+			first_minus = ESC_GATE_MODE_ON;
+			first_plus = ESC_GATE_MODE_OFF;
+			second_minus = ESC_GATE_MODE_OFF;
+			second_plus = ESC_GATE_MODE_PWM;
+			break;
+		case ESC_MODE_LOW_ON_PWM_LOW:
+			first_minus = ESC_GATE_MODE_ON;
+			first_plus = ESC_GATE_MODE_OFF;
+			second_minus = ESC_GATE_MODE_PWM_INVERT;
+			second_plus = ESC_GATE_MODE_OFF;
+			break;
+		case ESC_MODE_LOW_ON_PWM_BOTH:
+			first_minus = ESC_GATE_MODE_ON;
+			first_plus = ESC_GATE_MODE_OFF;
+			second_minus = ESC_GATE_MODE_PWM_INVERT;
+			second_plus = ESC_GATE_MODE_PWM;
+			break;
+		case ESC_MODE_HIGH_ON_PWM_LOW:
+			first_minus = ESC_GATE_MODE_OFF;
+			first_plus = ESC_GATE_MODE_ON;
+			second_minus = ESC_GATE_MODE_OFF;
+			second_plus = ESC_GATE_MODE_PWM;
+			break;
+		case ESC_MODE_HIGH_ON_PWM_HIGH:
+			first_minus = ESC_GATE_MODE_OFF;
+			first_plus = ESC_GATE_MODE_ON;
+			second_minus = ESC_GATE_MODE_PWM_INVERT;
+			second_plus = ESC_GATE_MODE_OFF;
+			break;
+		case ESC_MODE_HIGH_ON_PWM_BOTH:
+			first_minus = ESC_GATE_MODE_OFF;
+			first_plus = ESC_GATE_MODE_ON;
+			second_minus = ESC_GATE_MODE_PWM_INVERT;
+			second_plus = ESC_GATE_MODE_PWM;
+			break;
+		default: 
+			// Serious error
+			PIOS_ESC_Off();
+			return;
+	}
+
+	// Based on state map those gate modes to the right gates
+	switch(pios_esc_dev.state) {
+		case ESC_STATE_AB:
+			pios_esc_dev.phase_a_minus = first_minus;
+			pios_esc_dev.phase_a_plus = first_plus;			
+			pios_esc_dev.phase_b_minus = second_minus;
+			pios_esc_dev.phase_b_plus = second_plus;			
+			pios_esc_dev.phase_c_minus = ESC_GATE_MODE_OFF;
+			pios_esc_dev.phase_c_plus = ESC_GATE_MODE_OFF;
+			break;
+		case ESC_STATE_AC:
+			pios_esc_dev.phase_a_minus = first_minus;
+			pios_esc_dev.phase_a_plus = first_plus;
+			pios_esc_dev.phase_b_minus = ESC_GATE_MODE_OFF;
+			pios_esc_dev.phase_b_plus = ESC_GATE_MODE_OFF;			
+			pios_esc_dev.phase_c_minus = second_minus;
+			pios_esc_dev.phase_c_plus = second_plus;			
+			break;
+		case ESC_STATE_BA:
+			pios_esc_dev.phase_a_minus = second_minus;
+			pios_esc_dev.phase_a_plus = second_plus;			
+			pios_esc_dev.phase_b_minus = first_minus;
+			pios_esc_dev.phase_b_plus = first_plus;
+			pios_esc_dev.phase_c_minus = ESC_GATE_MODE_OFF;
+			pios_esc_dev.phase_c_plus = ESC_GATE_MODE_OFF;			
+			break;
+		case ESC_STATE_BC:
+			pios_esc_dev.phase_a_minus = ESC_GATE_MODE_OFF;
+			pios_esc_dev.phase_a_plus = ESC_GATE_MODE_OFF;			
+			pios_esc_dev.phase_b_minus = first_minus;
+			pios_esc_dev.phase_b_plus = first_plus;
+			pios_esc_dev.phase_c_minus = second_minus;
+			pios_esc_dev.phase_c_plus = second_plus;			
+			break;
+		case ESC_STATE_CA:
+			pios_esc_dev.phase_a_minus = second_minus;
+			pios_esc_dev.phase_a_plus = second_plus;			
+			pios_esc_dev.phase_b_minus = ESC_GATE_MODE_OFF;
+			pios_esc_dev.phase_b_plus = ESC_GATE_MODE_OFF;			
+			pios_esc_dev.phase_c_minus = first_minus;
+			pios_esc_dev.phase_c_plus = first_plus;
+			break;
+		case ESC_STATE_CB:
+			pios_esc_dev.phase_a_minus = ESC_GATE_MODE_OFF;
+			pios_esc_dev.phase_a_plus = ESC_GATE_MODE_OFF;			
+			pios_esc_dev.phase_b_minus = second_minus;
+			pios_esc_dev.phase_b_plus = second_plus;			
+			pios_esc_dev.phase_c_minus = first_minus;
+			pios_esc_dev.phase_c_plus = first_plus;
+			break;
+		default:
+			// Serious error
+			PIOS_ESC_Off();
+			return;			
+	}
 }
+
+/**
+ * @brief Update the outputs to the gates, taking into account armed state
+ */
+static void PIOS_ESC_UpdateOutputs()
+{
+	
+	
+}
+
 
 #endif
