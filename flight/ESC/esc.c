@@ -68,4 +68,12 @@ int main()
 	return 0;
 }	
 
+/*
+ Notes:
+ 1. For start up, definitely want to use complimentary PWM to ground the lower side, making zero crossing truly "zero"
+ 2. May want to use the "middle" sensor to actually pull it up, so that zero is above zero (in ADC range).  Should still 
+    see BEMF at -0.7 (capped by transistor range) relative to that point (divided down by whatever)
+ 3. Possibly use an inadequate voltage divider plus use the TVS cap to keep the part of the signal near zero clean
+ */
+
 

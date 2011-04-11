@@ -206,7 +206,8 @@ void PIOS_ESC_NextState()
 			new_state = ESC_STATE_CA;
 			break;
 		default: // should not happen
-			new_state = ESC_STATE_AB;
+			PIOS_ESC_Off();
+			return;
 	}
 			
 	PIOS_ESC_SetState(new_state);
