@@ -33,29 +33,36 @@
 /* Prototype of PIOS_Board_Init() function */
 extern void PIOS_Board_Init(void);
 
+void adc_callback(float * buffer);
+
+#define DOWNSAMPLING 5
+
 /**
  * @brief ESC Main function
  */
 int main()
 {
 	PIOS_Board_Init();
+	
+	PIOS_ADC_Config(DOWNSAMPLING);
+	PIOS_ADC_SetCallback(adc_callback); 
 
-	PIOS_ESC_SetDutyCycle(0.3);
+	PIOS_ESC_SetDutyCycle(0.12);
+	//PIOS_ESC_SetMode(ESC_MODE_LOW_ON_PWM_BOTH);
 	PIOS_ESC_Arm();
 
 	uint8_t closed_loop = 0;
 	uint8_t step = 1;  // for testing leave at 1
 	uint8_t commutation_detected = 0;
 	
-	uint32_t count = 0;
-
 	PIOS_LED_Off(LED1);
 	PIOS_LED_On(LED2);
 	PIOS_LED_On(LED3);
 	
-	uint32_t div = 15000;
+	int32_t delay = 5000;
+	uint16_t next = PIOS_DELAY_GetuS() + delay;
+	
 	while(1) {
-		
 		//Process analog data, detect commutation
 		commutation_detected = 0;
 		
@@ -66,24 +73,39 @@ int main()
 		}
 		
 			
-
-		count++;
-		if((count % div) == 0) {
-			PIOS_LED_Toggle(LED1);
-			PIOS_LED_Toggle(LED2);
+		if(PIOS_DELAY_DiffuS(next) > 0) {
+			
+			next += delay;
+		
 			PIOS_LED_Toggle(LED3);
-			div--;
-			if(div < 9000)
-				div = 9000;
+
+			if( delay > 980)  {
+				delay --;
+			} else {
+				PIOS_ESC_Off();
+				while(1);
+			}
+			
 			if(step) 
 				PIOS_ESC_NextState();
 		}			
-		//PIOS_DELAY_WaituS(1000);
 		
 	}
 	return 0;
 }	
 
+void adc_callback(float * buffer) 
+{
+	static uint8_t count = 0;
+	uint8_t buf[4 + DOWNSAMPLING * 4 * 2];
+	buf[0] = 0x00; // syncing bytes
+	buf[1] = 0xff;
+	buf[2] = 0xc3;
+	buf[3] = count++;
+	memcpy((uint8_t *) PIOS_ADC_GetRawBuffer(), &buf[4], DOWNSAMPLING * 4 * 2);
+	
+	PIOS_COM_SendBufferNonBlocking(PIOS_COM_DEBUG, buf, sizeof(buf));
+}
 /*
  Notes:
  1. For start up, definitely want to use complimentary PWM to ground the lower side, making zero crossing truly "zero"

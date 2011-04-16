@@ -31,10 +31,10 @@ const struct pios_esc_cfg pios_esc_cfg = {
 	.tim_base_init = {
 		// Note not the same prescalar as servo
 		// This is 72e6 or 24e6 / 10e6 to give a 0.1 us resolution
-		.TIM_Prescaler = (PIOS_MASTER_CLOCK / 10e6) - 1,
+		.TIM_Prescaler = (PIOS_MASTER_CLOCK / 24e6) - 1,
 		.TIM_ClockDivision = TIM_CKD_DIV1,
 		.TIM_CounterMode = TIM_CounterMode_Up,
-		.TIM_Period = ((10e6 / ESC_DEFAULT_PWM_RATE) - 1),
+		.TIM_Period = ((24e6 / ESC_DEFAULT_PWM_RATE) - 1),
 		.TIM_RepetitionCounter = 0x0000,
 	},
 	.tim_oc_init = {
@@ -149,7 +149,7 @@ void PIOS_ADC_handler() {
 #include <pios_usart_priv.h>
 
 /*
- * AUX USART
+ * DEBUG USART
  */
 void PIOS_USART_debug_irq_handler(void);
 void USART1_IRQHandler()
@@ -157,19 +157,18 @@ void USART1_IRQHandler()
 const struct pios_usart_cfg pios_usart_debug_cfg = {
 	.regs = USART1,
 	.init = {
-		 .USART_BaudRate = 57600,
+		 .USART_BaudRate = 230400,
 		 .USART_WordLength = USART_WordLength_8b,
 		 .USART_Parity = USART_Parity_No,
 		 .USART_StopBits = USART_StopBits_1,
-		 .USART_HardwareFlowControl =
-		 USART_HardwareFlowControl_None,
+		 .USART_HardwareFlowControl = USART_HardwareFlowControl_None,
 		 .USART_Mode = USART_Mode_Rx | USART_Mode_Tx,
 		 },
 	.irq = {
 		.handler = PIOS_USART_debug_irq_handler,
 		.init = {
 			 .NVIC_IRQChannel = USART1_IRQn,
-			 .NVIC_IRQChannelPreemptionPriority = PIOS_IRQ_PRIO_HIGH,
+			 .NVIC_IRQChannelPreemptionPriority = PIOS_IRQ_PRIO_MID,
 			 .NVIC_IRQChannelSubPriority = 0,
 			 .NVIC_IRQChannelCmd = ENABLE,
 			 },
@@ -177,7 +176,7 @@ const struct pios_usart_cfg pios_usart_debug_cfg = {
 	.rx = {
 	       .gpio = GPIOA,
 	       .init = {
-			.GPIO_Pin = GPIO_Pin_11,
+			.GPIO_Pin = GPIO_Pin_10,
 			.GPIO_Speed = GPIO_Speed_2MHz,
 			.GPIO_Mode = GPIO_Mode_IPU,
 			},
@@ -185,7 +184,7 @@ const struct pios_usart_cfg pios_usart_debug_cfg = {
 	.tx = {
 	       .gpio = GPIOA,
 	       .init = {
-			.GPIO_Pin = GPIO_Pin_10,
+			.GPIO_Pin = GPIO_Pin_9,
 			.GPIO_Speed = GPIO_Speed_2MHz,
 			.GPIO_Mode = GPIO_Mode_AF_PP,
 			},
@@ -306,6 +305,10 @@ void PIOS_Board_Init(void) {
 
 	/* Delay system */
 	PIOS_DELAY_Init();
+	
+	/* Bring up ADC for sensing BEMF */
+	PIOS_ADC_Init();
+	PIOS_ADC_Config(5);
 	
 	/* Remap AFIO pin */
 	GPIO_PinRemapConfig( GPIO_Remap_SWJ_NoJTRST, ENABLE);
