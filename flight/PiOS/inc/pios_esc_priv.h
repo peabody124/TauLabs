@@ -31,29 +31,23 @@
 
 #ifndef PIOS_ESC_PRIV_H
 #define PIOS_ESC_PRIV_H
+#include "pios_esc.h"
 
-#define ESC_MODE_LOW_ON_PWM_HIGH  0
-#define ESC_MODE_LOW_ON_PWM_LOW   1
-#define ESC_MODE_LOW_ON_PWM_BOTH  2
-#define ESC_MODE_HIGH_ON_PWM_LOW  3
-#define ESC_MODE_HIGH_ON_PWM_HIGH 4
-#define ESC_MODE_HIGH_ON_PWM_BOTH 5
+enum pios_esc_state {ESC_STATE_AB = 0,
+	ESC_STATE_AC,
+	ESC_STATE_BA,
+	ESC_STATE_BC,
+	ESC_STATE_CA,
+	ESC_STATE_CB};
 
-#define ESC_STATE_AB              0
-#define ESC_STATE_AC              1
-#define ESC_STATE_BA              2
-#define ESC_STATE_BC              3
-#define ESC_STATE_CA              4
-#define ESC_STATE_CB              5
+enum pios_esc_gate_mode {ESC_GATE_MODE_OFF = 0,
+	ESC_GATE_MODE_ON,
+	ESC_GATE_MODE_PWM,
+	ESC_GATE_MODE_PWM_INVERT};
 
 #define ESC_PHASE_A               1
 #define ESC_PHASE_B               2
 #define ESC_PHASE_C               3
-
-#define ESC_GATE_MODE_OFF          0
-#define ESC_GATE_MODE_ON           1
-#define ESC_GATE_MODE_PWM          2
-#define ESC_GATE_MODE_PWM_INVERT   3
 
 struct pios_gate_channel {
 	TIM_TypeDef * timer;
@@ -78,16 +72,16 @@ struct pios_esc_cfg {
 
 struct pios_esc_dev {
 	const struct pios_esc_cfg * cfg;	
-	uint8_t state;
-	uint8_t mode;
+	enum pios_esc_state state;
+	enum pios_esc_mode mode;
 	volatile uint8_t armed;
 	volatile uint16_t duty_cycle;
-	volatile uint8_t phase_a_minus;
-	volatile uint8_t phase_a_plus;
-	volatile uint8_t phase_b_minus;
-	volatile uint8_t phase_b_plus;
-	volatile uint8_t phase_c_minus;
-	volatile uint8_t phase_c_plus;
+	volatile enum pios_esc_gate_mode phase_a_minus;
+	volatile enum pios_esc_gate_mode phase_a_plus;
+	volatile enum pios_esc_gate_mode phase_b_minus;
+	volatile enum pios_esc_gate_mode phase_b_plus;
+	volatile enum pios_esc_gate_mode phase_c_minus;
+	volatile enum pios_esc_gate_mode phase_c_plus;
 };
 
 extern struct pios_esc_dev pios_esc_dev;

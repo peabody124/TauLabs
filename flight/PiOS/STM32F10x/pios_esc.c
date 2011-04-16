@@ -37,8 +37,8 @@
 #if defined(PIOS_INCLUDE_ESC)
 
 //! Private functions
-static void PIOS_ESC_SetMode(uint8_t mode);
 static void PIOS_ESC_UpdateOutputs();
+static void PIOS_ESC_UpdateChannel(const struct pios_gate_channel * gate, uint8_t gate_mode);
 
 struct pios_esc_dev pios_esc_dev;
 
@@ -229,7 +229,7 @@ void PIOS_ESC_SetDutyCycle(float duty_cycle)
 /**
  * @brief Sets the driver mode (which is PWM, etc)
  */
-static void PIOS_ESC_SetMode(uint8_t mode)
+void PIOS_ESC_SetMode(enum pios_esc_mode mode)
 {
 	if(mode > LAST_MODE) {
 		PIOS_ESC_Off();
@@ -371,7 +371,7 @@ void PIOS_ESC_SetState(uint8_t new_state)
 /**
  * @brief Update a single gate output
  */
-void PIOS_ESC_UpdateChannel(const struct pios_gate_channel * gate, uint8_t gate_mode) 
+static void PIOS_ESC_UpdateChannel(const struct pios_gate_channel * gate, uint8_t gate_mode) 
 {
 	
 	uint16_t duration = pios_esc_dev.duty_cycle;
