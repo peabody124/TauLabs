@@ -39,15 +39,21 @@ extern void PIOS_Board_Init(void);
 int main()
 {
 	PIOS_Board_Init();
-	
-	PIOS_ESC_SetDutyCycle(10);
+
+	PIOS_ESC_SetDutyCycle(0.3);
 	PIOS_ESC_Arm();
-	
+
 	uint8_t closed_loop = 0;
 	uint8_t step = 1;  // for testing leave at 1
 	uint8_t commutation_detected = 0;
 	
-	PIOS_LED_On(1);
+	uint32_t count = 0;
+
+	PIOS_LED_Off(LED1);
+	PIOS_LED_On(LED2);
+	PIOS_LED_On(LED3);
+	
+	uint32_t div = 15000;
 	while(1) {
 		
 		//Process analog data, detect commutation
@@ -60,10 +66,20 @@ int main()
 		}
 		
 			
-		if(step) 
-			PIOS_ESC_NextState();
 
-		PIOS_DELAY_WaituS(1000);
+		count++;
+		if((count % div) == 0) {
+			PIOS_LED_Toggle(LED1);
+			PIOS_LED_Toggle(LED2);
+			PIOS_LED_Toggle(LED3);
+			div--;
+			if(div < 9000)
+				div = 9000;
+			if(step) 
+				PIOS_ESC_NextState();
+		}			
+		//PIOS_DELAY_WaituS(1000);
+		
 	}
 	return 0;
 }	

@@ -64,22 +64,22 @@ void PIOS_ESC_Init(const struct pios_esc_cfg * cfg)
 				
 		struct pios_gate_channel channel;
 		switch(i) {
-			case 1:
+			case 0:
 				channel = cfg->phase_a_minus;
 				break;
-			case 2:
+			case 1:
 				channel = cfg->phase_a_plus;
 				break;
-			case 3:
+			case 2:
 				channel = cfg->phase_b_minus;
 				break;
-			case 4:
+			case 3:
 				channel = cfg->phase_b_plus;
 				break;
-			case 5:
+			case 4:
 				channel = cfg->phase_c_minus;
 				break;
-			case 6:
+			case 5:
 				channel = cfg->phase_c_plus;
 				break;
 			default:
@@ -216,10 +216,14 @@ void PIOS_ESC_NextState()
 /**
  * @brief Sets the duty cycle of all PWM outputs
  */
-void PIOS_ESC_SetDutyCycle(uint16_t duty_cycle)
+void PIOS_ESC_SetDutyCycle(float duty_cycle)
 {
-	pios_esc_dev.duty_cycle = duty_cycle;
-	// TODO: Update the outputs accordingly
+	if(duty_cycle < 0 || duty_cycle > 1) {
+		PIOS_ESC_Off();
+		return;
+	}
+		
+	pios_esc_dev.duty_cycle = pios_esc_dev.cfg->tim_base_init.TIM_Period * duty_cycle;
 }
 
 /**
@@ -360,6 +364,8 @@ void PIOS_ESC_SetState(uint8_t new_state)
 			PIOS_ESC_Off();
 			return;			
 	}
+	
+	PIOS_ESC_UpdateOutputs();
 }
 
 /**
@@ -393,16 +399,16 @@ void PIOS_ESC_UpdateChannel(const struct pios_gate_channel * gate, uint8_t gate_
 	// TODO: Deal with when the output is inverted
 	switch(gate->channel) {
 		case TIM_Channel_1:
-			TIM_SetCompare1(gate->timer, 0);
+			TIM_SetCompare1(gate->timer, duration);
 			break;
 		case TIM_Channel_2:
-			TIM_SetCompare2(gate->timer, 0);
+			TIM_SetCompare2(gate->timer, duration);
 			break;
 		case TIM_Channel_3:
-			TIM_SetCompare3(gate->timer, 0);
+			TIM_SetCompare3(gate->timer, duration);
 			break;
 		case TIM_Channel_4:
-			TIM_SetCompare4(gate->timer, 0);
+			TIM_SetCompare4(gate->timer, duration);
 			break;								
 	}
 }
@@ -412,7 +418,7 @@ void PIOS_ESC_UpdateChannel(const struct pios_gate_channel * gate, uint8_t gate_
 static void PIOS_ESC_UpdateOutputs()
 {
 	PIOS_ESC_UpdateChannel(&pios_esc_dev.cfg->phase_a_minus, pios_esc_dev.phase_a_minus);
-	PIOS_ESC_UpdateChannel(&pios_esc_dev.cfg->phase_a_minus, pios_esc_dev.phase_a_plus);
+	PIOS_ESC_UpdateChannel(&pios_esc_dev.cfg->phase_a_plus, pios_esc_dev.phase_a_plus);
 	PIOS_ESC_UpdateChannel(&pios_esc_dev.cfg->phase_b_minus, pios_esc_dev.phase_b_minus);
 	PIOS_ESC_UpdateChannel(&pios_esc_dev.cfg->phase_b_plus, pios_esc_dev.phase_b_plus);
 	PIOS_ESC_UpdateChannel(&pios_esc_dev.cfg->phase_c_minus, pios_esc_dev.phase_c_minus);

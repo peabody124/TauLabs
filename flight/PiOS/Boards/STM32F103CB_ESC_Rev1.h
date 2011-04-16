@@ -170,24 +170,10 @@ extern uint32_t pios_i2c_main_adapter_id;
 #define PIOS_COM_MAX_DEVS			4
 
 #define PIOS_COM_TELEM_BAUDRATE         57600
-extern uint32_t pios_com_telem_rf_id;
-#define PIOS_COM_TELEM_RF               (pios_com_telem_rf_id)
+extern uint32_t pios_com_debug_id;
+#define PIOS_COM_TELEM_RF               (pios_com_debug_id)
 #define PIOS_COM_DEBUG                  PIOS_COM_TELEM_RF
 
-#if defined(PIOS_INCLUDE_GPS)
-#define PIOS_COM_GPS_BAUDRATE           57600
-extern uint32_t pios_com_gps_id;
-#define PIOS_COM_GPS                    (pios_com_gps_id)
-#endif	/* PIOS_INCLUDE_GPS */
-
-extern uint32_t pios_com_telem_usb_id;
-#define PIOS_COM_TELEM_USB              (pios_com_telem_usb_id)
-
-#ifdef PIOS_INCLUDE_SPEKTRUM
-#define PIOS_COM_SPEKTRUM_BAUDRATE      115200
-extern uint32_t pios_com_spektrum_id;
-#define PIOS_COM_SPEKTRUM               (pios_com_spektrum_id)
-#endif
 
 //-------------------------
 // ADC
@@ -279,11 +265,5 @@ extern uint32_t pios_com_spektrum_id;
 //-------------------------
 // USB
 //-------------------------
-#define PIOS_USB_ENABLED                        1
-#define PIOS_USB_DETECT_GPIO_PORT               GPIOC
-#define PIOS_USB_DETECT_GPIO_PIN                GPIO_Pin_15
-#define PIOS_USB_DETECT_EXTI_LINE               EXTI_Line15
-#define PIOS_IRQ_USB_PRIORITY                   PIOS_IRQ_PRIO_MID
-#define PIOS_USB_RX_BUFFER_SIZE                 128
-#define PIOS_USB_TX_BUFFER_SIZE                 128
+#define PIOS_USB_ENABLED                        0
 #endif /* STM32103CB_AHRS_H_ */

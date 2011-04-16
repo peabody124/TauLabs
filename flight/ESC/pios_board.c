@@ -39,7 +39,7 @@ const struct pios_esc_cfg pios_esc_cfg = {
 	},
 	.tim_oc_init = {
 		.TIM_OCMode = TIM_OCMode_PWM1,
-		.TIM_OutputState = TIM_OutputState_Disable,
+		.TIM_OutputState = TIM_OutputState_Enable,
 		.TIM_OutputNState = TIM_OutputNState_Disable,
 		.TIM_Pulse = 0,		
 		.TIM_OCPolarity = TIM_OCPolarity_High,
@@ -300,22 +300,24 @@ void PIOS_Board_Init(void) {
 	/* Brings up System using CMSIS functions, enables the LEDs. */
 	PIOS_SYS_Init();
 
-	PIOS_LED_On(LED1);
+	PIOS_LED_Off(LED1);
+	PIOS_LED_Off(LED2);
+	PIOS_LED_Off(LED3);
 
 	/* Delay system */
 	PIOS_DELAY_Init();
 	
+	/* Remap AFIO pin */
+	GPIO_PinRemapConfig( GPIO_Remap_SWJ_NoJTRST, ENABLE);
 	PIOS_ESC_Init(&pios_esc_cfg);
 
 	/* Communication system */
-#if defined(PIOS_INCLUDE_COM)
 	if (PIOS_USART_Init(&pios_usart_debug_id, &pios_usart_debug_cfg)) {
 		PIOS_DEBUG_Assert(0);
 	}
 	if (PIOS_COM_Init(&pios_com_debug_id, &pios_usart_com_driver, pios_usart_debug_id)) {
 		PIOS_DEBUG_Assert(0);
 	}
-#endif	/* PIOS_INCLUDE_COM */
 
 	/* ADC system */
 }
