@@ -39,12 +39,20 @@ enum pios_esc_mode {ESC_MODE_LOW_ON_PWM_HIGH = 0,
 	ESC_MODE_HIGH_ON_PWM_HIGH,
 	ESC_MODE_HIGH_ON_PWM_BOTH};
 
+enum pios_esc_state {ESC_STATE_AB = 0,
+	ESC_STATE_AC,
+	ESC_STATE_BA,
+	ESC_STATE_BC,
+	ESC_STATE_CA,
+	ESC_STATE_CB};
 
 //TODO: Add ID to support multiple ESC outputs
 void PIOS_ESC_Off();
 void PIOS_ESC_Arm();
 void PIOS_ESC_NextState();
+enum pios_esc_state PIOS_ESC_GetState();
 void PIOS_ESC_SetMode(enum pios_esc_mode mode);
+enum pios_esc_mode PIOS_ESC_GetMode();
 void PIOS_ESC_SetDutyCycle(float duty_cycle);
 void PIOS_ESC_SetState(uint8_t new_state);
 

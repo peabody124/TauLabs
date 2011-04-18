@@ -33,13 +33,6 @@
 #define PIOS_ESC_PRIV_H
 #include "pios_esc.h"
 
-enum pios_esc_state {ESC_STATE_AB = 0,
-	ESC_STATE_AC,
-	ESC_STATE_BA,
-	ESC_STATE_BC,
-	ESC_STATE_CA,
-	ESC_STATE_CB};
-
 enum pios_esc_gate_mode {ESC_GATE_MODE_OFF = 0,
 	ESC_GATE_MODE_ON,
 	ESC_GATE_MODE_PWM,

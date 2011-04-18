@@ -179,11 +179,20 @@ void PIOS_ESC_Arm()
 }
 
 /**
+ * @brief Get the ESC mode state
+ * @returns ESC driver state
+ */
+enum pios_esc_state PIOS_ESC_GetState()
+{
+	return pios_esc_dev.state;
+}
+
+/**
  * @brief Take a step through the state chart of modes
  */
 void PIOS_ESC_NextState() 
 {
-	uint8_t new_state;
+	enum pios_esc_state new_state;
 	
 	// Simple FSM
 	switch(pios_esc_dev.state) {
@@ -237,6 +246,14 @@ void PIOS_ESC_SetMode(enum pios_esc_mode mode)
 	}
 	
 	pios_esc_dev.mode = mode;
+}
+
+/**
+ * @brief Return the current driver mode
+ */
+enum pios_esc_mode PIOS_ESC_GetMode() 
+{
+	return pios_esc_dev.mode;
 }
 
 /**
@@ -385,6 +402,8 @@ static void PIOS_ESC_UpdateChannel(const struct pios_gate_channel * gate, uint8_
 			break;
 		case ESC_GATE_MODE_PWM_INVERT:
 			invert = true;
+			duration = pios_esc_dev.duty_cycle + 1;
+			break;
 		case ESC_GATE_MODE_PWM:
 			duration = pios_esc_dev.duty_cycle;
 			break;
@@ -395,20 +414,25 @@ static void PIOS_ESC_UpdateChannel(const struct pios_gate_channel * gate, uint8_
 
 	// If disarmed set to zero
 	duration = pios_esc_dev.armed ? duration : 0;
-	
+	invert = pios_esc_dev.armed ? invert : false;
+
 	// TODO: Deal with when the output is inverted
 	switch(gate->channel) {
 		case TIM_Channel_1:
 			TIM_SetCompare1(gate->timer, duration);
+			TIM_OC1PolarityConfig(gate->timer, invert ? TIM_OCPolarity_Low : TIM_OCPolarity_High);
 			break;
 		case TIM_Channel_2:
 			TIM_SetCompare2(gate->timer, duration);
+			TIM_OC2PolarityConfig(gate->timer, invert ? TIM_OCPolarity_Low : TIM_OCPolarity_High);
 			break;
 		case TIM_Channel_3:
 			TIM_SetCompare3(gate->timer, duration);
+			TIM_OC3PolarityConfig(gate->timer, invert ? TIM_OCPolarity_Low : TIM_OCPolarity_High);
 			break;
 		case TIM_Channel_4:
 			TIM_SetCompare4(gate->timer, duration);
+			TIM_OC4PolarityConfig(gate->timer, invert ? TIM_OCPolarity_Low : TIM_OCPolarity_High);
 			break;								
 	}
 }
