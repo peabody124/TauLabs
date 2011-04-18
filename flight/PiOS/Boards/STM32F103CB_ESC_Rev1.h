@@ -158,17 +158,17 @@ TIM16 |  PWM in   |           |           |
 /* RCC_PCLK2_Div4: ADC clock = PCLK2/4 */
 /* RCC_PCLK2_Div6: ADC clock = PCLK2/6 */
 /* RCC_PCLK2_Div8: ADC clock = PCLK2/8 */
-#define PIOS_ADC_SAMPLE_TIME			ADC_SampleTime_71Cycles5
+#define PIOS_ADC_SAMPLE_TIME			ADC_SampleTime_28Cycles5
 /* Sample time: */
 /* With an ADCCLK = 14 MHz and a sampling time of 239.5 cycles: */
-/* Tconv = 71.5 + 12.5 = 84 cycles = 18�s */
+/* Tconv = 13.5 + 12.5 = 26 cycles = 18�s */
 /* (1 / (ADCCLK / CYCLES)) = Sample Time (�S) */
 #define PIOS_ADC_IRQ_PRIO			PIOS_IRQ_PRIO_LOW
 
 // Currently analog acquistion hard coded at 480 Hz
 // PCKL2 = HCLK / 16
 // ADCCLK = PCLK2 / 2
-#define PIOS_ADC_RATE		(72.0e6 / 1.0 / 8.0 / 84.0 / (PIOS_ADC_NUM_CHANNELS >> PIOS_ADC_USE_ADC2))
+#define PIOS_ADC_RATE		(72.0e6 / 1.0 / 8.0 / 26.0 / (PIOS_ADC_NUM_CHANNELS >> PIOS_ADC_USE_ADC2))
 #define PIOS_ADC_MAX_OVERSAMPLING               36
 
 
@@ -210,15 +210,15 @@ extern uint32_t pios_i2c_main_adapter_id;
 //
 // See also pios_board.c
 //-------------------------
-#define PIOS_SPI_MAX_DEVS			2
+#define PIOS_SPI_MAX_DEVS			0
 
 //-------------------------
 // PIOS_USART
 //-------------------------
-#define PIOS_USART_MAX_DEVS			2
+#define PIOS_USART_MAX_DEVS			1
 
 #define PIOS_USART_RX_BUFFER_SIZE               256
-#define PIOS_USART_TX_BUFFER_SIZE               256
+#define PIOS_USART_TX_BUFFER_SIZE               512
 
 //-------------------------
 // PIOS_COM
@@ -234,13 +234,8 @@ extern uint32_t pios_com_debug_id;
 //-------------------------
 // Receiver PWM inputs
 //-------------------------
-#define PIOS_PWM_MAX_INPUTS                     6
+#define PIOS_PWM_MAX_INPUTS                     1
 
-//-------------------------
-// Servo outputs
-//-------------------------
-#define PIOS_SERVO_UPDATE_HZ                    50
-#define PIOS_SERVOS_INITIAL_POSITION            0 /* dont want to start motors, have no pulse till settings loaded */
 
 //-------------------------
 // GPIO
@@ -253,12 +248,6 @@ extern uint32_t pios_com_debug_id;
 #define PIOS_GPIO_PINS				{ PIOS_GPIO_1_PIN }
 #define PIOS_GPIO_CLKS				{ PIOS_GPIO_1_GPIO_CLK }
 #define PIOS_GPIO_NUM				1
-
-#define PIOS_FLASH_CS_PIN                       0
-#define PIOS_FLASH_ENABLE                       PIOS_GPIO_On(0)
-#define PIOS_FLASH_DISABLE                      PIOS_GPIO_Off(0)
-#define PIOS_ADXL_ENABLE                        PIOS_SPI_RC_PinSet(PIOS_SPI_ACCEL,0)
-#define PIOS_ADXL_DISABLE                       PIOS_SPI_RC_PinSet(PIOS_SPI_ACCEL,1)
 
 //-------------------------
 // USB

@@ -306,6 +306,8 @@ void PIOS_Board_Init(void) {
 	/* Delay system */
 	PIOS_DELAY_Init();
 	
+	PIOS_GPIO_Init();
+	
 	/* Bring up ADC for sensing BEMF */
 	PIOS_ADC_Init();
 	PIOS_ADC_Config(5);
@@ -321,7 +323,5 @@ void PIOS_Board_Init(void) {
 	if (PIOS_COM_Init(&pios_com_debug_id, &pios_usart_com_driver, pios_usart_debug_id)) {
 		PIOS_DEBUG_Assert(0);
 	}
-
-	/* ADC system */
 }
 
