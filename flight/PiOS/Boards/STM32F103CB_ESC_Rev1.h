@@ -158,6 +158,7 @@ TIM16 |  PWM in   |           |           |
 /* RCC_PCLK2_Div4: ADC clock = PCLK2/4 */
 /* RCC_PCLK2_Div6: ADC clock = PCLK2/6 */
 /* RCC_PCLK2_Div8: ADC clock = PCLK2/8 */
+//#define PIOS_ADC_SAMPLE_TIME			ADC_SampleTime_71Cycles5
 #define PIOS_ADC_SAMPLE_TIME			ADC_SampleTime_28Cycles5
 /* Sample time: */
 /* With an ADCCLK = 14 MHz and a sampling time of 239.5 cycles: */
