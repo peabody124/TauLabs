@@ -36,7 +36,7 @@ extern void PIOS_Board_Init(void);
 
 void adc_callback(float * buffer);
 
-#define DOWNSAMPLING 10
+#define DOWNSAMPLING 6
 
 // A message from the ADC to say a zero crossing was detected
 struct zerocrossing_message {
@@ -50,7 +50,7 @@ t_fifo_buffer message_buffer;
 
 // TODO: A tim4 interrupt that actually implements the commutation on a regular schedule
 
-int32_t desired_delay = 1300;
+int32_t desired_delay = 950;
 volatile int32_t delay = 3000;
 volatile uint16_t next;
 volatile uint16_t swap_time;
@@ -58,10 +58,11 @@ volatile uint8_t low_pin;
 volatile uint8_t high_pin;
 volatile uint8_t undriven_pin; 
 volatile bool pos;
-volatile float dc = 0.08;
+volatile float dc = 0.11;
+float desired_dc = 0.125;
 uint8_t dT = 10; // 10 uS per sample at 100k
 float rate = 0;
-
+uint16_t skipped_delay = 950;
 /**
  * @brief ESC Main function
  */
@@ -99,18 +100,13 @@ int main()
 	while(1) {
 		//Process analog data, detect commutation
 		commutation_detected = 0;
-		
-		if(closed_loop) {
-			// Update duty cycle and such 
-		} else {
-			// Run startup state machine
-		}
-		
+				
 		if(fifoBuf_getUsed(&message_buffer) >= sizeof(struct zerocrossing_message)) {
 			// There is a message waiting
-			static int dropped = 0;
+//			static int dropped = 0;
 			static int detected = 0;
 			bool skipped = false;
+			static bool prev_skipped = false;
 			static uint32_t skipped_count = 0;
 			static uint32_t consecutive_skipped = 0;
 			static uint16_t last_time;
@@ -151,22 +147,41 @@ int main()
 			else 
 				consecutive_skipped++;
 			
-			if(consecutive_skipped > 50)
+			if(consecutive_skipped > 5) {
 				detected = 0;
+				closed_loop = false;
+			}
 				
 			fifoBuf_getData(&message_buffer, &message, sizeof(message));
 			uint16_t interval = message.time - last_time;
-			if(PIOS_COM_SendFormattedStringNonBlocking(PIOS_COM_DEBUG, "%u %u %u %u\n", message.state, message.time - swap_time, skipped_count, (uint32_t) rate) < 0)
-				dropped ++;
+			PIOS_COM_SendFormattedStringNonBlocking(PIOS_COM_DEBUG, "%u %u %u %u\n", message.state, interval, skipped_count, (uint32_t) rate);
+			
 			last_time = message.time;
 			
-			if( ! skipped) {
-				rate = 0.99 * rate + 0.01* interval;
-				if(detected > 1000) {
-					next = message.time + rate * 0.45;
-//					PIOS_ESC_SetDutyCycle(0.12);
-				}
+			uint16_t buf[4];
+			buf[0] = 0x03;
+			buf[1] = message.state;
+			buf[2] = interval;
+			buf[3] = message.time - swap_time;
+//			PIOS_COM_SendBufferNonBlocking(PIOS_COM_DEBUG, (uint8_t *) &buf[0], sizeof(buf));
+			
+			if( ! skipped && ! prev_skipped && (interval < 1000)) {				
+				rate = 0.8 * rate + 0.2* interval;
+				if(detected > 100) {					
+					closed_loop = true;
+					
+					uint16_t new_next = message.time + 210; //100 + rate * 0.2;
+//					if(abs((int16_t) (new_next - next)) < 200) {
+						next = new_next;
+//					}
+				} 
+				if(detected > 3000)
+					skipped_delay = 950; //rate + 100;
+
 				detected++;
+				
+				if(rate < 700)
+					dc += 0.0001;
 			/*
 			dc += (0.00000001 * (rate - 2 * delay));
 			if(dc < 0.20 && dc  > 0.05)
@@ -177,23 +192,39 @@ int main()
 				skipped_count++;
 			} 	
 			
+			prev_skipped = skipped;
 			
 		}
 		
 			
 		if(PIOS_DELAY_DiffuS(next) > 0) {
-			
-			next += delay;
+			PIOS_COM_SendFormattedStringNonBlocking(PIOS_COM_DEBUG, "%u\n", (next - swap_time));
+			swap_time = PIOS_DELAY_GetuS();
+			PIOS_ESC_NextState();
+
+			if(closed_loop) {
+				// Update duty cycle and such 
+				next += skipped_delay;
+				
+				if(desired_dc > dc) {
+					float diff = desired_dc - dc;
+					diff *= 0.001;
+					if(diff > 0.000001)
+						diff = 0.000001;
+//					dc += diff;
+//					PIOS_ESC_SetDutyCycle(dc);
+				}
+			} else {
+				//TODO: Run startup state machine
+				next += delay;
+				
+				if(delay > desired_delay)
+					delay -= 2;				
+			}			
 		
 			PIOS_LED_Toggle(LED3);
 
-			count++;
-									
-			PIOS_ESC_NextState();
-			swap_time = PIOS_DELAY_GetuS();
-			
-			if(delay > desired_delay)
-				delay --;
+			count++;									
 			
 			switch(PIOS_ESC_GetState()) {
 				case ESC_STATE_AC:
@@ -244,7 +275,6 @@ int main()
 // When driving both legs to ground mid point is 580
 #define MID_POINT 580
 #define DIODE_LOW 460
-#define DRIVING_THRESHOLD 400
 #define MIN_PRE_COUNT  2
 #define MIN_POST_COUNT 2
 #define DEMAG_BLANKING 50
@@ -303,23 +333,26 @@ void adc_callback(float * buffer)
 					int16_t high = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + high_pin];
 					int16_t low = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + low_pin];
 					int16_t undriven = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + undriven_pin];
+//					int16_t ref = (high + MID_POINT) / 2; 
 					int16_t diff;
+					
+					// For now only processing the low phase of the duty cycle
+					if(high > 3000)
+						continue; 
+					
 					if(pos) {						
 						diff = undriven - MID_POINT; 
 
 						// Any of this mean it's not a valid sample to consider for zero crossing
-						if((high > low) ||						   
-						   (abs(diff) > 60))
+						if(high > low || high > 1000 || abs(diff) > 120)
 							continue;
 					} else {
-						int16_t ref = (high + low) / 2; 
-						diff = (undriven - ref);
+						diff = MID_POINT - undriven;
 						
 						// If either of these true not a good sample to consider
-						if(high < low || abs(diff) > 100) 
+						if(high < low || abs(diff) > 120) 
 							continue;
 						
-						diff = MID_POINT - undriven;
 						
 					}
 																		
@@ -340,7 +373,8 @@ void adc_callback(float * buffer)
 				}
 				break;
 			default:
-				PIOS_ESC_Off();
+				//PIOS_ESC_Off();
+				break;
 		}
 	}
 	

@@ -25,7 +25,7 @@
 
 #include <pios.h>
 
-#define ESC_DEFAULT_PWM_RATE 16000
+#define ESC_DEFAULT_PWM_RATE 12000
 #include "pios_esc_priv.h"
 const struct pios_esc_cfg pios_esc_cfg = {
 	.tim_base_init = {
