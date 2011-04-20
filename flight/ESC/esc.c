@@ -62,8 +62,8 @@ bool closed_loop_updated = false;
 // TODO: A tim4 interrupt that actually implements the commutation on a regular schedule
 
 #define COMMUTATIONS_PER_ROT (7*6)
-float initial_startup_speed = 10;
-float final_startup_speed = 1200;
+float initial_startup_speed = 150;
+float final_startup_speed = 1000;
 float current_speed;
 bool closed_loop = false;
 int32_t desired_closed_delay = 1000;
@@ -72,7 +72,7 @@ volatile uint8_t low_pin;
 volatile uint8_t high_pin;
 volatile uint8_t undriven_pin; 
 volatile bool pos;
-volatile float dc = 0.22;
+volatile float dc = 0.18;
 
 volatile bool commutation_detected = false;
 volatile bool commutated = false;
@@ -120,22 +120,14 @@ int main()
 		.TIM_OCMode = TIM_OCMode_PWM1,
 		.TIM_OutputState = TIM_OutputState_Enable,
 		.TIM_OutputNState = TIM_OutputNState_Disable,
-		.TIM_Pulse = 30000,		
+		.TIM_Pulse = 0,		
 		.TIM_OCPolarity = TIM_OCPolarity_High,
 		.TIM_OCNPolarity = TIM_OCPolarity_High,
 		.TIM_OCIdleState = TIM_OCIdleState_Reset,
 		.TIM_OCNIdleState = TIM_OCNIdleState_Reset,
 	};
 	TIM_OC1Init(TIM4, &tim_oc_init);
-//	TIM_OC1PreloadConfig(TIM4, TIM_OCPreload_Enable);
-//	TIM_CtrlPWMOutputs(TIM4, ENABLE);
-
 	TIM_ITConfig(TIM4, TIM_IT_CC1, ENABLE);
-	//	TIM_ITConfig(TIM4, TIM_IT_Update, ENABLE);
-//	TIM_ARRPreloadConfig(TIM1, ENABLE);
-//	TIM_Cmd(TIM4, ENABLE);	
-//	TIM_SetCompare1(TIM4, 0);
-
 	
 	NVIC_InitTypeDef NVIC_InitStructure;
 	NVIC_InitStructure.NVIC_IRQChannel = TIM4_IRQn;
@@ -192,7 +184,7 @@ int main()
 				schedule_commutation(swap_time + 7 * zerocrossing_stats.smoothed_interval);
 				
 				// Update duty cycle and such 
-				dc += 0.0000001 * (zerocrossing_stats.smoothed_interval - desired_closed_delay);
+				dc += 0.00000001 * (zerocrossing_stats.smoothed_interval - desired_closed_delay);
 				if(dc > 0.05 && dc < 0.20)
 					PIOS_ESC_SetDutyCycle(dc); 
 				
@@ -201,7 +193,7 @@ int main()
 				PIOS_LED_Off(LED2);
 				
 				static uint16_t init_counter;
-				uint16_t delay;
+				uint16_t delay = 0;
 				
 				// Simple startup state machine.  Needs constants removing
 				switch(init_state) {
@@ -209,13 +201,13 @@ int main()
 						PIOS_ESC_SetState(0);
 						current_speed = initial_startup_speed;
 						delay = 30000; // hold in that position for 10 ms
-						PIOS_ESC_SetDutyCycle(0.5); // TODO: Current limit
-						dc = 0.15;
+						PIOS_ESC_SetDutyCycle(0.2); // TODO: Current limit
+						dc = 0.12;
 						init_state = INIT_ACCEL;
 						break;
 					case INIT_ACCEL:
 						if(current_speed < final_startup_speed) 
-							current_speed+=1;
+							current_speed+=2.0;
 						else
 							init_state = INIT_WAIT;
 						init_counter = 0;
@@ -374,18 +366,13 @@ void process_message(struct zerocrossing_message * msg)
 	if(!skipped && !prev_skipped && (zerocrossing_stats.interval < 10000))
 		zerocrossing_stats.smoothed_interval = 0.95 * zerocrossing_stats.smoothed_interval + 0.05 * zerocrossing_stats.interval;
 
-//		PIOS_COM_SendFormattedStringNonBlocking(PIOS_COM_DEBUG, "%u %u\n", zerocrossing_stats.smoothed_interval, zerocrossing_stats.interval);
-	if(zerocrossing_stats.consecutive_detected > 50) 
+	if(zerocrossing_stats.consecutive_detected > 200) 
 		closed_loop = true;
 							
 	if(closed_loop) {
 		// TOOD: This logic shouldn't stay here
-//		PIOS_COM_SendBufferNonBlocking(PIOS_COM_DEBUG, (uint8_t *) "~", 1);
 		closed_loop_updated = true;
 		schedule_commutation(msg->time + zerocrossing_stats.smoothed_interval * 0.45);
-//		schedule_commutation(PIOS_DELAY_GetuS() + 30);
-//		schedule_commutation(PIOS_DELAY_GetuS() + zerocrossing_stats.smoothed_interval * 0.40);
-//		commutate();
 	}
 
 	
