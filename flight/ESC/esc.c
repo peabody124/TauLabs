@@ -31,8 +31,11 @@
 #include <pios_stm32.h>
 
 
+//TODO: Check the ADC buffer pointer and make sure it isn't dropping swaps
+//TODO: Check the time commutation is being scheduled, make sure it's the future
 //TODO: Slave two timers together so in phase
 //TODO: Ideally lock ADC and delay timers together to both 
+//TODO: Look into using TIM1 
 //know the exact time of each sample and the PWM phase
 
 /* Prototype of PIOS_Board_Init() function */
