@@ -129,6 +129,7 @@ const struct pios_adc_cfg pios_adc_cfg = {
 	}, 
 	.half_flag = DMA1_IT_HT1,
 	.full_flag = DMA1_IT_TC1,
+	.compute_downsample = false
 };
 
 struct pios_adc_dev pios_adc_devs[] = {
