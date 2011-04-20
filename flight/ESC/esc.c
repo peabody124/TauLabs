@@ -28,6 +28,8 @@
 /* OpenPilot Includes */
 #include "pios.h"
 #include "fifo_buffer.h"
+#include <pios_stm32.h>
+
 
 //TODO: Slave two timers together so in phase
 //TODO: Ideally lock ADC and delay timers together to both 
@@ -60,12 +62,11 @@ bool closed_loop_updated = false;
 // TODO: A tim4 interrupt that actually implements the commutation on a regular schedule
 
 #define COMMUTATIONS_PER_ROT (7*6)
-float initial_startup_speed = 150;
-float final_startup_speed = 1500;
+float initial_startup_speed = 10;
+float final_startup_speed = 1200;
 float current_speed;
 bool closed_loop = false;
 int32_t desired_closed_delay = 1000;
-volatile uint16_t next;
 volatile uint16_t swap_time;
 volatile uint8_t low_pin;
 volatile uint8_t high_pin;
@@ -74,6 +75,7 @@ volatile bool pos;
 volatile float dc = 0.22;
 
 volatile bool commutation_detected = false;
+volatile bool commutated = false;
 volatile uint16_t checks = 0;
 uint16_t consecutive_nondetects = 0;
 
@@ -81,6 +83,7 @@ const uint8_t dT = 1e6 / PIOS_ADC_RATE; // 6 uS per sample at 160k
 float rate = 0;
 
 void process_message(struct zerocrossing_message * msg);
+void commutate();
 
 enum init_state {
 	INIT_GRAB = 0,
@@ -88,6 +91,17 @@ enum init_state {
 	INIT_WAIT = 2,
 	INIT_FAIL = 3
 } init_state;
+
+void PIOS_DELAY_timeout() {
+	TIM_ClearITPendingBit(TIM4,TIM_IT_CC1);
+	TIM_ClearFlag(TIM4,TIM_IT_CC1);
+	commutate();
+}
+
+void schedule_commutation(uint16_t time) 
+{
+	TIM_SetCompare1(TIM4, time);
+}
 
 /**
  * @brief ESC Main function
@@ -101,6 +115,35 @@ int main()
 	PIOS_ADC_Config(DOWNSAMPLING);
 	PIOS_ADC_SetCallback(adc_callback); 
 
+	// TODO: Move this into a PIOS_DELAY function
+	TIM_OCInitTypeDef tim_oc_init = {
+		.TIM_OCMode = TIM_OCMode_PWM1,
+		.TIM_OutputState = TIM_OutputState_Enable,
+		.TIM_OutputNState = TIM_OutputNState_Disable,
+		.TIM_Pulse = 30000,		
+		.TIM_OCPolarity = TIM_OCPolarity_High,
+		.TIM_OCNPolarity = TIM_OCPolarity_High,
+		.TIM_OCIdleState = TIM_OCIdleState_Reset,
+		.TIM_OCNIdleState = TIM_OCNIdleState_Reset,
+	};
+	TIM_OC1Init(TIM4, &tim_oc_init);
+//	TIM_OC1PreloadConfig(TIM4, TIM_OCPreload_Enable);
+//	TIM_CtrlPWMOutputs(TIM4, ENABLE);
+
+	TIM_ITConfig(TIM4, TIM_IT_CC1, ENABLE);
+	//	TIM_ITConfig(TIM4, TIM_IT_Update, ENABLE);
+//	TIM_ARRPreloadConfig(TIM1, ENABLE);
+//	TIM_Cmd(TIM4, ENABLE);	
+//	TIM_SetCompare1(TIM4, 0);
+
+	
+	NVIC_InitTypeDef NVIC_InitStructure;
+	NVIC_InitStructure.NVIC_IRQChannel = TIM4_IRQn;
+	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = PIOS_IRQ_PRIO_HIGHEST;
+	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+	NVIC_Init(&NVIC_InitStructure); 
+	
 	// This pull up all the ADC voltages so the BEMF when at -0.7V
 	// is still positive
 	PIOS_GPIO_Enable(0);
@@ -118,13 +161,9 @@ int main()
 	closed_loop = false;
 	
 	while(1) {
-		//process_message(&message);
+		if(commutated) {
+			commutated = false;
 			
-		if(PIOS_DELAY_DiffuS(next) > 0) {
-			//PIOS_COM_SendFormattedStringNonBlocking(PIOS_COM_DEBUG, "%u %u\n", (next - swap_time), (uint32_t) (dc * 10000));
-			swap_time = PIOS_DELAY_GetuS();
-			PIOS_ESC_NextState();
-
 			if(closed_loop) {	
 				// Turn err light off
 				PIOS_LED_On(LED2);
@@ -140,24 +179,23 @@ int main()
 					static uint16_t fail_count = 0;
 					if(fail_count++ > 50) {
 						PIOS_ESC_Off();
-						break;
 					}
 				}
-//				else
-//					PIOS_COM_SendFormattedStringNonBlocking(PIOS_COM_DEBUG, "%u %u\n", PIOS_ESC_GetState(), 100 * zerocrossing_stats.latency[PIOS_ESC_GetState()] / zerocrossing_stats.smoothed_interval);
 				closed_loop_updated = false;
-
-				if(consecutive_nondetects > 5)
+				
+				if(consecutive_nondetects > 50) {
 					PIOS_ESC_Off();
-
-				// This is a fall back
-				next += 7 * zerocrossing_stats.smoothed_interval;
-
+					TIM_ITConfig(TIM4, TIM_IT_CC1, DISABLE);
+				}
+				
+				// This is a fall back.  Should get rescheduled by zero crossing detection.
+				schedule_commutation(swap_time + 7 * zerocrossing_stats.smoothed_interval);
+				
 				// Update duty cycle and such 
 				dc += 0.0000001 * (zerocrossing_stats.smoothed_interval - desired_closed_delay);
 				if(dc > 0.05 && dc < 0.20)
-				PIOS_ESC_SetDutyCycle(dc); 
-
+					PIOS_ESC_SetDutyCycle(dc); 
+				
 			} else {
 				// Turn err light off
 				PIOS_LED_Off(LED2);
@@ -177,7 +215,7 @@ int main()
 						break;
 					case INIT_ACCEL:
 						if(current_speed < final_startup_speed) 
-							current_speed+=3;
+							current_speed+=1;
 						else
 							init_state = INIT_WAIT;
 						init_counter = 0;
@@ -196,10 +234,10 @@ int main()
 						break;
 				}
 				
-				next += delay;
+				schedule_commutation(PIOS_DELAY_GetuS() + delay);
 				
 			}			
-
+			
 			switch(PIOS_ESC_GetState()) {
 				case ESC_STATE_AC:
 					low_pin = 0;
@@ -243,11 +281,18 @@ int main()
 			commutation_detected = false;
 			checks = 0;
 		}			
-		
 	}
 	return 0;
 }	
 
+void commutate() 
+{
+	//PIOS_COM_SendFormattedStringNonBlocking(PIOS_COM_DEBUG, "%u %u\n", (next - swap_time), (uint32_t) (dc * 10000));
+	swap_time = PIOS_DELAY_GetuS();
+	PIOS_ESC_NextState();
+	
+	commutated = true;
+}
 
 /**
  * @brief Process any message from the zero crossing detection
@@ -327,16 +372,20 @@ void process_message(struct zerocrossing_message * msg)
 
 	// If decent interval use it to update estimate of speed
 	if(!skipped && !prev_skipped && (zerocrossing_stats.interval < 10000))
-		zerocrossing_stats.smoothed_interval = 0.75 * zerocrossing_stats.smoothed_interval + 0.3 * zerocrossing_stats.interval;
+		zerocrossing_stats.smoothed_interval = 0.95 * zerocrossing_stats.smoothed_interval + 0.05 * zerocrossing_stats.interval;
 
 //		PIOS_COM_SendFormattedStringNonBlocking(PIOS_COM_DEBUG, "%u %u\n", zerocrossing_stats.smoothed_interval, zerocrossing_stats.interval);
-	if(zerocrossing_stats.consecutive_detected > 30) 
+	if(zerocrossing_stats.consecutive_detected > 50) 
 		closed_loop = true;
 							
 	if(closed_loop) {
 		// TOOD: This logic shouldn't stay here
+//		PIOS_COM_SendBufferNonBlocking(PIOS_COM_DEBUG, (uint8_t *) "~", 1);
 		closed_loop_updated = true;
-		next = msg->time + zerocrossing_stats.smoothed_interval * 0.10;
+		schedule_commutation(msg->time + zerocrossing_stats.smoothed_interval * 0.45);
+//		schedule_commutation(PIOS_DELAY_GetuS() + 30);
+//		schedule_commutation(PIOS_DELAY_GetuS() + zerocrossing_stats.smoothed_interval * 0.40);
+//		commutate();
 	}
 
 	

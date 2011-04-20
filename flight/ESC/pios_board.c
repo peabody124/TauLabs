@@ -25,6 +25,15 @@
 
 #include <pios.h>
 
+void PIOS_DELAY_timeout();
+void PIOS_DELAY_irq_handler(void);
+void TIM4_IRQHandler()
+    __attribute__ ((alias("PIOS_DELAY_irq_handler")));
+void PIOS_DELAY_irq_handler() {
+	PIOS_DELAY_timeout();
+}
+
+
 #define ESC_DEFAULT_PWM_RATE 12000
 #include "pios_esc_priv.h"
 const struct pios_esc_cfg pios_esc_cfg = {
