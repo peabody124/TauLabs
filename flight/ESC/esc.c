@@ -30,6 +30,8 @@
 #include "fifo_buffer.h"
 
 //TODO: Slave two timers together so in phase
+//TODO: Ideally lock ADC and delay timers together to both 
+//know the exact time of each sample and the PWM phase
 
 /* Prototype of PIOS_Board_Init() function */
 extern void PIOS_Board_Init(void);
@@ -62,26 +64,30 @@ float initial_startup_speed = 150;
 float final_startup_speed = 1500;
 float current_speed;
 bool closed_loop = false;
-int32_t desired_closed_delay = 800;
-int32_t desired_delay = 500;
-volatile int32_t delay = 5000;
+int32_t desired_closed_delay = 1000;
 volatile uint16_t next;
 volatile uint16_t swap_time;
 volatile uint8_t low_pin;
 volatile uint8_t high_pin;
 volatile uint8_t undriven_pin; 
 volatile bool pos;
-volatile float dc = 0.13;
+volatile float dc = 0.22;
 
 volatile bool commutation_detected = false;
 volatile uint16_t checks = 0;
 uint16_t consecutive_nondetects = 0;
 
-uint8_t dT = 6; // 6 uS per sample at 160k
+const uint8_t dT = 1e6 / PIOS_ADC_RATE; // 6 uS per sample at 160k
 float rate = 0;
-uint16_t skipped_delay = 1050;
 
 void process_message(struct zerocrossing_message * msg);
+
+enum init_state {
+	INIT_GRAB = 0,
+	INIT_ACCEL = 1,
+	INIT_WAIT = 2,
+	INIT_FAIL = 3
+} init_state;
 
 /**
  * @brief ESC Main function
@@ -104,14 +110,12 @@ int main()
 	PIOS_LED_On(LED2);
 	PIOS_LED_On(LED3);
 	
-	int32_t count = 0;
-	
-	next = PIOS_DELAY_GetuS() + delay;
-
 	PIOS_ESC_SetDutyCycle(dc);
 	PIOS_ESC_SetMode(ESC_MODE_LOW_ON_PWM_HIGH);
 	PIOS_ESC_Arm();
 	
+	init_state = INIT_GRAB;
+	closed_loop = false;
 	
 	while(1) {
 		//process_message(&message);
@@ -143,37 +147,59 @@ int main()
 //					PIOS_COM_SendFormattedStringNonBlocking(PIOS_COM_DEBUG, "%u %u\n", PIOS_ESC_GetState(), 100 * zerocrossing_stats.latency[PIOS_ESC_GetState()] / zerocrossing_stats.smoothed_interval);
 				closed_loop_updated = false;
 
-				if(consecutive_nondetects > 10)
+				if(consecutive_nondetects > 5)
 					PIOS_ESC_Off();
 
+				// This is a fall back
+				next += 7 * zerocrossing_stats.smoothed_interval;
+
 				// Update duty cycle and such 
-				next += skipped_delay;
-//				PIOS_ESC_SetDutyCycle(0.18);
-//				dc += 0.000001 * (rate - desired_closed_delay);
-//				if(dc > 0.08 && dc < 0.20)
-//				PIOS_ESC_SetDutyCycle(dc); 
-/*				dc = 0.12 + (dc - 0.12) * 0.999;
-				PIOS_ESC_SetDutyCycle(dc); */
+				dc += 0.0000001 * (zerocrossing_stats.smoothed_interval - desired_closed_delay);
+				if(dc > 0.05 && dc < 0.20)
+				PIOS_ESC_SetDutyCycle(dc); 
+
 			} else {
 				// Turn err light off
 				PIOS_LED_Off(LED2);
-
-				//TODO: Run startup state machine
-
-				if(current_speed < final_startup_speed) 
-					current_speed+=0.4;
-				if(current_speed >= final_startup_speed) {
-					dc = 0.1 + (dc - 0.1) * 0.9999;
-					PIOS_ESC_SetDutyCycle(dc);
+				
+				static uint16_t init_counter;
+				uint16_t delay;
+				
+				// Simple startup state machine.  Needs constants removing
+				switch(init_state) {
+					case INIT_GRAB:
+						PIOS_ESC_SetState(0);
+						current_speed = initial_startup_speed;
+						delay = 30000; // hold in that position for 10 ms
+						PIOS_ESC_SetDutyCycle(0.5); // TODO: Current limit
+						dc = 0.15;
+						init_state = INIT_ACCEL;
+						break;
+					case INIT_ACCEL:
+						if(current_speed < final_startup_speed) 
+							current_speed+=3;
+						else
+							init_state = INIT_WAIT;
+						init_counter = 0;
+						delay = 1e6 * 60 / (current_speed * COMMUTATIONS_PER_ROT);
+						PIOS_ESC_SetDutyCycle(dc);
+						break;
+					case INIT_WAIT:
+						dc = 0.1 + (dc - 0.1) * 0.999;
+						PIOS_ESC_SetDutyCycle(dc);
+						delay = 1e6 * 60 / (current_speed * COMMUTATIONS_PER_ROT);
+						if(init_counter++ > 2000)
+							init_state = INIT_FAIL;
+						break;
+					case INIT_FAIL:
+						PIOS_ESC_Off();
+						break;
 				}
 				
-				delay = 1e6 * 60 / (current_speed * COMMUTATIONS_PER_ROT);
 				next += delay;
 				
 			}			
 
-			count++;									
-			
 			switch(PIOS_ESC_GetState()) {
 				case ESC_STATE_AC:
 					low_pin = 0;
@@ -297,24 +323,20 @@ void process_message(struct zerocrossing_message * msg)
 	last_time = message.time;
 	
 	if(skipped && closed_loop)
-		PIOS_COM_SendFormattedStringNonBlocking(PIOS_COM_DEBUG, "%u %u %u\n", msg->state, skipped_delay, zerocrossing_stats.smoothed_interval);
+		PIOS_COM_SendFormattedStringNonBlocking(PIOS_COM_DEBUG, "%u %u\n", msg->state, zerocrossing_stats.smoothed_interval);
 
 	// If decent interval use it to update estimate of speed
-	if(!skipped && !prev_skipped && (zerocrossing_stats.interval < 2000))
-		zerocrossing_stats.smoothed_interval = 0.9 * zerocrossing_stats.smoothed_interval + 0.1 * zerocrossing_stats.interval;
+	if(!skipped && !prev_skipped && (zerocrossing_stats.interval < 10000))
+		zerocrossing_stats.smoothed_interval = 0.75 * zerocrossing_stats.smoothed_interval + 0.3 * zerocrossing_stats.interval;
 
 //		PIOS_COM_SendFormattedStringNonBlocking(PIOS_COM_DEBUG, "%u %u\n", zerocrossing_stats.smoothed_interval, zerocrossing_stats.interval);
-	if(zerocrossing_stats.consecutive_detected > 100) 
+	if(zerocrossing_stats.consecutive_detected > 30) 
 		closed_loop = true;
 							
 	if(closed_loop) {
 		// TOOD: This logic shouldn't stay here
 		closed_loop_updated = true;
-		skipped_delay = delay;
-			//uint16_t pre_next = next;
-		next = msg->time + zerocrossing_stats.smoothed_interval * 0.40;
-		skipped_delay = zerocrossing_stats.smoothed_interval * 20;
-			//PIOS_COM_SendFormattedStringNonBlocking(PIOS_COM_DEBUG, "%u %u %u %u %u\n", swap_time, pre_next, next, zerocrossing_stats.smoothed_interval, zerocrossing_stats.interval);
+		next = msg->time + zerocrossing_stats.smoothed_interval * 0.10;
 	}
 
 	
@@ -327,7 +349,7 @@ void process_message(struct zerocrossing_message * msg)
 #define DIODE_LOW 460
 #define MIN_PRE_COUNT  2
 #define MIN_POST_COUNT 2
-#define DEMAG_BLANKING 20
+#define DEMAG_BLANKING 10
 #define UPSLOPE_OVERSHOOT 80
 #define DOWNSLOPE_OVERSHOOT 60
 

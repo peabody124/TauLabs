@@ -158,8 +158,8 @@ TIM16 |  PWM in   |           |           |
 /* RCC_PCLK2_Div4: ADC clock = PCLK2/4 */
 /* RCC_PCLK2_Div6: ADC clock = PCLK2/6 */
 /* RCC_PCLK2_Div8: ADC clock = PCLK2/8 */
-//#define PIOS_ADC_SAMPLE_TIME			ADC_SampleTime_71Cycles5
-#define PIOS_ADC_SAMPLE_TIME			ADC_SampleTime_13Cycles5
+#define PIOS_ADC_SAMPLE_TIME			ADC_SampleTime_71Cycles5
+//#define PIOS_ADC_SAMPLE_TIME			ADC_SampleTime_13Cycles5
 /* Sample time: */
 /* With an ADCCLK = 14 MHz and a sampling time of 239.5 cycles: */
 /* Tconv = 13.5 + 12.5 = 26 cycles = 18�s */
@@ -169,7 +169,7 @@ TIM16 |  PWM in   |           |           |
 // Currently analog acquistion hard coded at 480 Hz
 // PCKL2 = HCLK / 16
 // ADCCLK = PCLK2 / 2
-#define PIOS_ADC_RATE		(72.0e6 / 1.0 / 8.0 / 26.0 / (PIOS_ADC_NUM_CHANNELS >> PIOS_ADC_USE_ADC2))
+#define PIOS_ADC_RATE		(72.0e6 / 1.0 / 8.0 / 84.0 / (PIOS_ADC_NUM_CHANNELS >> PIOS_ADC_USE_ADC2))
 #define PIOS_ADC_MAX_OVERSAMPLING               36
 
 
