@@ -63,19 +63,23 @@ struct zerocrossing_stats {
 bool closed_loop_updated = false;
 
 // Tuning settings for control
-int16_t state_offset[6] = {70, 70, 70, 70, 70, 70};
-float commutation_phase = 0.4;
+float state_offset[6] = {40, 40, 40, 40, 40, 40};
+float commutation_phase = 0.45;
 float kp = 0.0001;
-float ki = 0.000001;
+float ki = 0.0000001;
 float accum = 0.0;
-float ilim = 0.2;
+float ilim = 0.5;
+
+float max_dc_change = 0.001;
 
 #define COMMUTATIONS_PER_ROT (7*6)
+#define MIN_DC 0.01
+#define MAX_DC 0.7
 float initial_startup_speed = 150;
 float final_startup_speed = 1000;
 float current_speed;
 bool closed_loop = false;
-int32_t desired_closed_delay = 1400;
+int32_t desired_closed_delay = 1250;
 volatile uint16_t swap_time;
 volatile uint8_t low_pin;
 volatile uint8_t high_pin;
@@ -199,10 +203,33 @@ int main()
 				if(accum < -ilim)
 					accum = -ilim;
 				
-				dc = kp * error + accum;
+				float new_dc = kp * error + accum;
+				
+				if((new_dc - dc) > max_dc_change)
+					dc += max_dc_change;
+				else if((new_dc - dc) < -max_dc_change)
+					dc -= max_dc_change;
+				else
+					dc = new_dc;
+				
+				if(dc < MIN_DC)
+					dc = MIN_DC;
+				if(dc > MAX_DC)
+					dc = MAX_DC;
+				PIOS_ESC_SetDutyCycle(dc); 
 
-				if(dc > 0.05 && dc < 0.18)
-					PIOS_ESC_SetDutyCycle(dc); 
+				
+				/*uint8_t state = PIOS_ESC_GetState();
+				uint16_t desired_latency = zerocrossing_stats.smoothed_interval * (1 - commutation_phase);
+				if(zerocrossing_stats.latency[state] > desired_latency)
+					state_offset[state] -= 0.01;
+				else if (zerocrossing_stats.latency[state] < desired_latency)
+					state_offset[state] += 0.01;  */
+
+				static uint16_t count = 0;
+				if((count++ % 100) == 0)
+					PIOS_COM_SendFormattedStringNonBlocking(PIOS_COM_DEBUG,"%u\n", zerocrossing_stats.smoothed_interval);
+				
 				
 			} else {
 				// Turn err light off
@@ -381,7 +408,7 @@ void process_message(struct zerocrossing_message * msg)
 
 	// If decent interval use it to update estimate of speed
 	if(!skipped && !prev_skipped && (zerocrossing_stats.interval < 10000))
-		zerocrossing_stats.smoothed_interval = 0.95 * zerocrossing_stats.smoothed_interval + 0.05 * zerocrossing_stats.interval;
+		zerocrossing_stats.smoothed_interval = 0.75 * zerocrossing_stats.smoothed_interval + 0.25 * zerocrossing_stats.interval;
 
 	if(zerocrossing_stats.consecutive_detected > 200) 
 		closed_loop = true;
@@ -389,7 +416,12 @@ void process_message(struct zerocrossing_message * msg)
 	if(closed_loop) {
 		// TOOD: This logic shouldn't stay here
 		closed_loop_updated = true;
-		schedule_commutation(msg->time + zerocrossing_stats.smoothed_interval * commutation_phase);
+		if(PIOS_DELAY_DiffuS(msg->time + zerocrossing_stats.smoothed_interval * commutation_phase) >= -5) {
+			// Fallback
+			PIOS_COM_SendFormattedStringNonBlocking(PIOS_COM_DEBUG, "# %u %u %u\n", zerocrossing_stats.interval, msg->state, commutated);
+			schedule_commutation(PIOS_DELAY_GetuS() + 5);
+		} else 
+			schedule_commutation(msg->time + zerocrossing_stats.smoothed_interval * commutation_phase);
 	}
 
 	
@@ -400,8 +432,8 @@ void process_message(struct zerocrossing_message * msg)
 // When driving both legs to ground mid point is 580
 #define MID_POINT 580
 #define DIODE_LOW 460
-#define MIN_PRE_COUNT  2
-#define MIN_POST_COUNT 2
+#define MIN_PRE_COUNT  1
+#define MIN_POST_COUNT 1
 #define DEMAG_BLANKING 10
 
 void adc_callback(float * buffer) 
