@@ -62,14 +62,20 @@ struct zerocrossing_stats {
 
 bool closed_loop_updated = false;
 
-// TODO: A tim4 interrupt that actually implements the commutation on a regular schedule
+// Tuning settings for control
+int16_t state_offset[6] = {70, 70, 70, 70, 70, 70};
+float commutation_phase = 0.4;
+float kp = 0.0001;
+float ki = 0.000001;
+float accum = 0.0;
+float ilim = 0.2;
 
 #define COMMUTATIONS_PER_ROT (7*6)
 float initial_startup_speed = 150;
 float final_startup_speed = 1000;
 float current_speed;
 bool closed_loop = false;
-int32_t desired_closed_delay = 1000;
+int32_t desired_closed_delay = 1400;
 volatile uint16_t swap_time;
 volatile uint8_t low_pin;
 volatile uint8_t high_pin;
@@ -185,10 +191,17 @@ int main()
 				
 				// This is a fall back.  Should get rescheduled by zero crossing detection.
 				schedule_commutation(swap_time + 7 * zerocrossing_stats.smoothed_interval);
+												
+				int16_t error = zerocrossing_stats.smoothed_interval - desired_closed_delay;
+				accum += ki * error;
+				if(accum > ilim)
+					accum = ilim;
+				if(accum < -ilim)
+					accum = -ilim;
 				
-				// Update duty cycle and such 
-				dc += 0.00000001 * (zerocrossing_stats.smoothed_interval - desired_closed_delay);
-				if(dc > 0.05 && dc < 0.20)
+				dc = kp * error + accum;
+
+				if(dc > 0.05 && dc < 0.18)
 					PIOS_ESC_SetDutyCycle(dc); 
 				
 			} else {
@@ -219,6 +232,7 @@ int main()
 						break;
 					case INIT_WAIT:
 						dc = 0.1 + (dc - 0.1) * 0.999;
+						accum = dc;
 						PIOS_ESC_SetDutyCycle(dc);
 						delay = 1e6 * 60 / (current_speed * COMMUTATIONS_PER_ROT);
 						if(init_counter++ > 2000)
@@ -375,7 +389,7 @@ void process_message(struct zerocrossing_message * msg)
 	if(closed_loop) {
 		// TOOD: This logic shouldn't stay here
 		closed_loop_updated = true;
-		schedule_commutation(msg->time + zerocrossing_stats.smoothed_interval * 0.45);
+		schedule_commutation(msg->time + zerocrossing_stats.smoothed_interval * commutation_phase);
 	}
 
 	
@@ -389,8 +403,6 @@ void process_message(struct zerocrossing_message * msg)
 #define MIN_PRE_COUNT  2
 #define MIN_POST_COUNT 2
 #define DEMAG_BLANKING 10
-#define UPSLOPE_OVERSHOOT 80
-#define DOWNSLOPE_OVERSHOOT 60
 
 void adc_callback(float * buffer) 
 {
@@ -442,7 +454,7 @@ void adc_callback(float * buffer)
 					continue; 
 				
 				if(pos) {						
-					diff = undriven - MID_POINT - DOWNSLOPE_OVERSHOOT; 
+					diff = undriven - MID_POINT - state_offset[curr_state]; 
 					
 					// Any of this mean it's not a valid sample to consider for zero crossing
 					if(high > low || high > 1000 || abs(diff) > 120)
@@ -450,7 +462,7 @@ void adc_callback(float * buffer)
 					running_avg = 0.7 * running_avg + 0.3 * diff; //(undriven - ref);
 					//						diff = running_avg;
 				} else {
-					diff = MID_POINT - undriven - UPSLOPE_OVERSHOOT;
+					diff = MID_POINT - undriven - state_offset[curr_state];
 					
 					// If either of these true not a good sample to consider
 					if(high < low || abs(diff) > 120) 
