@@ -43,12 +43,12 @@ extern void PIOS_Board_Init(void);
 
 void adc_callback(float * buffer);
 
-#define DOWNSAMPLING 6
+#define DOWNSAMPLING 10
 
 // A message from the ADC to say a zero crossing was detected
 struct zerocrossing_message {
 	enum pios_esc_state state;
-	uint16_t time;
+	volatile uint16_t time;
 	volatile bool read;
 } message;
 
@@ -67,19 +67,23 @@ float state_offset[6] = {40, 40, 40, 40, 40, 40};
 float commutation_phase = 0.45;
 float kp = 0.0001;
 float ki = 0.0000001;
+float kff = 5e-5;
+float kff2 = 0.06;
 float accum = 0.0;
 float ilim = 0.5;
 
 float max_dc_change = 0.001;
 
+#define RPM_TO_US(x) (1e6 * 60 / (x * COMMUTATIONS_PER_ROT) )
+#define US_TO_RPM(x) RPM_TO_US(x)
 #define COMMUTATIONS_PER_ROT (7*6)
 #define MIN_DC 0.01
 #define MAX_DC 0.7
-float initial_startup_speed = 150;
-float final_startup_speed = 1000;
-float current_speed;
+int16_t initial_startup_speed = 150;
+int16_t final_startup_speed = 1000;
+int16_t current_speed;
 bool closed_loop = false;
-int32_t desired_closed_delay = 1250;
+int16_t desired_rpm = 2000;
 volatile uint16_t swap_time;
 volatile uint8_t low_pin;
 volatile uint8_t high_pin;
@@ -94,6 +98,12 @@ uint16_t consecutive_nondetects = 0;
 
 const uint8_t dT = 1e6 / PIOS_ADC_RATE; // 6 uS per sample at 160k
 float rate = 0;
+
+uint16_t swap_diff;
+
+uint32_t idle_count = 0;
+uint32_t last_idle_count;
+bool schedule_next = false;
 
 void process_message(struct zerocrossing_message * msg);
 void commutate();
@@ -144,7 +154,7 @@ int main()
 	
 	NVIC_InitTypeDef NVIC_InitStructure;
 	NVIC_InitStructure.NVIC_IRQChannel = TIM4_IRQn;
-	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = PIOS_IRQ_PRIO_HIGHEST;
+	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = PIOS_IRQ_PRIO_HIGH;
 	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
 	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
 	NVIC_Init(&NVIC_InitStructure); 
@@ -166,7 +176,10 @@ int main()
 	closed_loop = false;
 	
 	while(1) {
+		idle_count++;
 		if(commutated) {
+			last_idle_count = idle_count;
+			idle_count = 0;
 			commutated = false;
 			
 			if(closed_loop) {	
@@ -182,9 +195,10 @@ int main()
 				if(!closed_loop_updated) {
 					PIOS_COM_SendFormattedStringNonBlocking(PIOS_COM_DEBUG, "*");
 					static uint16_t fail_count = 0;
-					if(fail_count++ > 50) {
+					if(fail_count++ > 0) {
 						PIOS_ESC_Off();
-					}
+						TIM_ITConfig(TIM4, TIM_IT_CC1, DISABLE);
+					}					
 				}
 				closed_loop_updated = false;
 				
@@ -194,16 +208,20 @@ int main()
 				}
 				
 				// This is a fall back.  Should get rescheduled by zero crossing detection.
-				schedule_commutation(swap_time + 7 * zerocrossing_stats.smoothed_interval);
+				if(schedule_next)
+					schedule_commutation(swap_time + zerocrossing_stats.smoothed_interval);
+				else
+					schedule_commutation(swap_time + 7 * zerocrossing_stats.smoothed_interval);
 												
-				int16_t error = zerocrossing_stats.smoothed_interval - desired_closed_delay;
+				int16_t error = desired_rpm - US_TO_RPM(zerocrossing_stats.smoothed_interval);
+				
 				accum += ki * error;
 				if(accum > ilim)
 					accum = ilim;
 				if(accum < -ilim)
 					accum = -ilim;
 				
-				float new_dc = kp * error + accum;
+				float new_dc = desired_rpm * kff - kff2 + kp * error + accum;
 				
 				if((new_dc - dc) > max_dc_change)
 					dc += max_dc_change;
@@ -224,11 +242,13 @@ int main()
 				if(zerocrossing_stats.latency[state] > desired_latency)
 					state_offset[state] -= 0.01;
 				else if (zerocrossing_stats.latency[state] < desired_latency)
-					state_offset[state] += 0.01;  */
+					state_offset[state] += 0.01;    */
 
-				static uint16_t count = 0;
+				/*static uint16_t count = 0;
 				if((count++ % 100) == 0)
-					PIOS_COM_SendFormattedStringNonBlocking(PIOS_COM_DEBUG,"%u\n", zerocrossing_stats.smoothed_interval);
+					PIOS_COM_SendFormattedStringNonBlocking(PIOS_COM_DEBUG,"%u\n", zerocrossing_stats.smoothed_interval); */
+				
+				//PIOS_COM_SendFormattedStringNonBlocking(PIOS_COM_DEBUG, "%u\n", swap_diff);
 				
 				
 			} else {
@@ -254,14 +274,14 @@ int main()
 						else
 							init_state = INIT_WAIT;
 						init_counter = 0;
-						delay = 1e6 * 60 / (current_speed * COMMUTATIONS_PER_ROT);
+						delay = RPM_TO_US(current_speed);
 						PIOS_ESC_SetDutyCycle(dc);
 						break;
 					case INIT_WAIT:
 						dc = 0.1 + (dc - 0.1) * 0.999;
-						accum = dc;
+//						accum = dc;
 						PIOS_ESC_SetDutyCycle(dc);
-						delay = 1e6 * 60 / (current_speed * COMMUTATIONS_PER_ROT);
+						delay = RPM_TO_US(current_speed);
 						if(init_counter++ > 2000)
 							init_state = INIT_FAIL;
 						break;
@@ -324,11 +344,16 @@ int main()
 void commutate() 
 {
 	//PIOS_COM_SendFormattedStringNonBlocking(PIOS_COM_DEBUG, "%u %u\n", (next - swap_time), (uint32_t) (dc * 10000));
-	swap_time = PIOS_DELAY_GetuS();
+	uint16_t this_swap_time = PIOS_DELAY_GetuS();
+	swap_diff = (this_swap_time - swap_time);
+	swap_time = this_swap_time;
+	
 	PIOS_ESC_NextState();
 	
 	commutated = true;
 }
+
+uint16_t enter_time = 0;
 
 /**
  * @brief Process any message from the zero crossing detection
@@ -408,20 +433,27 @@ void process_message(struct zerocrossing_message * msg)
 
 	// If decent interval use it to update estimate of speed
 	if(!skipped && !prev_skipped && (zerocrossing_stats.interval < 10000))
-		zerocrossing_stats.smoothed_interval = 0.75 * zerocrossing_stats.smoothed_interval + 0.25 * zerocrossing_stats.interval;
+		zerocrossing_stats.smoothed_interval = 0.95 * zerocrossing_stats.smoothed_interval + 0.05 * zerocrossing_stats.interval;
 
-	if(zerocrossing_stats.consecutive_detected > 200) 
+	if(zerocrossing_stats.consecutive_detected > 82) 
 		closed_loop = true;
 							
 	if(closed_loop) {
 		// TOOD: This logic shouldn't stay here
 		closed_loop_updated = true;
-		if(PIOS_DELAY_DiffuS(msg->time + zerocrossing_stats.smoothed_interval * commutation_phase) >= -5) {
+		if(PIOS_DELAY_DiffuS(msg->time + zerocrossing_stats.smoothed_interval * commutation_phase) >= -2) {
 			// Fallback
-			PIOS_COM_SendFormattedStringNonBlocking(PIOS_COM_DEBUG, "# %u %u %u\n", zerocrossing_stats.interval, msg->state, commutated);
-			schedule_commutation(PIOS_DELAY_GetuS() + 5);
-		} else 
-			schedule_commutation(msg->time + zerocrossing_stats.smoothed_interval * commutation_phase);
+			PIOS_COM_SendFormattedStringNonBlocking(PIOS_COM_DEBUG, "# %u %u %u %u %u %u %u\n", msg->time, swap_time, PIOS_DELAY_GetuS(), enter_time, zerocrossing_stats.smoothed_interval, msg->state, commutated);
+			schedule_commutation(PIOS_DELAY_GetuS() + 2);
+		} else {
+			// Keep all math uint16_t to deal with timer wrap around
+			uint16_t zcd_time = msg->time + zerocrossing_stats.smoothed_interval * commutation_phase;
+			uint16_t zcd_latency = zcd_time - swap_time;
+			uint16_t predicted_latency = zerocrossing_stats.smoothed_interval;
+			uint16_t schedule_time = swap_time + (predicted_latency*0 + 2*zcd_latency) / 2;
+	
+			schedule_commutation(schedule_time);
+		}
 	}
 
 	
@@ -434,7 +466,9 @@ void process_message(struct zerocrossing_message * msg)
 #define DIODE_LOW 460
 #define MIN_PRE_COUNT  1
 #define MIN_POST_COUNT 1
-#define DEMAG_BLANKING 10
+#define DEMAG_BLANKING 20
+int16_t big_val;
+uint16_t exceed_count = 0;
 
 void adc_callback(float * buffer) 
 {
@@ -447,12 +481,12 @@ void adc_callback(float * buffer)
 	static int16_t running_avg;
 
 	// Commutation detection, assuming mode is ESC_MODE_LOW_ON_PWM_BOTH
-	uint16_t enter_time = PIOS_DELAY_GetuS();
+	/* uint16_t */ enter_time = PIOS_DELAY_GetuS();
 	// Process ADC from undriven leg
 	// TODO: Make these variables be updated when a state transition occurs
 
 	// Wait for blanking
-	if(((uint16_t) (enter_time - swap_time)) < DEMAG_BLANKING)
+	if(PIOS_DELAY_DiffuS(swap_time)  < DEMAG_BLANKING)
 		return;
 	
 	if(commutation_detected)
@@ -478,26 +512,29 @@ void adc_callback(float * buffer)
 				int16_t high = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + high_pin];
 				int16_t low = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + low_pin];
 				int16_t undriven = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + undriven_pin];
-				//					int16_t ref = (high + MID_POINT) / 2; 
+				int16_t ref = (high + MID_POINT) / 2; 
 				int16_t diff;
 				
 				// For now only processing the low phase of the duty cycle
-				if(high > 3000)
+				if(high > 3000) {
+					exceed_count++;
 					continue; 
+				}
 				
 				if(pos) {						
 					diff = undriven - MID_POINT - state_offset[curr_state]; 
-					
+					//diff = undriven - ref;
 					// Any of this mean it's not a valid sample to consider for zero crossing
-					if(high > low || high > 1000 || abs(diff) > 120)
+					if(high > low || abs(diff) > 150)
 						continue;
 					running_avg = 0.7 * running_avg + 0.3 * diff; //(undriven - ref);
-					//						diff = running_avg;
+					//diff = running_avg;
 				} else {
 					diff = MID_POINT - undriven - state_offset[curr_state];
 					
+					big_val = (ref - undriven);
 					// If either of these true not a good sample to consider
-					if(high < low || abs(diff) > 120) 
+					if(high < low || diff > 150) 
 						continue;					
 					
 				}
@@ -511,6 +548,7 @@ void adc_callback(float * buffer)
 					post_count++;
 				}
 				if(diff > 0 && post_count >= MIN_POST_COUNT) {
+					//below_time = enter_time;// - dT * (DOWNSAMPLING - i);
 					commutation_detected = true;
 					break;
 				}				
