@@ -45,6 +45,9 @@ void adc_callback(float * buffer);
 
 #define DOWNSAMPLING 10
 
+uint16_t back_buf[8096];
+uint16_t back_buf_point = 0;
+
 // A message from the ADC to say a zero crossing was detected
 struct zerocrossing_message {
 	enum pios_esc_state state;
@@ -470,8 +473,15 @@ void process_message(struct zerocrossing_message * msg)
 int16_t big_val;
 uint16_t exceed_count = 0;
 
+volatile bool adc_irq_status = false;
+volatile uint32_t adc_irq_collisions = 0;
+
 void adc_callback(float * buffer) 
 {
+	if(adc_irq_status)
+		adc_irq_collisions++;
+	adc_irq_status = true;
+		
 	int16_t * raw_buf = PIOS_ADC_GetRawBuffer();
 	static enum pios_esc_state prev_state = ESC_STATE_AB;
 	enum pios_esc_state curr_state;	
@@ -487,10 +497,10 @@ void adc_callback(float * buffer)
 
 	// Wait for blanking
 	if(PIOS_DELAY_DiffuS(swap_time)  < DEMAG_BLANKING)
-		return;
+		goto adc_done;
 	
 	if(commutation_detected)
-		return;
+		goto adc_done;
 	
 	// If detected this commutation don't bother here
 	// TODO:  disable IRQ for efficiency
@@ -508,6 +518,10 @@ void adc_callback(float * buffer)
 	switch(PIOS_ESC_GetMode()) {
 		case ESC_MODE_LOW_ON_PWM_HIGH:
 			// Doesn't work quite right yet
+			if((back_buf_point + 3 * DOWNSAMPLING + 2) > (sizeof(back_buf) / 2))
+				back_buf_point = 0;
+			back_buf[back_buf_point++] = 0xFFFF;
+			back_buf[back_buf_point++] = curr_state;
 			for(int i = 0; i < DOWNSAMPLING; i++) {
 				int16_t high = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + high_pin];
 				int16_t low = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + low_pin];
@@ -637,7 +651,10 @@ void adc_callback(float * buffer)
 	}
 	PIOS_COM_SendBufferNonBlocking(PIOS_COM_DEBUG, buf, sizeof(buf));			
 #endif
-	
+
+adc_done:
+	adc_irq_status = false;
+
 }
 /*
  Notes:

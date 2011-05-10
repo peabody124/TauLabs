@@ -165,7 +165,7 @@ TIM16 |  PWM in   |           |           |
 /* With an ADCCLK = 14 MHz and a sampling time of 239.5 cycles: */
 /* Tconv = 13.5 + 12.5 = 26 cycles = 18�s */
 /* (1 / (ADCCLK / CYCLES)) = Sample Time (�S) */
-#define PIOS_ADC_IRQ_PRIO			PIOS_IRQ_PRIO_LOW
+#define PIOS_ADC_IRQ_PRIO			PIOS_IRQ_PRIO_HIGHEST
 
 // Currently analog acquistion hard coded at 480 Hz
 // PCKL2 = HCLK / 16
