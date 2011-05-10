@@ -529,12 +529,10 @@ void adc_callback(float * buffer)
 				int16_t ref = (high + MID_POINT) / 2; 
 				int16_t diff;
 				
-				// For now only processing the low phase of the duty cycle
-				if(high > 3000) {
-					exceed_count++;
-					continue; 
-				}
-				
+				back_buf[back_buf_point++] = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1];
+				back_buf[back_buf_point++] = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 2];
+				back_buf[back_buf_point++] = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 3];
+								
 				if(pos) {						
 					diff = undriven - MID_POINT - state_offset[curr_state]; 
 					//diff = undriven - ref;
