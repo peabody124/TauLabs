@@ -170,6 +170,24 @@ void PIOS_ADC_Config(uint32_t oversampling)
 }
 
 /**
+ * @brief Stop the DMA engine and consequently the interrupts
+ */
+void PIOS_ADC_StopDma()
+{
+	DMA_ITConfig(pios_adc_devs[0].cfg->dma.rx.channel, DMA_IT_TC, DISABLE);
+        DMA_ITConfig(pios_adc_devs[0].cfg->dma.rx.channel, DMA_IT_HT, DISABLE);
+}
+
+/**
+ * @brief Start the DMA engine and consequently the interrupts
+ */
+void PIOS_ADC_StartDma()
+{
+	DMA_ITConfig(pios_adc_devs[0].cfg->dma.rx.channel, DMA_IT_TC, ENABLE);
+        DMA_ITConfig(pios_adc_devs[0].cfg->dma.rx.channel, DMA_IT_HT, ENABLE);
+}
+
+/**
  * Returns value of an ADC Pin
  * \param[in] pin number
  * \return ADC pin value - resolution depends on the selected oversampling rate

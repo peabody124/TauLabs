@@ -38,6 +38,8 @@ typedef void (*ADCCallback) (float * data);
 
 /* Public Functions */
 void PIOS_ADC_Config(uint32_t oversampling);
+void PIOS_ADC_StopDma();
+void PIOS_ADC_StartDma();
 int32_t PIOS_ADC_PinGet(uint32_t pin);
 float * PIOS_ADC_GetBuffer();
 int16_t * PIOS_ADC_GetRawBuffer(void);
