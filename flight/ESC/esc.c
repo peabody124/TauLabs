@@ -129,6 +129,13 @@ void schedule_commutation(uint16_t time)
 	TIM_SetCompare1(TIM4, time);
 }
 
+void stop() 
+{
+	PIOS_ESC_Off();
+	TIM_ITConfig(TIM4, TIM_IT_CC1, DISABLE);
+	PIOS_ADC_StopDma();
+}
+
 /**
  * @brief ESC Main function
  */
@@ -198,17 +205,13 @@ int main()
 				if(!closed_loop_updated) {
 					PIOS_COM_SendFormattedStringNonBlocking(PIOS_COM_DEBUG, "*");
 					static uint16_t fail_count = 0;
-					if(fail_count++ > 0) {
-						PIOS_ESC_Off();
-						TIM_ITConfig(TIM4, TIM_IT_CC1, DISABLE);
-					}					
+					if(fail_count++ > 10) 
+						stop();				
 				}
 				closed_loop_updated = false;
 				
-				if(consecutive_nondetects > 50) {
-					PIOS_ESC_Off();
-					TIM_ITConfig(TIM4, TIM_IT_CC1, DISABLE);
-				}
+				if(consecutive_nondetects > 50) 
+					stop();
 				
 				// This is a fall back.  Should get rescheduled by zero crossing detection.
 				if(schedule_next)
@@ -490,6 +493,18 @@ void adc_callback(float * buffer)
 	static uint16_t post_count = 0;
 	static int16_t running_avg;
 
+	curr_state = PIOS_ESC_GetState();
+	
+	if((back_buf_point + 3 * DOWNSAMPLING + 2) > (sizeof(back_buf) / 2))
+		back_buf_point = 0;
+	back_buf[back_buf_point++] = 0xFFFF;
+	back_buf[back_buf_point++] = curr_state;
+	for(int i = 0; i < DOWNSAMPLING; i++) {		
+		back_buf[back_buf_point++] = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1];
+		back_buf[back_buf_point++] = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 2];
+		back_buf[back_buf_point++] = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 3];
+	}
+		
 	// Commutation detection, assuming mode is ESC_MODE_LOW_ON_PWM_BOTH
 	/* uint16_t */ enter_time = PIOS_DELAY_GetuS();
 	// Process ADC from undriven leg
@@ -504,8 +519,6 @@ void adc_callback(float * buffer)
 	
 	// If detected this commutation don't bother here
 	// TODO:  disable IRQ for efficiency
-	curr_state = PIOS_ESC_GetState();
-
 	if(curr_state != prev_state) {
 		prev_state = curr_state;
 
