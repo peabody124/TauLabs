@@ -34,7 +34,7 @@ void PIOS_DELAY_irq_handler() {
 }
 
 
-#define ESC_DEFAULT_PWM_RATE 16000
+#define ESC_DEFAULT_PWM_RATE 15000
 #include "pios_esc_priv.h"
 const struct pios_esc_cfg pios_esc_cfg = {
 	.tim_base_init = {

@@ -43,7 +43,7 @@ extern void PIOS_Board_Init(void);
 
 void adc_callback(float * buffer);
 
-#define DOWNSAMPLING 10
+#define DOWNSAMPLING 2
 
 uint16_t back_buf[8096];
 uint16_t back_buf_point = 0;
@@ -473,7 +473,6 @@ void process_message(struct zerocrossing_message * msg)
 #define MIN_PRE_COUNT  1
 #define MIN_POST_COUNT 1
 #define DEMAG_BLANKING 20
-int16_t big_val;
 uint16_t exceed_count = 0;
 
 volatile bool adc_irq_status = false;
@@ -491,14 +490,15 @@ void adc_callback(float * buffer)
 	static uint16_t below_time;
 	static uint16_t pre_count = 0;
 	static uint16_t post_count = 0;
-	static int16_t running_avg;
+	static float running_avg;
 
 	curr_state = PIOS_ESC_GetState();
 	
-	if((back_buf_point + 3 * DOWNSAMPLING + 2) > (sizeof(back_buf) / 2))
+	if((back_buf_point + 3 * DOWNSAMPLING + 3) > (sizeof(back_buf) / 2))
 		back_buf_point = 0;
 	back_buf[back_buf_point++] = 0xFFFF;
 	back_buf[back_buf_point++] = curr_state;
+	back_buf[back_buf_point++] = commutation_detected;
 	for(int i = 0; i < DOWNSAMPLING; i++) {		
 		back_buf[back_buf_point++] = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1];
 		back_buf[back_buf_point++] = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 2];
@@ -524,44 +524,33 @@ void adc_callback(float * buffer)
 
 		pre_count = 0;
 		post_count = 0;
-		running_avg = 0;
+		running_avg = -100;
 	}
 
 	checks++;
 	switch(PIOS_ESC_GetMode()) {
 		case ESC_MODE_LOW_ON_PWM_HIGH:
 			// Doesn't work quite right yet
-			if((back_buf_point + 3 * DOWNSAMPLING + 2) > (sizeof(back_buf) / 2))
-				back_buf_point = 0;
-			back_buf[back_buf_point++] = 0xFFFF;
-			back_buf[back_buf_point++] = curr_state;
 			for(int i = 0; i < DOWNSAMPLING; i++) {
 				int16_t high = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + high_pin];
 				int16_t low = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + low_pin];
 				int16_t undriven = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + undriven_pin];
-				int16_t ref = (high + MID_POINT) / 2; 
+				int16_t ref = (high + low) / 2; 
 				int16_t diff;
 				
-				back_buf[back_buf_point++] = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1];
-				back_buf[back_buf_point++] = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 2];
-				back_buf[back_buf_point++] = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 3];
-								
 				if(pos) {						
 					diff = undriven - MID_POINT - state_offset[curr_state]; 
-					//diff = undriven - ref;
-					// Any of this mean it's not a valid sample to consider for zero crossing
-					if(high > low || abs(diff) > 150)
-						continue;
-					running_avg = 0.7 * running_avg + 0.3 * diff; //(undriven - ref);
-					//diff = running_avg;
+					diff = undriven - ref - 290;
+					running_avg = 0.5 * running_avg + 0.5 * diff;
+					diff = running_avg;
 				} else {
 					diff = MID_POINT - undriven - state_offset[curr_state];
-					
-					big_val = (ref - undriven);
 					// If either of these true not a good sample to consider
-					if(high < low || diff > 150) 
+					if(/*high < low || */diff > 450) 
 						continue;					
-					
+					diff = ref - undriven - 290;
+					running_avg = 0.5 * running_avg + 0.5 * diff;
+					diff = running_avg;
 				}
 				
 				if(diff < 0) {
