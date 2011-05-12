@@ -43,7 +43,7 @@ extern void PIOS_Board_Init(void);
 
 void adc_callback(float * buffer);
 
-#define DOWNSAMPLING 2
+#define DOWNSAMPLING 20
 
 uint16_t back_buf[8096];
 uint16_t back_buf_point = 0;
@@ -499,6 +499,7 @@ void adc_callback(float * buffer)
 	back_buf[back_buf_point++] = 0xFFFF;
 	back_buf[back_buf_point++] = curr_state;
 	back_buf[back_buf_point++] = commutation_detected;
+	back_buf[back_buf_point++] = commutated;
 	for(int i = 0; i < DOWNSAMPLING; i++) {		
 		back_buf[back_buf_point++] = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1];
 		back_buf[back_buf_point++] = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 2];
@@ -539,15 +540,10 @@ void adc_callback(float * buffer)
 				int16_t diff;
 				
 				if(pos) {						
-					diff = undriven - MID_POINT - state_offset[curr_state]; 
 					diff = undriven - ref - 290;
 					running_avg = 0.5 * running_avg + 0.5 * diff;
 					diff = running_avg;
 				} else {
-					diff = MID_POINT - undriven - state_offset[curr_state];
-					// If either of these true not a good sample to consider
-					if(/*high < low || */diff > 450) 
-						continue;					
 					diff = ref - undriven - 290;
 					running_avg = 0.5 * running_avg + 0.5 * diff;
 					diff = running_avg;
