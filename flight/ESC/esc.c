@@ -43,7 +43,7 @@ extern void PIOS_Board_Init(void);
 
 void adc_callback(float * buffer);
 
-#define DOWNSAMPLING 20
+#define DOWNSAMPLING 4
 
 uint16_t back_buf[8096];
 uint16_t back_buf_point = 0;
@@ -92,10 +92,11 @@ volatile uint8_t low_pin;
 volatile uint8_t high_pin;
 volatile uint8_t undriven_pin; 
 volatile bool pos;
-volatile float dc = 0.18;
+volatile float dc = 0.20;
 
 volatile bool commutation_detected = false;
 volatile bool commutated = false;
+volatile bool commutated_flag = false;
 volatile uint16_t checks = 0;
 uint16_t consecutive_nondetects = 0;
 
@@ -357,10 +358,12 @@ void commutate()
 	PIOS_ESC_NextState();
 	
 	commutated = true;
+	commutated_flag = true;
 }
 
 uint16_t enter_time = 0;
 
+uint32_t premature_detection = 0;
 /**
  * @brief Process any message from the zero crossing detection
  * @param[in] msg The message containing the state and time it occurred in
@@ -449,15 +452,12 @@ void process_message(struct zerocrossing_message * msg)
 		closed_loop_updated = true;
 		if(PIOS_DELAY_DiffuS(msg->time + zerocrossing_stats.smoothed_interval * commutation_phase) >= -2) {
 			// Fallback
+			premature_detection++;
 			PIOS_COM_SendFormattedStringNonBlocking(PIOS_COM_DEBUG, "# %u %u %u %u %u %u %u\n", msg->time, swap_time, PIOS_DELAY_GetuS(), enter_time, zerocrossing_stats.smoothed_interval, msg->state, commutated);
 			schedule_commutation(PIOS_DELAY_GetuS() + 2);
 		} else {
 			// Keep all math uint16_t to deal with timer wrap around
-			uint16_t zcd_time = msg->time + zerocrossing_stats.smoothed_interval * commutation_phase;
-			uint16_t zcd_latency = zcd_time - swap_time;
-			uint16_t predicted_latency = zerocrossing_stats.smoothed_interval;
-			uint16_t schedule_time = swap_time + (predicted_latency*0 + 2*zcd_latency) / 2;
-	
+			uint16_t schedule_time = msg->time + zerocrossing_stats.smoothed_interval * commutation_phase;
 			schedule_commutation(schedule_time);
 		}
 	}
@@ -499,7 +499,9 @@ void adc_callback(float * buffer)
 	back_buf[back_buf_point++] = 0xFFFF;
 	back_buf[back_buf_point++] = curr_state;
 	back_buf[back_buf_point++] = commutation_detected;
-	back_buf[back_buf_point++] = commutated;
+	back_buf[back_buf_point++] = commutated_flag;
+	if(commutated_flag)
+		commutated_flag = false;
 	for(int i = 0; i < DOWNSAMPLING; i++) {		
 		back_buf[back_buf_point++] = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1];
 		back_buf[back_buf_point++] = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 2];
