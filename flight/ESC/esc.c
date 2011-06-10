@@ -122,6 +122,7 @@ enum init_state {
 	INIT_FAIL = 3
 } init_state;
 
+
 void PIOS_DELAY_timeout() {
 	TIM_ClearITPendingBit(TIM4,TIM_IT_CC1);
 	TIM_ClearFlag(TIM4,TIM_IT_CC1);
@@ -143,6 +144,7 @@ void stop()
 static void test_esc();
 static void panic(int diagnostic_code);
 static float current;
+
 /**
  * @brief ESC Main function
  */
@@ -160,7 +162,7 @@ int main()
 		.TIM_OCMode = TIM_OCMode_PWM1,
 		.TIM_OutputState = TIM_OutputState_Enable,
 		.TIM_OutputNState = TIM_OutputNState_Disable,
-		.TIM_Pulse = 0,		
+		.TIM_Pulse = 0,
 		.TIM_OCPolarity = TIM_OCPolarity_High,
 		.TIM_OCNPolarity = TIM_OCPolarity_High,
 		.TIM_OCIdleState = TIM_OCIdleState_Reset,
@@ -729,7 +731,7 @@ void test_esc() {
 	voltages[5][0] = PIOS_ADC_PinGet(1);
 	voltages[5][1] = PIOS_ADC_PinGet(2);
 	voltages[5][2] = PIOS_ADC_PinGet(3);
-	
+		
 	// If the particular phase isn't moving fet is dead
 	if(voltages[0][0] < 1000)	
 		panic(1);

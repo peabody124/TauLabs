@@ -187,7 +187,7 @@ TIM16 |  PWM in   |           |           |
 // Delay Timer
 //-------------------------
 #define PIOS_DELAY_TIMER			TIM4
-#define PIOS_DELAY_TIMER_RCC_FUNC		RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM4, ENABLE)
+#define PIOS_DELAY_TIMER_RCC_FUNC		RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM4, ENABLE) 
 
 //-------------------------
 // System Settings

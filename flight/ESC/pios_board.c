@@ -25,13 +25,14 @@
 
 #include <pios.h>
 
-void PIOS_DELAY_timeout();
-void PIOS_DELAY_irq_handler(void);
-void TIM4_IRQHandler()
-    __attribute__ ((alias("PIOS_DELAY_irq_handler")));
-void PIOS_DELAY_irq_handler() {
-	PIOS_DELAY_timeout();
+#if !defined(PIOS_INCLUDE_PWM)
+extern void PIOS_DELAY_timeout();
+void TIM4_IRQHandler() __attribute__ ((alias("PIOS_TIM4_irq_handler")));
+void PIOS_TIM4_irq_handler() {
+	if(TIM_GetITStatus(TIM4,TIM_IT_CC1))
+		PIOS_DELAY_timeout();
 }
+#endif
 
 
 #define ESC_DEFAULT_PWM_RATE 30000
@@ -99,6 +100,68 @@ const struct pios_esc_cfg pios_esc_cfg = {
 	.remap = GPIO_PartialRemap_TIM3,
 };
 
+/* 
+ * PWM Inputs 
+ */
+
+//Using TIM4 CH3 for PWM input and TIM4 for delay.  Settings are 
+//compatiblefor both
+
+#if defined(PIOS_INCLUDE_PWM)
+#include <pios_pwm_priv.h>
+
+extern void PIOS_DELAY_timeout();
+void TIM4_IRQHandler() __attribute__ ((alias("PIOS_TIM4_irq_handler")));
+void PIOS_TIM4_irq_handler() {
+	if(TIM_GetITStatus(TIM4,TIM_IT_CC1))
+		PIOS_DELAY_timeout();
+	if(TIM_GetITStatus(TIM4,TIM_IT_CC3))
+		PIOS_PWM_irq_handler(TIM4);
+}
+
+
+const struct pios_pwm_channel pios_pwm_channels[] = {
+	{
+		.timer = TIM4,
+		.port = GPIOB,
+		.ccr = TIM_IT_CC3,
+		.channel = TIM_Channel_3,
+		.pin = GPIO_Pin_8,
+	}, 
+};
+
+const struct pios_pwm_cfg pios_pwm_cfg = {
+	.tim_base_init = {
+		.TIM_Prescaler = (PIOS_MASTER_CLOCK / 1000000) - 1,
+		.TIM_ClockDivision = TIM_CKD_DIV1,
+		.TIM_CounterMode = TIM_CounterMode_Up,
+		.TIM_Period = 0xFFFF,
+		.TIM_RepetitionCounter = 0x0000,
+	},
+	.tim_ic_init = {
+		.TIM_ICPolarity = TIM_ICPolarity_Rising,
+		.TIM_ICSelection = TIM_ICSelection_DirectTI,
+		.TIM_ICPrescaler = TIM_ICPSC_DIV1,
+		.TIM_ICFilter = 0x0,		
+	},
+	.gpio_init = {
+		.GPIO_Mode = GPIO_Mode_IPD,
+		.GPIO_Speed = GPIO_Speed_2MHz,
+	},
+	.remap = 0,
+	.irq = {
+		.handler = TIM4_IRQHandler,
+		.init    = {
+			.NVIC_IRQChannelPreemptionPriority = PIOS_IRQ_PRIO_HIGH,
+			.NVIC_IRQChannelSubPriority        = 0,
+			.NVIC_IRQChannelCmd                = ENABLE,
+		},
+	},
+	.channels = pios_pwm_channels,
+	.num_channels = NELEMENTS(pios_pwm_channels),
+};
+
+#endif
 
 
 /*
@@ -326,6 +389,10 @@ void PIOS_Board_Init(void) {
 	GPIO_PinRemapConfig( GPIO_Remap_SWJ_NoJTRST, ENABLE);
 	PIOS_ESC_Init(&pios_esc_cfg);
 
+#if defined(PIOS_INCLUDE_PWM)
+	PIOS_PWM_Init();
+#endif
+	
 	/* Communication system */
 	if (PIOS_USART_Init(&pios_usart_debug_id, &pios_usart_debug_cfg)) {
 		PIOS_DEBUG_Assert(0);
