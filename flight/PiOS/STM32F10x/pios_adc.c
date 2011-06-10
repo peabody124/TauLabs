@@ -201,7 +201,10 @@ int32_t PIOS_ADC_PinGet(uint32_t pin)
 	}
 	
 	/* Return last conversion result */
-	return pios_adc_devs[0].downsampled_buffer[pin];
+	if(pios_adc_devs[0].cfg->compute_downsample)
+		return pios_adc_devs[0].downsampled_buffer[pin];
+	else
+		return pios_adc_devs[0].valid_data_buffer[pin];
 }
 
 /**

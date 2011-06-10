@@ -34,16 +34,16 @@ void PIOS_DELAY_irq_handler() {
 }
 
 
-#define ESC_DEFAULT_PWM_RATE 15000
+#define ESC_DEFAULT_PWM_RATE 30000
 #include "pios_esc_priv.h"
 const struct pios_esc_cfg pios_esc_cfg = {
 	.tim_base_init = {
 		// Note not the same prescalar as servo
 		// This is 72e6 or 24e6 / 10e6 to give a 0.1 us resolution
-		.TIM_Prescaler = (PIOS_MASTER_CLOCK / 24e6) - 1,
+		.TIM_Prescaler = (PIOS_MASTER_CLOCK / 72e6) - 1,
 		.TIM_ClockDivision = TIM_CKD_DIV1,
 		.TIM_CounterMode = TIM_CounterMode_Up,
-		.TIM_Period = ((24e6 / ESC_DEFAULT_PWM_RATE) - 1),
+		.TIM_Period = ((72e6 / ESC_DEFAULT_PWM_RATE) - 1),
 		.TIM_RepetitionCounter = 0x0000,
 	},
 	.tim_oc_init = {

@@ -70,8 +70,8 @@ float state_offset[6] = {40, 40, 40, 40, 40, 40};
 float commutation_phase = 0.45;
 float kp = 0.0001;
 float ki = 0.0000001;
-float kff = 5e-5;
-float kff2 = 0.06;
+float kff = 3.75e-5;
+float kff2 = 0.02;
 float accum = 0.0;
 float ilim = 0.5;
 
@@ -83,7 +83,7 @@ float max_dc_change = 0.001;
 #define MIN_DC 0.01
 #define MAX_DC 0.7
 int16_t initial_startup_speed = 150;
-int16_t final_startup_speed = 1000;
+int16_t final_startup_speed = 800;
 int16_t current_speed;
 bool closed_loop = false;
 int16_t desired_rpm = 2000;
@@ -137,6 +137,9 @@ void stop()
 	PIOS_ADC_StopDma();
 }
 
+static void test_esc();
+static void panic(int diagnostic_code);
+
 /**
  * @brief ESC Main function
  */
@@ -178,6 +181,8 @@ int main()
 	PIOS_LED_Off(LED1);
 	PIOS_LED_On(LED2);
 	PIOS_LED_On(LED3);
+	
+	test_esc();
 	
 	PIOS_ESC_SetDutyCycle(dc);
 	PIOS_ESC_SetMode(ESC_MODE_LOW_ON_PWM_HIGH);
@@ -277,7 +282,7 @@ int main()
 						break;
 					case INIT_ACCEL:
 						if(current_speed < final_startup_speed) 
-							current_speed+=2.0;
+							current_speed+=1;
 						else
 							init_state = INIT_WAIT;
 						init_counter = 0;
@@ -289,7 +294,7 @@ int main()
 //						accum = dc;
 						PIOS_ESC_SetDutyCycle(dc);
 						delay = RPM_TO_US(current_speed);
-						if(init_counter++ > 2000)
+						if(init_counter++ > 10000)
 							init_state = INIT_FAIL;
 						break;
 					case INIT_FAIL:
@@ -442,7 +447,7 @@ void process_message(struct zerocrossing_message * msg)
 
 	// If decent interval use it to update estimate of speed
 	if(!skipped && !prev_skipped && (zerocrossing_stats.interval < 10000))
-		zerocrossing_stats.smoothed_interval = 0.95 * zerocrossing_stats.smoothed_interval + 0.05 * zerocrossing_stats.interval;
+		zerocrossing_stats.smoothed_interval = 0.98 * zerocrossing_stats.smoothed_interval + 0.02 * zerocrossing_stats.interval;
 
 	if(zerocrossing_stats.consecutive_detected > 82) 
 		closed_loop = true;
@@ -654,6 +659,86 @@ adc_done:
 	adc_irq_status = false;
 
 }
+
+/* INS functions */
+void panic(int diagnostic_code)
+{
+	PIOS_ESC_Off();
+	while(1) {
+		for(int i=0; i<diagnostic_code; i++)
+		{
+			PIOS_LED_Toggle(LED2);
+			PIOS_DELAY_WaitmS(250);
+			PIOS_LED_Toggle(LED2);
+			PIOS_DELAY_WaitmS(250);
+		}
+		PIOS_DELAY_WaitmS(1000);
+	}
+}
+
+
+//TODO: Abstract out constants.  Need to know battery voltage too
+void test_esc() {
+	int32_t voltages[6][3];
+
+	PIOS_ESC_Arm();
+	
+	// Have to precharge A
+	PIOS_ESC_TestGate(ESC_A_LOW);
+	PIOS_ESC_TestGate(ESC_A_HIGH);
+	PIOS_DELAY_WaitmS(1);
+	voltages[0][0] = PIOS_ADC_PinGet(1);
+	voltages[0][1] = PIOS_ADC_PinGet(2);
+	voltages[0][2] = PIOS_ADC_PinGet(3);
+	
+	PIOS_ESC_TestGate(ESC_A_LOW);
+	PIOS_DELAY_WaitmS(1);
+	voltages[1][0] = PIOS_ADC_PinGet(1);
+	voltages[1][1] = PIOS_ADC_PinGet(2);
+	voltages[1][2] = PIOS_ADC_PinGet(3);
+	
+	PIOS_ESC_TestGate(ESC_B_HIGH);
+	PIOS_DELAY_WaitmS(1);
+	voltages[2][0] = PIOS_ADC_PinGet(1);
+	voltages[2][1] = PIOS_ADC_PinGet(2);
+	voltages[2][2] = PIOS_ADC_PinGet(3);
+	
+	PIOS_ESC_TestGate(ESC_B_LOW);
+	PIOS_DELAY_WaitmS(1);
+	voltages[3][0] = PIOS_ADC_PinGet(1);
+	voltages[3][1] = PIOS_ADC_PinGet(2);
+	voltages[3][2] = PIOS_ADC_PinGet(3);
+
+	PIOS_ESC_TestGate(ESC_C_HIGH);
+	PIOS_DELAY_WaitmS(1);
+	voltages[4][0] = PIOS_ADC_PinGet(1);
+	voltages[4][1] = PIOS_ADC_PinGet(2);
+	voltages[4][2] = PIOS_ADC_PinGet(3);
+	
+	PIOS_ESC_TestGate(ESC_C_LOW);
+	PIOS_DELAY_WaitmS(1);
+	voltages[5][0] = PIOS_ADC_PinGet(1);
+	voltages[5][1] = PIOS_ADC_PinGet(2);
+	voltages[5][2] = PIOS_ADC_PinGet(3);
+	
+	
+	// If the particular phase isn't moving fet is dead
+	if(voltages[0][0] < 1000)	
+		panic(1);
+	if(voltages[1][0] > 600)
+		panic(2);
+	if(voltages[2][1] < 1000)	
+		panic(2);
+	if(voltages[3][1] > 600)
+		panic(3);
+	if(voltages[4][2] < 1000)	
+		panic(4);
+	if(voltages[5][2] > 600)
+		panic(5);
+
+	// TODO: If other channels don't follow then motor lead bad
+}
+
 /*
  Notes:
  1. For start up, definitely want to use complimentary PWM to ground the lower side, making zero crossing truly "zero"

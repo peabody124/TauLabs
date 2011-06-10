@@ -449,5 +449,42 @@ static void PIOS_ESC_UpdateOutputs()
 	PIOS_ESC_UpdateChannel(&pios_esc_dev.cfg->phase_c_plus, pios_esc_dev.phase_c_plus);	
 }
 
+/**
+ * @brief Activate only one fet at 50% duty cycle
+ */
+void PIOS_ESC_TestGate(enum pios_esc_phase phase)
+{
+	pios_esc_dev.phase_a_minus = ESC_GATE_MODE_OFF;
+	pios_esc_dev.phase_a_plus = ESC_GATE_MODE_OFF;			
+	pios_esc_dev.phase_b_minus = ESC_GATE_MODE_OFF;
+	pios_esc_dev.phase_b_plus = ESC_GATE_MODE_OFF;			
+	pios_esc_dev.phase_c_minus = ESC_GATE_MODE_OFF;
+	pios_esc_dev.phase_c_plus = ESC_GATE_MODE_OFF;
+	
+	switch(phase) {
+		case ESC_A_HIGH:
+			pios_esc_dev.phase_a_plus = ESC_GATE_MODE_ON;
+			break;
+		case ESC_A_LOW:
+			pios_esc_dev.phase_a_minus = ESC_GATE_MODE_ON;
+			break;
+		case ESC_B_HIGH:
+			pios_esc_dev.phase_b_plus = ESC_GATE_MODE_ON;
+			break;
+		case ESC_B_LOW:
+			pios_esc_dev.phase_b_minus = ESC_GATE_MODE_ON;
+			break;
+		case ESC_C_HIGH:
+			pios_esc_dev.phase_c_plus = ESC_GATE_MODE_ON;
+			break;
+		case ESC_C_LOW:
+			pios_esc_dev.phase_c_minus = ESC_GATE_MODE_ON;
+			break;
+	}
+	
+	pios_esc_dev.duty_cycle = 0.3;	
+	PIOS_ESC_UpdateOutputs();	
+}
+
 
 #endif
