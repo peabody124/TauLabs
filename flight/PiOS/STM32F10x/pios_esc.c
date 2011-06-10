@@ -463,26 +463,26 @@ void PIOS_ESC_TestGate(enum pios_esc_phase phase)
 	
 	switch(phase) {
 		case ESC_A_HIGH:
-			pios_esc_dev.phase_a_plus = ESC_GATE_MODE_ON;
+			pios_esc_dev.phase_a_plus = ESC_GATE_MODE_PWM;
 			break;
 		case ESC_A_LOW:
-			pios_esc_dev.phase_a_minus = ESC_GATE_MODE_ON;
+			pios_esc_dev.phase_a_minus = ESC_GATE_MODE_PWM;
 			break;
 		case ESC_B_HIGH:
-			pios_esc_dev.phase_b_plus = ESC_GATE_MODE_ON;
+			pios_esc_dev.phase_b_plus = ESC_GATE_MODE_PWM;
 			break;
 		case ESC_B_LOW:
-			pios_esc_dev.phase_b_minus = ESC_GATE_MODE_ON;
+			pios_esc_dev.phase_b_minus = ESC_GATE_MODE_PWM;
 			break;
 		case ESC_C_HIGH:
-			pios_esc_dev.phase_c_plus = ESC_GATE_MODE_ON;
+			pios_esc_dev.phase_c_plus = ESC_GATE_MODE_PWM;
 			break;
 		case ESC_C_LOW:
-			pios_esc_dev.phase_c_minus = ESC_GATE_MODE_ON;
+			pios_esc_dev.phase_c_minus = ESC_GATE_MODE_PWM;
 			break;
 	}
 	
-	pios_esc_dev.duty_cycle = 0.3;	
+	PIOS_ESC_SetDutyCycle(0.5);
 	PIOS_ESC_UpdateOutputs();	
 }
 

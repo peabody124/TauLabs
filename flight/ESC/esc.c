@@ -100,7 +100,7 @@ volatile bool commutated_flag = false;
 volatile uint16_t checks = 0;
 uint16_t consecutive_nondetects = 0;
 
-volatile int16_t current_limit = 450;
+volatile int16_t current_limit = 650;
 volatile int16_t hard_current_limit = 3000;
 
 const uint8_t dT = 1e6 / PIOS_ADC_RATE; // 6 uS per sample at 160k
@@ -730,19 +730,18 @@ void test_esc() {
 	voltages[5][1] = PIOS_ADC_PinGet(2);
 	voltages[5][2] = PIOS_ADC_PinGet(3);
 	
-	
 	// If the particular phase isn't moving fet is dead
 	if(voltages[0][0] < 1000)	
 		panic(1);
-	if(voltages[1][0] > 600)
+	if(voltages[1][0] > 700)
 		panic(2);
 	if(voltages[2][1] < 1000)	
 		panic(2);
-	if(voltages[3][1] > 600)
+	if(voltages[3][1] > 700)
 		panic(3);
 	if(voltages[4][2] < 1000)	
 		panic(4);
-	if(voltages[5][2] > 600)
+	if(voltages[5][2] > 700)
 		panic(5);
 
 	// TODO: If other channels don't follow then motor lead bad
