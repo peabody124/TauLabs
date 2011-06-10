@@ -144,6 +144,7 @@ void stop()
 static void test_esc();
 static void panic(int diagnostic_code);
 static float current;
+static bool armed = false;
 
 /**
  * @brief ESC Main function
@@ -202,6 +203,18 @@ int main()
 			PIOS_ESC_Off();
 //		if(PIOS_ADC_PinGet(0) > hard_current_limit)
 //			PIOS_ESC_Off();
+		
+		uint16_t pwm_duration = PIOS_PWM_Get(0);
+		if(pwm_duration < 1200) {
+			armed = false;
+			closed_loop = false;
+			init_state = INIT_FAIL;
+		} else if(!armed) {
+			armed = true;
+			init_state = INIT_GRAB;			
+		} else if (closed_loop) {
+			desired_rpm = 1000 + (pwm_duration-1200) * 4;
+		}
 		
 		idle_count++;
 		if(commutated) {
@@ -731,7 +744,7 @@ void test_esc() {
 	voltages[5][0] = PIOS_ADC_PinGet(1);
 	voltages[5][1] = PIOS_ADC_PinGet(2);
 	voltages[5][2] = PIOS_ADC_PinGet(3);
-		
+	
 	// If the particular phase isn't moving fet is dead
 	if(voltages[0][0] < 1000)	
 		panic(1);
