@@ -70,8 +70,8 @@ float state_offset[6] = {40, 40, 40, 40, 40, 40};
 float commutation_phase = 0.45;
 float kp = 0.0001;
 float ki = 0.0000001;
-float kff = 3.75e-5;
-float kff2 = 0.02;
+float kff = 1.3e-4;
+float kff2 = -0.05;
 float accum = 0.0;
 float ilim = 0.5;
 
@@ -81,7 +81,7 @@ float max_dc_change = 0.001;
 #define US_TO_RPM(x) RPM_TO_US(x)
 #define COMMUTATIONS_PER_ROT (7*6)
 #define MIN_DC 0.01
-#define MAX_DC 0.7
+#define MAX_DC 0.9
 int16_t initial_startup_speed = 150;
 int16_t final_startup_speed = 800;
 int16_t current_speed;
@@ -99,6 +99,9 @@ volatile bool commutated = false;
 volatile bool commutated_flag = false;
 volatile uint16_t checks = 0;
 uint16_t consecutive_nondetects = 0;
+
+volatile int16_t current_limit = 450;
+volatile int16_t hard_current_limit = 3000;
 
 const uint8_t dT = 1e6 / PIOS_ADC_RATE; // 6 uS per sample at 160k
 float rate = 0;
@@ -139,7 +142,7 @@ void stop()
 
 static void test_esc();
 static void panic(int diagnostic_code);
-
+static float current;
 /**
  * @brief ESC Main function
  */
@@ -192,6 +195,12 @@ int main()
 	closed_loop = false;
 	
 	while(1) {
+		current = (float) current * 0.995 + (float) PIOS_ADC_PinGet(0) * 0.005;
+		if(closed_loop && (current > current_limit))
+			PIOS_ESC_Off();
+//		if(PIOS_ADC_PinGet(0) > hard_current_limit)
+//			PIOS_ESC_Off();
+		
 		idle_count++;
 		if(commutated) {
 			last_idle_count = idle_count;
@@ -449,7 +458,7 @@ void process_message(struct zerocrossing_message * msg)
 	if(!skipped && !prev_skipped && (zerocrossing_stats.interval < 10000))
 		zerocrossing_stats.smoothed_interval = 0.98 * zerocrossing_stats.smoothed_interval + 0.02 * zerocrossing_stats.interval;
 
-	if(zerocrossing_stats.consecutive_detected > 82) 
+	if(zerocrossing_stats.consecutive_detected > 30) 
 		closed_loop = true;
 							
 	if(closed_loop) {
@@ -512,7 +521,7 @@ void adc_callback(float * buffer)
 		back_buf[back_buf_point++] = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 2];
 		back_buf[back_buf_point++] = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 3];
 	}
-		
+
 	// Commutation detection, assuming mode is ESC_MODE_LOW_ON_PWM_BOTH
 	/* uint16_t */ enter_time = PIOS_DELAY_GetuS();
 	// Process ADC from undriven leg
