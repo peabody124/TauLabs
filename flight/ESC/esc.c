@@ -100,7 +100,7 @@ volatile bool commutated_flag = false;
 volatile uint16_t checks = 0;
 uint16_t consecutive_nondetects = 0;
 
-volatile int16_t current_limit = 650;
+volatile int16_t current_limit = 850;
 volatile int16_t hard_current_limit = 3000;
 
 const uint8_t dT = 1e6 / PIOS_ADC_RATE; // 6 uS per sample at 160k
@@ -145,6 +145,7 @@ static void test_esc();
 static void panic(int diagnostic_code);
 static float current;
 static bool armed = false;
+uint16_t pwm_duration ;
 
 /**
  * @brief ESC Main function
@@ -204,16 +205,22 @@ int main()
 //		if(PIOS_ADC_PinGet(0) > hard_current_limit)
 //			PIOS_ESC_Off();
 		
-		uint16_t pwm_duration = PIOS_PWM_Get(0);
+		pwm_duration = PIOS_PWM_Get(0);
 		if(pwm_duration < 1200) {
 			armed = false;
 			closed_loop = false;
 			init_state = INIT_FAIL;
+			PIOS_ESC_Off();
+			continue;
 		} else if(!armed) {
 			armed = true;
+			closed_loop = false;
+			PIOS_ESC_SetDutyCycle(dc);
+			PIOS_ESC_SetMode(ESC_MODE_LOW_ON_PWM_HIGH);
+			PIOS_ESC_Arm();			
 			init_state = INIT_GRAB;			
 		} else if (closed_loop) {
-			desired_rpm = 1000 + (pwm_duration-1200) * 4;
+			desired_rpm = 1000 + (pwm_duration-1200) * 7;
 		}
 		
 		idle_count++;
@@ -306,7 +313,7 @@ int main()
 						break;
 					case INIT_ACCEL:
 						if(current_speed < final_startup_speed) 
-							current_speed+=1;
+							current_speed+=3;
 						else
 							init_state = INIT_WAIT;
 						init_counter = 0;
