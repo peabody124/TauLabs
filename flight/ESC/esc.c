@@ -715,48 +715,65 @@ void panic(int diagnostic_code)
 void test_esc() {
 	int32_t voltages[6][3];
 
+	PIOS_DELAY_WaitmS(150);
+
 	PIOS_ESC_Arm();
 
-	while(1) {
+	PIOS_ESC_SetDutyCycle(0.5);
 	PIOS_ESC_TestGate(ESC_A_LOW);
-	PIOS_DELAY_WaitmS(1);
+	PIOS_DELAY_WaituS(250);
+	PIOS_ESC_SetDutyCycle(1);
+	PIOS_DELAY_WaituS(100);
 	voltages[1][0] = PIOS_ADC_PinGet(1);
 	voltages[1][1] = PIOS_ADC_PinGet(2);
 	voltages[1][2] = PIOS_ADC_PinGet(3);
 
+	PIOS_ESC_SetDutyCycle(0.5);
 	PIOS_ESC_TestGate(ESC_A_HIGH);
-	PIOS_DELAY_WaitmS(1);
+	PIOS_DELAY_WaituS(250);
+	PIOS_ESC_SetDutyCycle(1);
+	PIOS_DELAY_WaituS(100);
 	voltages[0][0] = PIOS_ADC_PinGet(1);
 	voltages[0][1] = PIOS_ADC_PinGet(2);
 	voltages[0][2] = PIOS_ADC_PinGet(3);
 
-
+	PIOS_ESC_SetDutyCycle(0.5);
 	PIOS_ESC_TestGate(ESC_B_LOW);
-	PIOS_DELAY_WaitmS(1);
+	PIOS_DELAY_WaituS(250);
+	PIOS_ESC_SetDutyCycle(1);
+	PIOS_DELAY_WaituS(100);
 	voltages[3][0] = PIOS_ADC_PinGet(1);
 	voltages[3][1] = PIOS_ADC_PinGet(2);
 	voltages[3][2] = PIOS_ADC_PinGet(3);
 
+	PIOS_ESC_SetDutyCycle(0.5);
 	PIOS_ESC_TestGate(ESC_B_HIGH);
-	PIOS_DELAY_WaitmS(1);
+	PIOS_DELAY_WaituS(250);
+	PIOS_ESC_SetDutyCycle(1);
+	PIOS_DELAY_WaituS(100);
 	voltages[2][0] = PIOS_ADC_PinGet(1);
 	voltages[2][1] = PIOS_ADC_PinGet(2);
 	voltages[2][2] = PIOS_ADC_PinGet(3);
 
+	PIOS_ESC_SetDutyCycle(0.5);
 	PIOS_ESC_TestGate(ESC_C_LOW);
-	PIOS_DELAY_WaitmS(1);
+	PIOS_DELAY_WaituS(250);
+	PIOS_ESC_SetDutyCycle(1);
+	PIOS_DELAY_WaituS(100);
 	voltages[5][0] = PIOS_ADC_PinGet(1);
 	voltages[5][1] = PIOS_ADC_PinGet(2);
 	voltages[5][2] = PIOS_ADC_PinGet(3);
 
+	PIOS_ESC_SetDutyCycle(0.5);
 	PIOS_ESC_TestGate(ESC_C_HIGH);
-	PIOS_DELAY_WaitmS(1);
+	PIOS_DELAY_WaituS(250);
+	PIOS_ESC_SetDutyCycle(1);
+	PIOS_DELAY_WaituS(100);
 	voltages[4][0] = PIOS_ADC_PinGet(1);
 	voltages[4][1] = PIOS_ADC_PinGet(2);
 	voltages[4][2] = PIOS_ADC_PinGet(3);
-	}
-	//return;
 
+	PIOS_ESC_Off();
 	// If the particular phase isn't moving fet is dead
 	if(voltages[0][0] < 1000)
 		panic(1);
