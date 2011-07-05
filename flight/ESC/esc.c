@@ -48,6 +48,10 @@ void adc_callback(float * buffer);
 uint16_t back_buf[8096];
 uint16_t back_buf_point = 0;
 
+#define LED_ERR LED1
+#define LED_GO  LED2
+#define LED_MSG LED3
+
 // A message from the ADC to say a zero crossing was detected
 struct zerocrossing_message {
 	enum pios_esc_state state;
@@ -67,7 +71,7 @@ bool closed_loop_updated = false;
 
 // Tuning settings for control
 float state_offset[6] = {40, 40, 40, 40, 40, 40};
-float commutation_phase = 0.40;
+float commutation_phase = 0.50;
 float kp = 0.0001;
 float ki = 0.000000005;
 float kff = 1.3e-4;
@@ -100,7 +104,7 @@ volatile bool commutated_flag = false;
 volatile uint16_t checks = 0;
 uint16_t consecutive_nondetects = 0;
 
-volatile int16_t current_limit = 1950;
+volatile int16_t current_limit = 2550;
 volatile int16_t hard_current_limit = 4000;
 
 const uint8_t dT = 1e6 / PIOS_ADC_RATE; // 6 uS per sample at 160k
@@ -139,6 +143,7 @@ void stop()
 	PIOS_ESC_Off();
 	TIM_ITConfig(TIM4, TIM_IT_CC1, DISABLE);
 	PIOS_ADC_StopDma();
+	PIOS_LED_Off(LED_ERR);
 }
 
 static void test_esc();
@@ -185,9 +190,9 @@ int main()
 	PIOS_GPIO_Enable(0);
 	PIOS_GPIO_Off(0);
 
-	PIOS_LED_Off(LED1);
-	PIOS_LED_On(LED2);
-	PIOS_LED_On(LED3);
+	PIOS_LED_Off(LED_ERR);
+	PIOS_LED_On(LED_GO);
+	PIOS_LED_On(LED_MSG);
 
 	test_esc();
 
@@ -199,7 +204,7 @@ int main()
 	closed_loop = false;
 
 	while(1) {
-		current = (float) current * 0.99 + (float) PIOS_ADC_PinGet(0) * 0.01;
+		current = (float) current * 0.5 + (float) PIOS_ADC_PinGet(0) * 0.5;
 		if(closed_loop && (current > current_limit))
 			PIOS_ESC_Off();
 //		if(PIOS_ADC_PinGet(0) > hard_current_limit)
@@ -207,6 +212,9 @@ int main()
 
 		pwm_duration = PIOS_PWM_Get(0);
 		if(pwm_duration < 1200) {
+			PIOS_LED_On(LED_GO);
+			PIOS_LED_On(LED_ERR);
+			PIOS_LED_On(LED_MSG);
 			armed = false;
 			closed_loop = false;
 			init_state = INIT_FAIL;
@@ -232,7 +240,7 @@ int main()
 
 			if(closed_loop) {
 				// Turn err light off
-				PIOS_LED_On(LED2);
+				PIOS_LED_Off(LED_GO);
 
 				if(!commutation_detected) {
 					consecutive_nondetects++;
@@ -243,12 +251,12 @@ int main()
 				if(!closed_loop_updated) {
 					PIOS_COM_SendFormattedStringNonBlocking(PIOS_COM_DEBUG, "*");
 					static uint16_t fail_count = 0;
-					if(fail_count++ > 100)
+					if(fail_count++ > 5)
 						stop();
 				}
 				closed_loop_updated = false;
 
-				if(consecutive_nondetects > 500)
+				if(consecutive_nondetects > 5)
 					stop();
 
 				// This is a fall back.  Should get rescheduled by zero crossing detection.
@@ -297,7 +305,7 @@ int main()
 
 			} else {
 				// Turn err light off
-				PIOS_LED_Off(LED2);
+				PIOS_LED_On(LED_GO);
 
 				static uint16_t init_counter;
 				uint16_t delay = 0;
@@ -454,12 +462,12 @@ void process_message(struct zerocrossing_message * msg)
 	}
 
 	if(!skipped) {
-		PIOS_LED_Off(LED3);
+		PIOS_LED_Off(LED_MSG);
 
 		zerocrossing_stats.consecutive_skipped = 0;
 		zerocrossing_stats.consecutive_detected++;
 	} else {
-		PIOS_LED_On(LED3);
+		PIOS_LED_On(LED_MSG);
 
 		zerocrossing_stats.consecutive_skipped++;
 		zerocrossing_stats.consecutive_detected = 0;
@@ -701,9 +709,9 @@ void panic(int diagnostic_code)
 	while(1) {
 		for(int i=0; i<diagnostic_code; i++)
 		{
-			PIOS_LED_Toggle(LED2);
+			PIOS_LED_Toggle(LED_ERR);
 			PIOS_DELAY_WaitmS(250);
-			PIOS_LED_Toggle(LED2);
+			PIOS_LED_Toggle(LED_ERR);
 			PIOS_DELAY_WaitmS(250);
 		}
 		PIOS_DELAY_WaitmS(1000);
