@@ -232,6 +232,13 @@ static void go_stopped()
 
 static void go_fsm_startup_grab()
 {
+	PIOS_ESC_SetState(0);
+	current_speed = initial_startup_speed;
+	delay = 30000; // hold in that position for 10 ms
+	PIOS_ESC_SetDutyCycle(0.2); // TODO: Current limit
+	dc = 0.12;
+	init_state = INIT_ACCEL;
+	schedule_commutation(PIOS_DELAY_GetuS() + delay);
 }
 
 /**
@@ -241,11 +248,73 @@ static void go_fsm_startup_grab()
  */
 static void go_fsm_startup_wait()
 {
+	if(current_speed < final_startup_speed)
+		current_speed+=3;
+	init_counter = 0;
+	delay = RPM_TO_US(current_speed);
+	PIOS_ESC_SetDutyCycle(dc);
+	schedule_commutation(PIOS_DELAY_GetuS() + delay);
 }
 
+/**
+ * Commutation occured during startup without a ZCD
+ */
+static void go_fsm_startup_zcd()
+{
+	// ZCD detected.  Good stuff.  Hang out here till commutate.
+	// Increment some statistics, and when enough occur consecuitively
+	// go to CL
+}
 
-static void go_fsm_startup_zcd();
-static void go_fsm_startup_nozcd();
+/**
+ * Commutation occured during startup without a ZCD
+ */
+static void go_fsm_startup_nozcd()
+{
+	// Do nothing
+}
 
-static void esc_fsm_process_auto();
-static void esc_fsm_inject_event();
+static void esc_fsm_inject_event(enum esc_event event)
+{
+	PIOS_IRQ_Disable();
+
+	/*
+	 * Move to the next state
+	 *
+	 * This is done prior to calling the new state's entry function to
+	 * guarantee that the entry function never depends on the previous
+	 * state.  This way, it cannot ever know what the previous state was.
+	 */
+	enum esc_fsm_state prev_state = esc_state;
+
+	esc_state = esc_transition[esc_state].next_state[event];
+
+	/* Call the entry function (if any) for the next state. */
+	if (esc_transition[esc_state].entry_fn) {
+		esc_transition[esc_state].entry_fn();
+	}
+
+	/* Process any AUTO transitions in the FSM */
+	esc_fsm_process_auto();
+
+	PIOS_IRQ_Enable();
+}
+
+static void esc_fsm_process_auto()
+{
+	PIOS_IRQ_Disable();
+
+	enum esc_fsm_state prev_state = esc_state;
+
+	while (esc_transition[esc_state].next_state[ESC_EVENT_AUTO]) {
+		esc_state = esc_transition[esc_state].next_state[ESC_EVENT_AUTO];
+
+		/* Call the entry function (if any) for the next state. */
+		if (esc_transition[esc_state].entry_fn) {
+			esc_transition[esc_state].entry_fn();
+		}
+	}
+
+	PIOS_IRQ_Enable();
+}
+

@@ -706,6 +706,8 @@ adc_done:
 void panic(int diagnostic_code)
 {
 	PIOS_ESC_Off();
+	// Polarity backwards
+	PIOS_LED_On(LED_ERR);
 	while(1) {
 		for(int i=0; i<diagnostic_code; i++)
 		{
