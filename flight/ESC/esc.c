@@ -54,30 +54,16 @@ uint16_t back_buf_point = 0;
 
 // Tuning settings for control
 float state_offset[6] = {40, 40, 40, 40, 40, 40};
-float commutation_phase = 0.50;
 
 uint16_t zero_current = 0;
 
-int16_t initial_startup_speed = 150;
-int16_t final_startup_speed = 800;
-int16_t current_speed;
-bool closed_loop = false;
-int16_t desired_rpm = 2000;
-volatile uint16_t swap_time;
 volatile uint8_t low_pin;
 volatile uint8_t high_pin;
 volatile uint8_t undriven_pin;
 volatile bool pos;
-volatile float dc = 0.20;
 
 const uint8_t dT = 1e6 / PIOS_ADC_RATE; // 6 uS per sample at 160k
 float rate = 0;
-
-uint16_t swap_diff;
-
-uint32_t idle_count = 0;
-uint32_t last_idle_count;
-bool schedule_next = false;
 
 static void test_esc();
 static void panic(int diagnostic_code);
@@ -127,7 +113,7 @@ int main()
 
 	test_esc();
 	esc_data = esc_fsm_init();
-	esc_data->speed_setpoint = 2000;
+	esc_data->speed_setpoint = 1500;
 
 	while(1) {
 		counter++;

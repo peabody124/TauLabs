@@ -18,20 +18,30 @@
 // 3. Monitor high voltage level to track battery (bonus for determining # of cells)
 // 4. BEEPS!
 
-float kp = 0.0001;
-float ki = 0.000000005;
-float kff = 1.3e-4;
-float kff2 = -0.05;
-float accum = 0.0;
-float ilim = 0.5;
-float max_dc_change = 0.002;
+// 5. In case of soft current limit, go into current limiting mode
+// 6. Freehweeling mode for when a ZCD is missed
 
 #define RPM_TO_US(x) (1e6 * 60 / (x * COMMUTATIONS_PER_ROT) )
 #define US_TO_RPM(x) RPM_TO_US(x)
 #define COMMUTATIONS_PER_ROT (7*6)
-#define MIN_DC 0.01
-#define MAX_DC 0.99
+#define ESC_CONFIG_MAGIC 0x763fedc
 
+struct esc_config config = {
+	.kp = 0.0004,
+	.ki = 0.0000005,
+	.kff = 1.3e-4,
+	.kff2 = -0.05,
+	.accum = 0.0,
+	.ilim = 0.5,
+	.max_dc_change = 0.002,
+	.min_dc = 0.01,
+	.max_dc = 0.99,
+	.initial_startup_speed = 400,
+	.final_startup_speed = 1200,
+	.commutation_phase = 0.5,
+	.soft_current_limit = 150,
+	.magic = ESC_CONFIG_MAGIC,
+};
 
 static void go_esc_nothing(uint16_t time) {};
 // Fault and stopping transitions
@@ -287,7 +297,7 @@ static void go_esc_startup_grab(uint16_t time)
 
 	PIOS_ESC_SetState(0);
 	esc_data.current_speed = 200;
-	esc_data.duty_cycle = 0.12;
+	esc_data.duty_cycle = 0.10;
 	PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
 	esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, PIOS_DELAY_GetuS() + 30000);  // Grab stator for 30 ms
 }
@@ -313,13 +323,13 @@ static void go_esc_startup_zcd(uint16_t time)
 	zcd(time);
 
 	// Since we aren't getting ZCD keep accelerating
-	if(esc_data.current_speed < 1200)
-		esc_data.current_speed+=1;
+	if(esc_data.current_speed < config.final_startup_speed)
+		esc_data.current_speed+=0;
 
 	// Schedule next commutation
 	esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, time + RPM_TO_US(esc_data.current_speed) / 2);
 
-	if(esc_data.consecutive_detected > 350) {
+	if(esc_data.consecutive_detected > 10) {
 		esc_fsm_inject_event(ESC_EVENT_CLOSED, time);
 	}
 }
@@ -332,14 +342,14 @@ static void go_esc_startup_nozcd(uint16_t time)
 	esc_data.consecutive_detected = 0;
 	esc_data.consecutive_missed++;
 
-	if(esc_data.consecutive_missed > 500) {
+	if(esc_data.consecutive_missed > 10) {
 		esc_fsm_inject_event(ESC_EVENT_FAULT, time);
 	} else {
 		commutate();
 
 		// Since we aren't getting ZCD keep accelerating
-		if(esc_data.current_speed < 1200)
-			esc_data.current_speed+=2;
+		if(esc_data.current_speed < config.final_startup_speed)
+			esc_data.current_speed+=10;
 
 		// Schedule next commutation
 		esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, PIOS_DELAY_GetuS() + RPM_TO_US(esc_data.current_speed));
@@ -361,7 +371,11 @@ static void go_esc_cl_start(uint16_t time)
 static void go_esc_cl_commutated(uint16_t time)
 {
 	commutate();
-	esc_fsm_schedule_event(ESC_EVENT_TIMEOUT, time + RPM_TO_US(esc_data.current_speed * 2));
+	esc_fsm_schedule_event(ESC_EVENT_TIMEOUT, time + RPM_TO_US(esc_data.current_speed) * 2);
+	esc_data.Kv = esc_data.current_speed / esc_data.current;
+
+//	if(esc_data.Kv < 15)
+//		esc_fsm_inject_event(ESC_EVENT_FAULT, 0);
 }
 
 /**
@@ -372,37 +386,42 @@ static void go_esc_cl_zcd(uint16_t time)
 	esc_data.consecutive_detected++;
 	esc_data.consecutive_missed = 0;
 
-	uint32_t interval = 0;
-	for (uint8_t i = 0; i < NUM_STORED_SWAP_INTERVALS; i++)
-		interval += esc_data.swap_intervals[i];
-	interval /= NUM_STORED_SWAP_INTERVALS;
-	esc_data.current_speed = US_TO_RPM(interval);
-	zcd(time);
+	if(esc_data.current > config.soft_current_limit) {
+		esc_data.duty_cycle -= config.max_dc_change;
+		esc_data.error_accum = 0; // Dont want to wind up accum
+		PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
+	} else {
+		uint32_t interval = 0;
+		for (uint8_t i = 0; i < NUM_STORED_SWAP_INTERVALS; i++)
+			interval += esc_data.swap_intervals[i];
+		interval /= NUM_STORED_SWAP_INTERVALS;
+		esc_data.current_speed = US_TO_RPM(interval);
+		zcd(time);
 
-	int16_t error = esc_data.speed_setpoint - US_TO_RPM(interval);
+		int16_t error = esc_data.speed_setpoint - US_TO_RPM(interval);
 
-	accum += ki * error;
-	if(accum > ilim)
-		accum = ilim;
-	if(accum < -ilim)
-		accum = -ilim;
+		esc_data.error_accum += config.ki * error;
+		if(esc_data.error_accum > config.ilim)
+			esc_data.error_accum = config.ilim;
+		if(esc_data.error_accum < -config.ilim)
+			esc_data.error_accum = -config.ilim;
 
-	float new_dc = esc_data.speed_setpoint * kff - kff2 + kp * error + accum;
+		float new_dc = esc_data.speed_setpoint * config.kff - config.kff2 + config.kp * error + esc_data.error_accum;
 
-	if((new_dc - esc_data.duty_cycle) > max_dc_change)
-		esc_data.duty_cycle += max_dc_change;
-	else if((new_dc - esc_data.duty_cycle) < -max_dc_change)
-		esc_data.duty_cycle -= max_dc_change;
-	else
-		esc_data.duty_cycle = new_dc;
+		if((new_dc - esc_data.duty_cycle) > config.max_dc_change)
+			esc_data.duty_cycle += config.max_dc_change;
+		else if((new_dc - esc_data.duty_cycle) < -config.max_dc_change)
+			esc_data.duty_cycle -= config.max_dc_change;
+		else
+			esc_data.duty_cycle = new_dc;
 
-	if(esc_data.duty_cycle < MIN_DC)
-		esc_data.duty_cycle = MIN_DC;
-	if(esc_data.duty_cycle > MAX_DC)
-		esc_data.duty_cycle = MAX_DC;
-	PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
-
-	esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, time + RPM_TO_US(esc_data.current_speed) * 0.5);
+		if(esc_data.duty_cycle < config.min_dc)
+			esc_data.duty_cycle = config.min_dc;
+		if(esc_data.duty_cycle > config.max_dc)
+			esc_data.duty_cycle = config.max_dc;
+		PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
+	}
+	esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, time + RPM_TO_US(esc_data.current_speed) * (1 - config.commutation_phase));
 }
 
 /**
@@ -412,8 +431,10 @@ static void go_esc_cl_nozcd(uint16_t time)
 {
 	esc_data.consecutive_detected = 0;
 	esc_data.consecutive_missed++;
-//	esc_fsm_inject_event(ESC_EVENT_FAULT, 0);
-	esc_fsm_inject_event(ESC_EVENT_COMMUTATED, 0);
+	if(esc_data.consecutive_missed > 10)
+		esc_fsm_inject_event(ESC_EVENT_FAULT, 0);
+	else
+		esc_fsm_inject_event(ESC_EVENT_COMMUTATED, 0);
 
 }
 

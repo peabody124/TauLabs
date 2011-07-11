@@ -83,8 +83,27 @@ struct esc_fsm_data {
 	uint16_t consecutive_missed;
 	uint16_t faults;
 	uint8_t detected;
+	float error_accum;
+	float Kv;
 	enum esc_fsm_state state;
 	enum esc_event scheduled_event;
+};
+
+struct esc_config {
+	float kp;
+	float ki;
+	float kff;
+	float kff2;
+	float accum;
+	float ilim;
+	float max_dc_change;
+	float min_dc;
+	float max_dc;
+	uint16_t initial_startup_speed;
+	uint16_t final_startup_speed;
+	float commutation_phase;
+	float soft_current_limit;
+	uint32_t magic;
 };
 
 
