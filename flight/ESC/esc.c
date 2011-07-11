@@ -55,20 +55,9 @@ uint16_t back_buf_point = 0;
 // Tuning settings for control
 float state_offset[6] = {40, 40, 40, 40, 40, 40};
 float commutation_phase = 0.50;
-float kp = 0.0001;
-float ki = 0.000000005;
-float kff = 1.3e-4;
-float kff2 = -0.05;
-float accum = 0.0;
-float ilim = 0.5;
 
-float max_dc_change = 0.002;
+uint16_t zero_current = 0;
 
-#define RPM_TO_US(x) (1e6 * 60 / (x * COMMUTATIONS_PER_ROT) )
-#define US_TO_RPM(x) RPM_TO_US(x)
-#define COMMUTATIONS_PER_ROT (7*6)
-#define MIN_DC 0.01
-#define MAX_DC 0.99
 int16_t initial_startup_speed = 150;
 int16_t final_startup_speed = 800;
 int16_t current_speed;
@@ -92,9 +81,10 @@ bool schedule_next = false;
 
 static void test_esc();
 static void panic(int diagnostic_code);
-static float current;
 uint16_t pwm_duration ;
 uint32_t counter = 0;
+
+struct esc_fsm_data * esc_data = 0;
 /**
  * @brief ESC Main function
  */
@@ -136,7 +126,8 @@ int main()
 	PIOS_LED_On(LED_MSG);
 
 	test_esc();
-	esc_fsm_init();
+	esc_data = esc_fsm_init();
+	esc_data->speed_setpoint = 2000;
 
 	while(1) {
 		counter++;
@@ -191,7 +182,7 @@ int main()
 #define DIODE_LOW 460
 #define MIN_PRE_COUNT  1
 #define MIN_POST_COUNT 1
-#define DEMAG_BLANKING 20
+#define DEMAG_BLANKING 100
 uint16_t exceed_count = 0;
 
 uint32_t calls = 0;
@@ -199,7 +190,6 @@ uint32_t detected = 0;
 
 void adc_callback(float * buffer)
 {
-
 	calls ++;
 
 	int16_t * raw_buf = PIOS_ADC_GetRawBuffer();
@@ -209,7 +199,6 @@ void adc_callback(float * buffer)
 	static uint16_t pre_count = 0;
 	static uint16_t post_count = 0;
 	static float running_avg;
-	uint8_t commutation_detected = 0;
 
 	curr_state = PIOS_ESC_GetState();
 
@@ -226,17 +215,28 @@ void adc_callback(float * buffer)
 		back_buf[back_buf_point++] = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 3];
 	}
 
-	// Smooth the estimate of current a bit
-	uint32_t this_current = 0;
-	for(int i = 0; i < DOWNSAMPLING; i++)
-		this_current += raw_buf[PIOS_ADC_NUM_CHANNELS * i + 0];
-	this_current /= DOWNSAMPLING;
-	current += (this_current - current) * 0.2;
+	// Wait for blanking
+	if(esc_data && PIOS_DELAY_DiffuS(esc_data->last_swap_time) < DEMAG_BLANKING)
+		return;
 
+	if(esc_data) {
+		// Smooth the estimate of current a bit
+		int32_t this_current = 0;
+		for(int i = 0; i < DOWNSAMPLING; i++)
+			this_current += raw_buf[PIOS_ADC_NUM_CHANNELS * i + 0];
+		this_current /= DOWNSAMPLING;
+		this_current -= zero_current;
+		if(this_current < 0)
+			this_current = 0;
+		esc_data->current += (this_current - esc_data->current) * 0.01;
+	}
 	uint16_t enter_time = PIOS_DELAY_GetuS();
 
+	// Already detected for this stage
+	if(esc_data && esc_data->detected)
+		return;
+
 	// If detected this commutation don't bother here
-	// TODO:  disable IRQ for efficiency
 	if(curr_state != prev_state) {
 		prev_state = curr_state;
 		pre_count = 0;
@@ -273,9 +273,11 @@ void adc_callback(float * buffer)
 					post_count++;
 				}
 				if(diff > 0 && post_count >= MIN_POST_COUNT) {
-					//below_time = enter_time;// - dT * (DOWNSAMPLING - i);
+
 					detected ++;
-					commutation_detected = true;
+					esc_data->detected = true;
+					esc_fsm_inject_event(ESC_EVENT_ZCD, below_time);
+
 					break;
 				}
 			}
@@ -283,12 +285,6 @@ void adc_callback(float * buffer)
 		default:
 			PIOS_ESC_Off();
 			break;
-	}
-
-
-
-	if(commutation_detected) {
-		esc_fsm_inject_event(ESC_EVENT_COMMUTATED, below_time);
 	}
 }
 
@@ -316,6 +312,8 @@ void test_esc() {
 	int32_t voltages[6][3];
 
 	PIOS_DELAY_WaitmS(150);
+
+	zero_current = PIOS_ADC_PinGet(0);
 
 	PIOS_ESC_Arm();
 

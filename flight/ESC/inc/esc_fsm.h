@@ -28,6 +28,8 @@
 
 #include "stdint.h"
 
+#define NUM_STORED_SWAP_INTERVALS 6
+
 enum esc_fsm_state {
 	ESC_STATE_FSM_FAULT = 0,               /* Must be zero so undefined transitions land here */
 
@@ -44,8 +46,9 @@ enum esc_fsm_state {
 	ESC_STATE_STARTUP_ZCD_DETECTED,        /* A ZCD detected, increment counter */
 	ESC_STATE_STARTUP_NOZCD_COMMUTATED,    /* Commutation without a ZCD, reset counter */
 
+	ESC_STATE_CL_START,
 	ESC_STATE_CL_COMMUTATED,
-	ESC_STATE_CL_MISSED_ZCD,
+	ESC_STATE_CL_NOZCD,
 	ESC_STATE_CL_ZCD,
 
 	ESC_FSM_NUM_STATES
@@ -64,12 +67,33 @@ enum esc_event {
 	ESC_EVENT_NUM_EVENTS	/* Must be last */
 };
 
+struct esc_fsm_data {
+	float duty_cycle;
+	float current;
+	uint16_t current_speed;
+	uint16_t speed_setpoint;
+	uint8_t scheduled_event_armed;
+	uint16_t last_swap_time;
+	uint16_t last_zcd_time;
+	uint16_t swap_intervals[NUM_STORED_SWAP_INTERVALS];
+	uint8_t swap_intervals_pointer;
+	uint16_t zcd_intervals[NUM_STORED_SWAP_INTERVALS];
+	uint8_t zcd_intervals_pointer;
+	uint16_t consecutive_detected;
+	uint16_t consecutive_missed;
+	uint16_t faults;
+	uint8_t detected;
+	enum esc_fsm_state state;
+	enum esc_event scheduled_event;
+};
+
+
 struct esc_transition {
 	void (*entry_fn) (uint16_t time);
 	enum esc_fsm_state next_state[ESC_EVENT_NUM_EVENTS];
 };
 
-void esc_fsm_init();
+struct esc_fsm_data * esc_fsm_init();
 void esc_fsm_inject_event(enum esc_event event, uint16_t time);
 void esc_process_static_fsm_rxn();
 
