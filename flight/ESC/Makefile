@@ -93,6 +93,7 @@ OPUAVSYNTHDIR = $(OUTDIR)/../uavobject-synthetics/flight
 
 ## ESC:
 SRC = esc.c
+SRC += esc_fsm.c
 SRC += pios_board.c
 SRC += $(FLIGHTLIB)/fifo_buffer.c
 
@@ -299,8 +300,8 @@ LDFLAGS += -lc -lgcc
 LDFLAGS +=-T$(LINKERSCRIPTPATH)/link_$(BOARD)_$(BOOT_MODEL).ld
 
 
-OOCD_LOADFILE+=$(OUTDIR)/$(TARGET).elf  
-# Program                                                                                                                                                                                                                            
+OOCD_LOADFILE+=$(OUTDIR)/$(TARGET).elf
+# Program
 OOCD_CL+=-c "flash write_image $(OOCD_LOADFILE)"
 # Verify
 OOCD_CL+=-c "verify_image $(OOCD_LOADFILE)"

@@ -27,9 +27,9 @@
 
 /* OpenPilot Includes */
 #include "pios.h"
+#include "esc_fsm.h"
 #include "fifo_buffer.h"
 #include <pios_stm32.h>
-
 
 //TODO: Check the ADC buffer pointer and make sure it isn't dropping swaps
 //TODO: Check the time commutation is being scheduled, make sure it's the future
@@ -51,23 +51,6 @@ uint16_t back_buf_point = 0;
 #define LED_ERR LED1
 #define LED_GO  LED2
 #define LED_MSG LED3
-
-// A message from the ADC to say a zero crossing was detected
-struct zerocrossing_message {
-	enum pios_esc_state state;
-	volatile uint16_t time;
-	volatile bool read;
-} message;
-
-struct zerocrossing_stats {
-	uint32_t consecutive_skipped;
-	uint32_t consecutive_detected;
-	uint16_t interval;
-	uint16_t smoothed_interval;
-	uint16_t latency[6];
-} zerocrossing_stats;
-
-bool closed_loop_updated = false;
 
 // Tuning settings for control
 float state_offset[6] = {40, 40, 40, 40, 40, 40};
@@ -98,15 +81,6 @@ volatile uint8_t undriven_pin;
 volatile bool pos;
 volatile float dc = 0.20;
 
-volatile bool commutation_detected = false;
-volatile bool commutated = false;
-volatile bool commutated_flag = false;
-volatile uint16_t checks = 0;
-uint16_t consecutive_nondetects = 0;
-
-volatile int16_t current_limit = 2550;
-volatile int16_t hard_current_limit = 4000;
-
 const uint8_t dT = 1e6 / PIOS_ADC_RATE; // 6 uS per sample at 160k
 float rate = 0;
 
@@ -116,49 +90,16 @@ uint32_t idle_count = 0;
 uint32_t last_idle_count;
 bool schedule_next = false;
 
-void process_message(struct zerocrossing_message * msg);
-void commutate();
-
-enum init_state {
-	INIT_GRAB = 0,
-	INIT_ACCEL = 1,
-	INIT_WAIT = 2,
-	INIT_FAIL = 3
-} init_state;
-
-
-void PIOS_DELAY_timeout() {
-	TIM_ClearITPendingBit(TIM4,TIM_IT_CC1);
-	TIM_ClearFlag(TIM4,TIM_IT_CC1);
-	commutate();
-}
-
-void schedule_commutation(uint16_t time)
-{
-	TIM_SetCompare1(TIM4, time);
-}
-
-void stop()
-{
-	PIOS_ESC_Off();
-	TIM_ITConfig(TIM4, TIM_IT_CC1, DISABLE);
-	PIOS_ADC_StopDma();
-	PIOS_LED_Off(LED_ERR);
-}
-
 static void test_esc();
 static void panic(int diagnostic_code);
 static float current;
-static bool armed = false;
 uint16_t pwm_duration ;
-
+uint32_t counter = 0;
 /**
  * @brief ESC Main function
  */
 int main()
 {
-	current_speed = initial_startup_speed;
-	message.read = true;
 	PIOS_Board_Init();
 
 	PIOS_ADC_Config(DOWNSAMPLING);
@@ -176,7 +117,7 @@ int main()
 		.TIM_OCNIdleState = TIM_OCNIdleState_Reset,
 	};
 	TIM_OC1Init(TIM4, &tim_oc_init);
-	TIM_ITConfig(TIM4, TIM_IT_CC1, ENABLE);
+	TIM_ITConfig(TIM4, TIM_IT_CC1, DISABLE);  // Enabled by FSM
 
 	NVIC_InitTypeDef NVIC_InitStructure;
 	NVIC_InitStructure.NVIC_IRQChannel = TIM4_IRQn;
@@ -195,323 +136,54 @@ int main()
 	PIOS_LED_On(LED_MSG);
 
 	test_esc();
-
-	PIOS_ESC_SetDutyCycle(dc);
-	PIOS_ESC_SetMode(ESC_MODE_LOW_ON_PWM_HIGH);
-	PIOS_ESC_Arm();
-
-	init_state = INIT_GRAB;
-	closed_loop = false;
+	esc_fsm_init();
 
 	while(1) {
-		current = (float) current * 0.5 + (float) PIOS_ADC_PinGet(0) * 0.5;
-		if(closed_loop && (current > current_limit))
-			PIOS_ESC_Off();
-//		if(PIOS_ADC_PinGet(0) > hard_current_limit)
-//			PIOS_ESC_Off();
+		counter++;
+		esc_process_static_fsm_rxn();
 
-		pwm_duration = PIOS_PWM_Get(0);
-		if(pwm_duration < 1200) {
-			PIOS_LED_On(LED_GO);
-			PIOS_LED_On(LED_ERR);
-			PIOS_LED_On(LED_MSG);
-			armed = false;
-			closed_loop = false;
-			init_state = INIT_FAIL;
-			PIOS_ESC_Off();
-			continue;
-		} else if(!armed) {
-			armed = true;
-			closed_loop = false;
-			PIOS_ESC_SetDutyCycle(dc);
-			PIOS_ESC_SetMode(ESC_MODE_LOW_ON_PWM_HIGH);
-			PIOS_ESC_Arm();
-			init_state = INIT_GRAB;
-		} else if (closed_loop) {
-			desired_rpm = 200 + (pwm_duration-1200) * 14;
-//			desired_rpm = 1300 + (pwm_duration > 1500) * 2800;
-		}
-
-		idle_count++;
-		if(commutated) {
-			last_idle_count = idle_count;
-			idle_count = 0;
-			commutated = false;
-
-			if(closed_loop) {
-				// Turn err light off
-				PIOS_LED_Off(LED_GO);
-
-				if(!commutation_detected) {
-					consecutive_nondetects++;
-					PIOS_COM_SendFormattedStringNonBlocking(PIOS_COM_DEBUG, "- %u\n", checks);
-				} else
-					consecutive_nondetects = 0;
-
-				if(!closed_loop_updated) {
-					PIOS_COM_SendFormattedStringNonBlocking(PIOS_COM_DEBUG, "*");
-					static uint16_t fail_count = 0;
-					if(fail_count++ > 5)
-						stop();
-				}
-				closed_loop_updated = false;
-
-				if(consecutive_nondetects > 5)
-					stop();
-
-				// This is a fall back.  Should get rescheduled by zero crossing detection.
-				if(schedule_next)
-					schedule_commutation(swap_time + zerocrossing_stats.smoothed_interval);
-				else
-					schedule_commutation(swap_time + 7 * zerocrossing_stats.smoothed_interval);
-
-				int16_t error = desired_rpm - US_TO_RPM(zerocrossing_stats.smoothed_interval);
-
-				accum += ki * error;
-				if(accum > ilim)
-					accum = ilim;
-				if(accum < -ilim)
-					accum = -ilim;
-
-				float new_dc = desired_rpm * kff - kff2 + kp * error + accum;
-
-				if((new_dc - dc) > max_dc_change)
-					dc += max_dc_change;
-				else if((new_dc - dc) < -max_dc_change)
-					dc -= max_dc_change;
-				else
-					dc = new_dc;
-
-				if(dc < MIN_DC)
-					dc = MIN_DC;
-				if(dc > MAX_DC)
-					dc = MAX_DC;
-				PIOS_ESC_SetDutyCycle(dc);
-
-
-				/*uint8_t state = PIOS_ESC_GetState();
-				uint16_t desired_latency = zerocrossing_stats.smoothed_interval * (1 - commutation_phase);
-				if(zerocrossing_stats.latency[state] > desired_latency)
-					state_offset[state] -= 0.01;
-				else if (zerocrossing_stats.latency[state] < desired_latency)
-					state_offset[state] += 0.01;    */
-
-				/*static uint16_t count = 0;
-				if((count++ % 100) == 0)
-					PIOS_COM_SendFormattedStringNonBlocking(PIOS_COM_DEBUG,"%u\n", zerocrossing_stats.smoothed_interval); */
-
-				//PIOS_COM_SendFormattedStringNonBlocking(PIOS_COM_DEBUG, "%u\n", swap_diff);
-
-
-			} else {
-				// Turn err light off
-				PIOS_LED_On(LED_GO);
-
-				static uint16_t init_counter;
-				uint16_t delay = 0;
-
-				// Simple startup state machine.  Needs constants removing
-				switch(init_state) {
-					case INIT_GRAB:
-						PIOS_ESC_SetState(0);
-						current_speed = initial_startup_speed;
-						delay = 30000; // hold in that position for 10 ms
-						PIOS_ESC_SetDutyCycle(0.2); // TODO: Current limit
-						dc = 0.12;
-						init_state = INIT_ACCEL;
-						break;
-					case INIT_ACCEL:
-						if(current_speed < final_startup_speed)
-							current_speed+=3;
-						else
-							init_state = INIT_WAIT;
-						init_counter = 0;
-						delay = RPM_TO_US(current_speed);
-						PIOS_ESC_SetDutyCycle(dc);
-						break;
-					case INIT_WAIT:
-						dc = 0.1 + (dc - 0.1) * 0.999;
-						accum = 0;
-						PIOS_ESC_SetDutyCycle(dc);
-						delay = RPM_TO_US(current_speed);
-						if(init_counter++ > 10000)
-							init_state = INIT_FAIL;
-						break;
-					case INIT_FAIL:
-						PIOS_ESC_Off();
-						break;
-				}
-
-				schedule_commutation(PIOS_DELAY_GetuS() + delay);
-
-			}
-
-			switch(PIOS_ESC_GetState()) {
-				case ESC_STATE_AC:
-					low_pin = 0;
-					high_pin = 2;
-					undriven_pin = 1;
-					pos = true;
-					break;
-				case ESC_STATE_CA:
-					low_pin = 2;
-					high_pin = 0;
-					undriven_pin = 1;
-					pos = false;
-					break;
-				case ESC_STATE_AB:
-					low_pin = 0;
-					high_pin = 1;
-					undriven_pin = 2;
-					pos = false;
-					break;
-				case ESC_STATE_BA:
-					low_pin = 1;
-					high_pin = 0;
-					undriven_pin = 2;
-					pos = true;
-					break;
-				case ESC_STATE_BC:
-					low_pin = 1;
-					high_pin = 2;
-					undriven_pin = 0;
-					pos = false;
-					break;
-				case ESC_STATE_CB:
-					low_pin = 2;
-					high_pin = 1;
-					undriven_pin = 0;
-					pos = true;
-					break;
-				default:
-					PIOS_ESC_Off();
-			}
-			commutation_detected = false;
-			checks = 0;
+		switch(PIOS_ESC_GetState()) {
+			case ESC_STATE_AC:
+				low_pin = 0;
+				high_pin = 2;
+				undriven_pin = 1;
+				pos = true;
+				break;
+			case ESC_STATE_CA:
+				low_pin = 2;
+				high_pin = 0;
+				undriven_pin = 1;
+				pos = false;
+				break;
+			case ESC_STATE_AB:
+				low_pin = 0;
+				high_pin = 1;
+				undriven_pin = 2;
+				pos = false;
+				break;
+			case ESC_STATE_BA:
+				low_pin = 1;
+				high_pin = 0;
+				undriven_pin = 2;
+				pos = true;
+				break;
+			case ESC_STATE_BC:
+				low_pin = 1;
+				high_pin = 2;
+				undriven_pin = 0;
+				pos = false;
+				break;
+			case ESC_STATE_CB:
+				low_pin = 2;
+				high_pin = 1;
+				undriven_pin = 0;
+				pos = true;
+				break;
+			default:
+				PIOS_ESC_Off();
 		}
 	}
 	return 0;
-}
-
-void commutate()
-{
-	//PIOS_COM_SendFormattedStringNonBlocking(PIOS_COM_DEBUG, "%u %u\n", (next - swap_time), (uint32_t) (dc * 10000));
-	uint16_t this_swap_time = PIOS_DELAY_GetuS();
-	swap_diff = (this_swap_time - swap_time);
-	swap_time = this_swap_time;
-
-	PIOS_ESC_NextState();
-
-	commutated = true;
-	commutated_flag = true;
-}
-
-uint16_t enter_time = 0;
-
-uint32_t premature_detection = 0;
-/**
- * @brief Process any message from the zero crossing detection
- * @param[in] msg The message containing the state and time it occurred in
- */
-void process_message(struct zerocrossing_message * msg)
-{
-	bool skipped = false;
-	static bool prev_skipped = false;
-	static uint16_t last_time;
-	static enum pios_esc_state prev_state;
-
-	// Don't reprocess any read messages
-	if(msg->read)
-		return;
-	msg->read = true;
-
-	// Sanity check
-	if(msg->state != PIOS_ESC_GetState()) {
-		PIOS_COM_SendFormattedStringNonBlocking(PIOS_COM_DEBUG, "."); //---------->Oh shit\n");
-		return;
-	}
-
-	// Check for any skipped states
-	switch(msg->state) {
-		case 1:
-			if(prev_state != 3)
-				skipped = true;
-			break;
-		case 0:
-			if(prev_state != 1)
-				skipped = true;
-			break;
-		case 5:
-			if(prev_state != 0)
-				skipped = true;
-			break;
-		case 4:
-			if(prev_state != 5)
-				skipped = true;
-			break;
-		case 2:
-			if(prev_state != 4)
-				skipped = true;
-			break;
-		case 3:
-			if(prev_state != 2)
-				skipped = true;
-			break;
-		default:
-			break;
-	}
-
-	if(!skipped) {
-		PIOS_LED_Off(LED_MSG);
-
-		zerocrossing_stats.consecutive_skipped = 0;
-		zerocrossing_stats.consecutive_detected++;
-	} else {
-		PIOS_LED_On(LED_MSG);
-
-		zerocrossing_stats.consecutive_skipped++;
-		zerocrossing_stats.consecutive_detected = 0;
-	}
-
-	// If meant to be working and missed a bunch
-	if(closed_loop && zerocrossing_stats.consecutive_skipped > 50)
-		PIOS_ESC_Off();
-
-	// Compute interval since last zcd
-	zerocrossing_stats.interval = msg->time - last_time;
-	zerocrossing_stats.latency[msg->state] = zerocrossing_stats.latency[msg->state] * 0.9 + (msg->time - swap_time) * 0.1;
-	last_time = message.time;
-
-	if(skipped && closed_loop)
-		PIOS_COM_SendFormattedStringNonBlocking(PIOS_COM_DEBUG, "%u %u\n", msg->state, zerocrossing_stats.smoothed_interval);
-
-	// If decent interval use it to update estimate of speed
-	if(!skipped && !prev_skipped && (zerocrossing_stats.interval < 10000))
-		zerocrossing_stats.smoothed_interval = 0.6 * zerocrossing_stats.smoothed_interval + 0.4 * zerocrossing_stats.interval;
-
-	if(zerocrossing_stats.consecutive_detected > 30) {
-		closed_loop = true;
-//		zerocrossing_stats.smoothed_interval = zerocrossing_stats.interval;
-	}
-
-	if(closed_loop) {
-		// TOOD: This logic shouldn't stay here
-		closed_loop_updated = true;
-		if(PIOS_DELAY_DiffuS(msg->time + zerocrossing_stats.smoothed_interval * commutation_phase) >= -2) {
-			// Fallback
-			premature_detection++;
-			PIOS_COM_SendFormattedStringNonBlocking(PIOS_COM_DEBUG, "# %u %u %u %u %u %u %u\n", msg->time, swap_time, PIOS_DELAY_GetuS(), enter_time, zerocrossing_stats.smoothed_interval, msg->state, commutated);
-			schedule_commutation(PIOS_DELAY_GetuS() + 2);
-		} else {
-			// Keep all math uint16_t to deal with timer wrap around
-			uint16_t schedule_time = msg->time + zerocrossing_stats.smoothed_interval * commutation_phase;
-			schedule_commutation(schedule_time);
-		}
-	}
-
-
-	prev_skipped = skipped;
-	prev_state = msg->state;
 }
 
 // When driving both legs to ground mid point is 580
@@ -522,14 +194,13 @@ void process_message(struct zerocrossing_message * msg)
 #define DEMAG_BLANKING 20
 uint16_t exceed_count = 0;
 
-volatile bool adc_irq_status = false;
-volatile uint32_t adc_irq_collisions = 0;
+uint32_t calls = 0;
+uint32_t detected = 0;
 
 void adc_callback(float * buffer)
 {
-	if(adc_irq_status)
-		adc_irq_collisions++;
-	adc_irq_status = true;
+
+	calls ++;
 
 	int16_t * raw_buf = PIOS_ADC_GetRawBuffer();
 	static enum pios_esc_state prev_state = ESC_STATE_AB;
@@ -538,46 +209,41 @@ void adc_callback(float * buffer)
 	static uint16_t pre_count = 0;
 	static uint16_t post_count = 0;
 	static float running_avg;
+	uint8_t commutation_detected = 0;
 
 	curr_state = PIOS_ESC_GetState();
 
-	if((back_buf_point + 3 * DOWNSAMPLING + 3) > (sizeof(back_buf) / 2))
+	// Debugging code - keep a buffer of old ADC values
+	if((back_buf_point + 3 * DOWNSAMPLING + 3) > (sizeof(back_buf) / sizeof(back_buf[0])))
 		back_buf_point = 0;
 	back_buf[back_buf_point++] = 0xFFFF;
 	back_buf[back_buf_point++] = curr_state;
-	back_buf[back_buf_point++] = commutation_detected;
-	back_buf[back_buf_point++] = commutated_flag;
-	if(commutated_flag)
-		commutated_flag = false;
+	back_buf[back_buf_point++] = 0;
+	back_buf[back_buf_point++] = 0;
 	for(int i = 0; i < DOWNSAMPLING; i++) {
 		back_buf[back_buf_point++] = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1];
 		back_buf[back_buf_point++] = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 2];
 		back_buf[back_buf_point++] = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 3];
 	}
 
-	// Commutation detection, assuming mode is ESC_MODE_LOW_ON_PWM_BOTH
-	/* uint16_t */ enter_time = PIOS_DELAY_GetuS();
-	// Process ADC from undriven leg
-	// TODO: Make these variables be updated when a state transition occurs
+	// Smooth the estimate of current a bit
+	uint32_t this_current = 0;
+	for(int i = 0; i < DOWNSAMPLING; i++)
+		this_current += raw_buf[PIOS_ADC_NUM_CHANNELS * i + 0];
+	this_current /= DOWNSAMPLING;
+	current += (this_current - current) * 0.2;
 
-	// Wait for blanking
-	if(PIOS_DELAY_DiffuS(swap_time)  < DEMAG_BLANKING)
-		goto adc_done;
-
-	if(commutation_detected)
-		goto adc_done;
+	uint16_t enter_time = PIOS_DELAY_GetuS();
 
 	// If detected this commutation don't bother here
 	// TODO:  disable IRQ for efficiency
 	if(curr_state != prev_state) {
 		prev_state = curr_state;
-
 		pre_count = 0;
 		post_count = 0;
 		running_avg = -100;
 	}
 
-	checks++;
 	switch(PIOS_ESC_GetMode()) {
 		case ESC_MODE_LOW_ON_PWM_HIGH:
 			// Doesn't work quite right yet
@@ -608,98 +274,22 @@ void adc_callback(float * buffer)
 				}
 				if(diff > 0 && post_count >= MIN_POST_COUNT) {
 					//below_time = enter_time;// - dT * (DOWNSAMPLING - i);
+					detected ++;
 					commutation_detected = true;
 					break;
 				}
 			}
 			break;
 		default:
-			//PIOS_ESC_Off();
+			PIOS_ESC_Off();
 			break;
 	}
 
 
 
 	if(commutation_detected) {
-
-		if(message.read == false)
-			PIOS_COM_SendBufferNonBlocking(PIOS_COM_DEBUG,(uint8_t *) "Oh fuck\n", 8);
-
-		message.state = curr_state;
-		message.time = below_time;
-		message.read = false;
-		process_message(&message);
+		esc_fsm_inject_event(ESC_EVENT_COMMUTATED, below_time);
 	}
-
-//#define DUMP_ADC
-#ifdef DUMP_ADC
-	static uint8_t count = 0;
-	uint8_t buf[4 + DOWNSAMPLING * 4 * 2];
-	buf[0] = 0x00; // syncing bytes
-	buf[1] = 0xff;
-	buf[2] = 0xc5;
-	buf[3] = count++;
-	memcpy(&buf[4], (uint8_t *) raw_buf, DOWNSAMPLING * 4 * 2);
-
-	PIOS_COM_SendBufferNonBlocking(PIOS_COM_DEBUG, buf, sizeof(buf));
-#endif
-
-
-
-//#define DUMP_UNDRIVEN
-#ifdef DUMP_UNDRIVEN
-	for(int i = 0; i < DOWNSAMPLING; i++) {
-		uint32_t high = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + high_pin];
-		uint32_t low = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + low_pin];
-
-		if((high > low) && (high < (low + DRIVING_THRESHOLD))) {
-			uint32_t sample = PIOS_ADC_NUM_CHANNELS * i + 1 + undriven_pin;
-			PIOS_COM_SendBufferNonBlocking(PIOS_COM_DEBUG, (uint8_t *) &raw_buf[sample], 2);
-		}
-	}
-#endif
-
-//#define DUMP_DIFF_DRIVEN
-#ifdef DUMP_DIFF_DRIVEN
-	// This seems to be some decent processing to get downward slope commutation detection
-	for(int i = 0; i < DOWNSAMPLING; i++) {
-		int16_t high = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + high_pin];
-		int16_t low = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + low_pin];
-		int16_t undriven = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + undriven_pin];
-		bool bad = false;
-		int16_t ref = (high + low) / 2;
-		if(high < low || abs(undriven - ref) > 100) {
-			bad = true;
-		}
-		if(!bad && curr_state == ESC_STATE_AB) {
-			uint16_t buf[2];
-			buf[0] = undriven;
-			buf[1] = ref;
-			PIOS_COM_SendBufferNonBlocking(PIOS_COM_DEBUG, (uint8_t*) &buf, sizeof(buf));
-		}
-
-	}
-#endif
-
-//#define DUMP_DRIVEN
-#ifdef DUMP_DRIVEN
-	static uint8_t count = 0;
-	uint8_t buf[4 + DOWNSAMPLING * 2];
-	buf[0] = 0x00; // syncing bytes
-	buf[1] = 0xff;
-	buf[2] = 0xc3;
-	buf[3] = count++;
-	for(int i = 0; i < DOWNSAMPLING; i++) {
-		uint32_t sample = PIOS_ADC_NUM_CHANNELS * i + 1 + high_pin;
-		buf[4 + i * 2] = raw_buf[sample] & 0xff;
-		buf[4 + i * 2 + 1] = (raw_buf[sample] >> 8) & 0xff;
-	}
-	PIOS_COM_SendBufferNonBlocking(PIOS_COM_DEBUG, buf, sizeof(buf));
-#endif
-
-adc_done:
-	adc_irq_status = false;
-
 }
 
 /* INS functions */
