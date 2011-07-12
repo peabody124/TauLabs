@@ -27,19 +27,19 @@
 #define ESC_CONFIG_MAGIC 0x763fedc
 
 struct esc_config config = {
-	.kp = 0.0004,
+	.kp = 0.002,
 	.ki = 0.0000005,
 	.kff = 1.3e-4,
 	.kff2 = -0.05,
 	.accum = 0.0,
 	.ilim = 0.5,
-	.max_dc_change = 0.002,
+	.max_dc_change = 0.02,
 	.min_dc = 0.01,
 	.max_dc = 0.99,
 	.initial_startup_speed = 400,
 	.final_startup_speed = 1200,
 	.commutation_phase = 0.5,
-	.soft_current_limit = 150,
+	.soft_current_limit = 250,
 	.magic = ESC_CONFIG_MAGIC,
 };
 

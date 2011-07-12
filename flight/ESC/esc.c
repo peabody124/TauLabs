@@ -70,12 +70,23 @@ static void panic(int diagnostic_code);
 uint16_t pwm_duration ;
 uint32_t counter = 0;
 
+#define NUM_SETTLING_TIMES 20
+uint32_t timer;
+uint16_t timer_lower;
+uint32_t step_period = 0x0100000;
+uint32_t last_step = 0;
+uint32_t settling_time[NUM_SETTLING_TIMES];
+uint8_t settling_time_pointer = 0;
+uint8_t settled = 1;
+
 struct esc_fsm_data * esc_data = 0;
+
 /**
  * @brief ESC Main function
  */
 int main()
 {
+	esc_data = 0;
 	PIOS_Board_Init();
 
 	PIOS_ADC_Config(DOWNSAMPLING);
@@ -117,6 +128,26 @@ int main()
 
 	while(1) {
 		counter++;
+
+		// Create large size timer
+		timer_lower = PIOS_DELAY_GetuS();
+		if(timer_lower < (timer & 0x0000ffff))
+			timer += 0x00010000;
+		timer = (timer & 0xffff0000) | timer_lower;
+
+		if((timer - last_step) > step_period) {
+			last_step = timer;
+			esc_data->speed_setpoint = (esc_data->speed_setpoint == 1500) ? 2500 : 1500;
+			settled = 0;
+		}
+
+		if(!settled && abs(esc_data->speed_setpoint - esc_data->current_speed) < 100) {
+			settled = 1;
+			settling_time[settling_time_pointer++] = timer - last_step;
+			if(settling_time_pointer > NUM_SETTLING_TIMES)
+				settling_time_pointer = 0;
+		}
+
 		esc_process_static_fsm_rxn();
 
 		switch(PIOS_ESC_GetState()) {
