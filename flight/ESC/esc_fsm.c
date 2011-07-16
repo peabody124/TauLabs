@@ -39,7 +39,8 @@ struct esc_config config = {
 	.initial_startup_speed = 400,
 	.final_startup_speed = 1200,
 	.commutation_phase = 0.5,
-	.soft_current_limit = 250,
+	.soft_current_limit = 150,
+	.hard_current_limit = 3050,
 	.magic = ESC_CONFIG_MAGIC,
 };
 
@@ -182,6 +183,9 @@ static struct esc_fsm_data esc_data;
 
 void esc_process_static_fsm_rxn() {
 
+	if(esc_data.current > config.hard_current_limit)
+		esc_fsm_inject_event(ESC_EVENT_FAULT, 0);
+
 	switch(esc_data.state) {
 		case ESC_STATE_FSM_FAULT:
 			// Shouldn't happen
@@ -240,6 +244,11 @@ void esc_process_static_fsm_rxn() {
 		case ESC_STATE_CL_COMMUTATED:
 		case ESC_STATE_CL_NOZCD:
 		case ESC_STATE_CL_ZCD:
+			if(esc_data.current > config.soft_current_limit) {
+				esc_data.duty_cycle -= config.max_dc_change;
+				esc_data.error_accum = 0; // Dont want to wind up accum
+				PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
+			}
 			break;
 
 		// By default do nothing
@@ -386,11 +395,7 @@ static void go_esc_cl_zcd(uint16_t time)
 	esc_data.consecutive_detected++;
 	esc_data.consecutive_missed = 0;
 
-	if(esc_data.current > config.soft_current_limit) {
-		esc_data.duty_cycle -= config.max_dc_change;
-		esc_data.error_accum = 0; // Dont want to wind up accum
-		PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
-	} else {
+	if(esc_data.current < config.soft_current_limit) {
 		uint32_t interval = 0;
 		for (uint8_t i = 0; i < NUM_STORED_SWAP_INTERVALS; i++)
 			interval += esc_data.swap_intervals[i];

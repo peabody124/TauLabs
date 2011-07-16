@@ -124,7 +124,7 @@ int main()
 
 	test_esc();
 	esc_data = esc_fsm_init();
-	esc_data->speed_setpoint = 1500;
+	esc_data->speed_setpoint = 2500;
 
 	while(1) {
 		counter++;
@@ -137,7 +137,7 @@ int main()
 
 		if((timer - last_step) > step_period) {
 			last_step = timer;
-			esc_data->speed_setpoint = (esc_data->speed_setpoint == 1500) ? 2500 : 1500;
+			esc_data->speed_setpoint = (esc_data->speed_setpoint == 3500) ? 2500 : 3500;
 			settled = 0;
 		}
 
@@ -245,8 +245,9 @@ void adc_callback(float * buffer)
 		this_current -= zero_current;
 		if(this_current < 0)
 			this_current = 0;
-		esc_data->current += (this_current - esc_data->current) * 0.01;
+		esc_data->current += (this_current - esc_data->current) * 0.001;
 	}
+
 	uint16_t enter_time = PIOS_DELAY_GetuS();
 
 	// Already detected for this stage
