@@ -137,7 +137,7 @@ int main()
 
 		if((timer - last_step) > step_period) {
 			last_step = timer;
-			esc_data->speed_setpoint = (esc_data->speed_setpoint == 3500) ? 2500 : 3500;
+			//esc_data->speed_setpoint = (esc_data->speed_setpoint == 1500) ? 2500 : 1500;
 			settled = 0;
 		}
 
@@ -245,7 +245,7 @@ void adc_callback(float * buffer)
 		this_current -= zero_current;
 		if(this_current < 0)
 			this_current = 0;
-		esc_data->current += (this_current - esc_data->current) * 0.001;
+		esc_data->current += (this_current - esc_data->current) * 0.01;
 	}
 
 	uint16_t enter_time = PIOS_DELAY_GetuS();

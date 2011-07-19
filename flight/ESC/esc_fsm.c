@@ -27,20 +27,20 @@
 #define ESC_CONFIG_MAGIC 0x763fedc
 
 struct esc_config config = {
-	.kp = 0.002,
-	.ki = 0.0000005,
+	.kp = 0.0005,
+	.ki = 0.001,
 	.kff = 1.3e-4,
 	.kff2 = -0.05,
 	.accum = 0.0,
 	.ilim = 0.5,
-	.max_dc_change = 0.02,
+	.max_dc_change = 20,
 	.min_dc = 0.01,
 	.max_dc = 0.99,
 	.initial_startup_speed = 400,
 	.final_startup_speed = 1200,
 	.commutation_phase = 0.5,
-	.soft_current_limit = 150,
-	.hard_current_limit = 3050,
+	.soft_current_limit = 250,
+	.hard_current_limit = 850,
 	.magic = ESC_CONFIG_MAGIC,
 };
 
@@ -244,11 +244,21 @@ void esc_process_static_fsm_rxn() {
 		case ESC_STATE_CL_COMMUTATED:
 		case ESC_STATE_CL_NOZCD:
 		case ESC_STATE_CL_ZCD:
+		{
+			static uint16_t last_timer;
+			uint16_t cur_timer = PIOS_DELAY_GetuS();
+
 			if(esc_data.current > config.soft_current_limit) {
-				esc_data.duty_cycle -= config.max_dc_change;
-				esc_data.error_accum = 0; // Dont want to wind up accum
+
+				float dT = (uint16_t) (cur_timer - last_timer);
+				dT *= 1e-6; // convert to seconds
+				float max_dc_change = config.max_dc_change * dT;
+
+				esc_data.duty_cycle -= max_dc_change;
 				PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
 			}
+			last_timer = cur_timer;
+		}
 			break;
 
 		// By default do nothing
@@ -395,17 +405,24 @@ static void go_esc_cl_zcd(uint16_t time)
 	esc_data.consecutive_detected++;
 	esc_data.consecutive_missed = 0;
 
-	if(esc_data.current < config.soft_current_limit) {
+	esc_data.dT = (uint16_t) (time - esc_data.last_zcd_time);
+	esc_data.dT *= 1e-6; // convert to seconds
+
+	float max_dc_change = config.max_dc_change * esc_data.dT;
+
+	if(esc_data.current > config.soft_current_limit) {
+		esc_data.duty_cycle -= max_dc_change;
+		PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
+	} else {
 		uint32_t interval = 0;
 		for (uint8_t i = 0; i < NUM_STORED_SWAP_INTERVALS; i++)
 			interval += esc_data.swap_intervals[i];
 		interval /= NUM_STORED_SWAP_INTERVALS;
 		esc_data.current_speed = US_TO_RPM(interval);
-		zcd(time);
 
 		int16_t error = esc_data.speed_setpoint - US_TO_RPM(interval);
 
-		esc_data.error_accum += config.ki * error;
+		esc_data.error_accum += config.ki * error * esc_data.dT;
 		if(esc_data.error_accum > config.ilim)
 			esc_data.error_accum = config.ilim;
 		if(esc_data.error_accum < -config.ilim)
@@ -413,10 +430,10 @@ static void go_esc_cl_zcd(uint16_t time)
 
 		float new_dc = esc_data.speed_setpoint * config.kff - config.kff2 + config.kp * error + esc_data.error_accum;
 
-		if((new_dc - esc_data.duty_cycle) > config.max_dc_change)
-			esc_data.duty_cycle += config.max_dc_change;
-		else if((new_dc - esc_data.duty_cycle) < -config.max_dc_change)
-			esc_data.duty_cycle -= config.max_dc_change;
+		if((new_dc - esc_data.duty_cycle) > max_dc_change)
+			esc_data.duty_cycle += max_dc_change;
+		else if((new_dc - esc_data.duty_cycle) < -max_dc_change)
+			esc_data.duty_cycle -= max_dc_change;
 		else
 			esc_data.duty_cycle = new_dc;
 
@@ -425,8 +442,17 @@ static void go_esc_cl_zcd(uint16_t time)
 		if(esc_data.duty_cycle > config.max_dc)
 			esc_data.duty_cycle = config.max_dc;
 		PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
+
+		zcd(time);
+
 	}
-	esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, time + RPM_TO_US(esc_data.current_speed) * (1 - config.commutation_phase));
+
+	uint16_t zcd_delay = RPM_TO_US(esc_data.current_speed) * (1 - config.commutation_phase);
+	int32_t future = time + zcd_delay - PIOS_DELAY_GetuS();
+	if(future < 10)
+		esc_fsm_inject_event(ESC_EVENT_FAULT, 0);
+	else
+		esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, time + (zcd_delay));
 }
 
 /**
@@ -440,6 +466,7 @@ static void go_esc_cl_nozcd(uint16_t time)
 		esc_fsm_inject_event(ESC_EVENT_FAULT, 0);
 	else
 		esc_fsm_inject_event(ESC_EVENT_COMMUTATED, 0);
+	esc_data.total_missed++;
 
 }
 
@@ -464,6 +491,7 @@ struct esc_fsm_data * esc_fsm_init()
 	esc_data.last_zcd_time = 0;
 	esc_data.scheduled_event_armed = false;
 	esc_data.faults = 0;
+	esc_data.total_missed = 0;
 
 	esc_fsm_process_auto(PIOS_DELAY_GetuS());
 
@@ -555,10 +583,10 @@ static void commutate()
 {
 	//PIOS_COM_SendFormattedStringNonBlocking(PIOS_COM_DEBUG, "%u %u\n", (next - swap_time), (uint32_t) (dc * 10000));
 	uint16_t this_swap_time = PIOS_DELAY_GetuS();
-	uint16_t swap_diff = (uint16_t) (this_swap_time - esc_data.last_swap_time);
+	esc_data.last_swap_interval = (uint16_t) (this_swap_time - esc_data.last_swap_time);
 	esc_data.last_swap_time = this_swap_time;
 
-	esc_data.swap_intervals[esc_data.swap_intervals_pointer++] = swap_diff;
+	esc_data.swap_intervals[esc_data.swap_intervals_pointer++] = esc_data.last_swap_interval;
 	if(esc_data.swap_intervals_pointer > NUM_STORED_SWAP_INTERVALS)
 		esc_data.swap_intervals_pointer = 0;
 

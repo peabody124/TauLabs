@@ -28,7 +28,7 @@
 
 #include "stdint.h"
 
-#define NUM_STORED_SWAP_INTERVALS 6
+#define NUM_STORED_SWAP_INTERVALS 10
 
 enum esc_fsm_state {
 	ESC_STATE_FSM_FAULT = 0,               /* Must be zero so undefined transitions land here */
@@ -75,16 +75,19 @@ struct esc_fsm_data {
 	uint8_t scheduled_event_armed;
 	uint16_t last_swap_time;
 	uint16_t last_zcd_time;
+	uint16_t last_swap_interval;
 	uint16_t swap_intervals[NUM_STORED_SWAP_INTERVALS];
 	uint8_t swap_intervals_pointer;
 	uint16_t zcd_intervals[NUM_STORED_SWAP_INTERVALS];
 	uint8_t zcd_intervals_pointer;
 	uint16_t consecutive_detected;
 	uint16_t consecutive_missed;
+	uint16_t total_missed;
 	uint16_t faults;
 	uint8_t detected;
 	float error_accum;
 	float Kv;
+	float dT;
 	enum esc_fsm_state state;
 	enum esc_event scheduled_event;
 };
