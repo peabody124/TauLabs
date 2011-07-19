@@ -272,6 +272,8 @@ void esc_process_static_fsm_rxn() {
  */
 static void go_esc_fault(uint16_t time)
 {
+	// Stop ADC quickly for grabbing debug buffer
+	PIOS_ADC_StopDma();
 	PIOS_ESC_Off();
 	esc_data.faults ++;
 }
