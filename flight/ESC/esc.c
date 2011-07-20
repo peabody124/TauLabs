@@ -38,15 +38,15 @@
 //TODO: Look into using TIM1
 //know the exact time of each sample and the PWM phase
 
-#define BACKBUFFER
-#define BACKBUFFER_ZCD
+//#define BACKBUFFER
+//#define BACKBUFFER_ZCD
 
 /* Prototype of PIOS_Board_Init() function */
 extern void PIOS_Board_Init(void);
 
 void adc_callback(float * buffer);
 
-#define DOWNSAMPLING 6
+#define DOWNSAMPLING 4
 
 #ifdef BACKBUFFER
 uint16_t back_buf[8096];
@@ -78,7 +78,7 @@ uint32_t counter = 0;
 #define NUM_SETTLING_TIMES 20
 uint32_t timer;
 uint16_t timer_lower;
-uint32_t step_period = 0x0100000;
+uint32_t step_period = 0x0080000;
 uint32_t last_step = 0;
 uint32_t settling_time[NUM_SETTLING_TIMES];
 uint8_t settling_time_pointer = 0;
@@ -142,7 +142,7 @@ int main()
 
 		if((timer - last_step) > step_period) {
 			last_step = timer;
-			esc_data->speed_setpoint = (esc_data->speed_setpoint == 4500) ? 3500 : 4500;
+//			esc_data->speed_setpoint = (esc_data->speed_setpoint == 4500) ? 4000 : 4500;
 			settled = 0;
 		}
 
@@ -204,7 +204,7 @@ int main()
 #define CROSS_ALPHA 0.5
 #define MIN_PRE_COUNT  2
 #define MIN_POST_COUNT 1
-#define DEMAG_BLANKING 60
+#define DEMAG_BLANKING 70
 uint16_t exceed_count = 0;
 
 uint32_t calls = 0;

@@ -27,19 +27,19 @@
 #define ESC_CONFIG_MAGIC 0x763fedc
 
 struct esc_config config = {
-	.kp = 0.0025,
-	.ki = 0.001,
+	.kp = 0.0005,
+	.ki = 0.0001,
 	.kff = 1.3e-4,
 	.kff2 = -0.05,
 	.ilim = 0.5,
-	.max_dc_change = 20,
+	.max_dc_change = 2,
 	.min_dc = 0.01,
 	.max_dc = 0.99,
 	.initial_startup_speed = 400,
 	.final_startup_speed = 1200,
 	.commutation_phase = 0.5,
 	.soft_current_limit = 250,
-	.hard_current_limit = 850,
+	.hard_current_limit = 2850,
 	.magic = ESC_CONFIG_MAGIC,
 };
 
@@ -183,7 +183,7 @@ static struct esc_fsm_data esc_data;
 void esc_process_static_fsm_rxn() {
 
 	if(esc_data.current > config.hard_current_limit)
-		esc_fsm_inject_event(ESC_EVENT_FAULT, 0);
+		esc_fsm_inject_event(ESC_EVENT_OVERCURRENT, 0);
 
 	switch(esc_data.state) {
 		case ESC_STATE_FSM_FAULT:
@@ -220,7 +220,7 @@ void esc_process_static_fsm_rxn() {
 		{
 			// Timing adjusted in entry function
 			// This should perform run a current control loop
-			float current_error = (100 - esc_data.current);
+			float current_error = (70 - esc_data.current);
 			current_error *= 0.0001;
 			if(current_error > 0.0002)
 				current_error = 0.0002;
@@ -391,8 +391,8 @@ static void go_esc_cl_start(uint16_t time)
 static void go_esc_cl_commutated(uint16_t time)
 {
 	commutate();
-	esc_fsm_schedule_event(ESC_EVENT_TIMEOUT, time + RPM_TO_US(esc_data.current_speed) * 2);
-	esc_data.Kv = esc_data.current_speed / esc_data.current;
+	esc_fsm_schedule_event(ESC_EVENT_TIMEOUT, time + RPM_TO_US(esc_data.current_speed) * 1);
+	esc_data.Kv += (esc_data.current_speed / (12 * esc_data.duty_cycle) - esc_data.Kv) * 0.001;
 
 //	if(esc_data.Kv < 15)
 //		esc_fsm_inject_event(ESC_EVENT_FAULT, 0);
@@ -406,7 +406,26 @@ static void go_esc_cl_zcd(uint16_t time)
 	esc_data.consecutive_detected++;
 	esc_data.consecutive_missed = 0;
 
-	esc_data.dT = (uint16_t) (time - esc_data.last_zcd_time);
+	uint16_t last_time = esc_data.last_zcd_time;
+	zcd(time);
+
+	uint32_t interval = 0;
+	for (uint8_t i = 0; i < NUM_STORED_SWAP_INTERVALS; i++)
+		interval += esc_data.swap_intervals[i];
+	interval /= NUM_STORED_SWAP_INTERVALS;
+	esc_data.current_speed = US_TO_RPM(interval);
+
+	uint16_t zcd_delay = RPM_TO_US(esc_data.current_speed) * (1 - config.commutation_phase);
+	int32_t future = time + zcd_delay - PIOS_DELAY_GetuS();
+	if(future < 1)
+		esc_fsm_inject_event(ESC_EVENT_FAULT /* ESC_EVENT_COMMUTATED */, PIOS_DELAY_GetuS());
+	else
+		esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, time + (zcd_delay));
+
+	// Reenable interrupts before all the FP.  This isn't ideal but should be safe
+	PIOS_IRQ_Enable();
+
+	esc_data.dT = (uint16_t) (time - last_time);
 	esc_data.dT *= 1e-6; // convert to seconds
 
 	float max_dc_change = config.max_dc_change * esc_data.dT;
@@ -415,11 +434,6 @@ static void go_esc_cl_zcd(uint16_t time)
 		esc_data.duty_cycle -= max_dc_change;
 		PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
 	} else {
-		uint32_t interval = 0;
-		for (uint8_t i = 0; i < NUM_STORED_SWAP_INTERVALS; i++)
-			interval += esc_data.swap_intervals[i];
-		interval /= NUM_STORED_SWAP_INTERVALS;
-		esc_data.current_speed = US_TO_RPM(interval);
 
 		int16_t error = esc_data.speed_setpoint - US_TO_RPM(interval);
 
@@ -443,17 +457,7 @@ static void go_esc_cl_zcd(uint16_t time)
 		if(esc_data.duty_cycle > config.max_dc)
 			esc_data.duty_cycle = config.max_dc;
 		PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
-
-		zcd(time);
-
 	}
-
-	uint16_t zcd_delay = RPM_TO_US(esc_data.current_speed) * (1 - config.commutation_phase);
-	int32_t future = time + zcd_delay - PIOS_DELAY_GetuS();
-	if(future < 10)
-		esc_fsm_inject_event(ESC_EVENT_FAULT, 0);
-	else
-		esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, time + (zcd_delay));
 }
 
 /**
@@ -506,6 +510,11 @@ struct esc_fsm_data * esc_fsm_init()
 void esc_fsm_inject_event(enum esc_event event, uint16_t time)
 {
 	PIOS_IRQ_Disable();
+
+	if(esc_transition[esc_data.state].next_state[event] == ESC_STATE_FSM_FAULT) {
+		esc_data.pre_fault_state = esc_data.state;
+		esc_data.pre_fault_event = event;
+	}
 
 	/*
 	 * Move to the next state

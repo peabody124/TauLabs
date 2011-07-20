@@ -88,6 +88,8 @@ struct esc_fsm_data {
 	float error_accum;
 	float Kv;
 	float dT;
+	enum esc_fsm_state pre_fault_state;
+	enum esc_event pre_fault_event;
 	enum esc_fsm_state state;
 	enum esc_event scheduled_event;
 };
