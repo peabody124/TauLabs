@@ -37,9 +37,9 @@ struct esc_config config = {
 	.max_dc = 0.99,
 	.initial_startup_speed = 400,
 	.final_startup_speed = 1200,
-	.commutation_phase = 0.5,
-	.soft_current_limit = 250,
-	.hard_current_limit = 2850,
+	.commutation_phase = 0.65,
+	.soft_current_limit = 750,
+	.hard_current_limit = 1800,
 	.magic = ESC_CONFIG_MAGIC,
 };
 
@@ -173,6 +173,7 @@ const static struct esc_transition esc_transition[ESC_FSM_NUM_STATES] = {
 		.entry_fn = go_esc_cl_zcd,
 		.next_state = {
 			[ESC_EVENT_COMMUTATED] = ESC_STATE_CL_COMMUTATED,
+			[ESC_EVENT_LATE_COMMUTATION] = ESC_STATE_CL_COMMUTATED,
 		},
 	},
 
@@ -418,7 +419,7 @@ static void go_esc_cl_zcd(uint16_t time)
 	uint16_t zcd_delay = RPM_TO_US(esc_data.current_speed) * (1 - config.commutation_phase);
 	int32_t future = time + zcd_delay - PIOS_DELAY_GetuS();
 	if(future < 1)
-		esc_fsm_inject_event(ESC_EVENT_FAULT /* ESC_EVENT_COMMUTATED */, PIOS_DELAY_GetuS());
+		esc_fsm_inject_event(ESC_EVENT_LATE_COMMUTATION, PIOS_DELAY_GetuS());
 	else
 		esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, time + (zcd_delay));
 

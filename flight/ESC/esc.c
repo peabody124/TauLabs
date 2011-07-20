@@ -81,7 +81,7 @@ uint32_t last_step = 0;
 uint32_t settling_time[NUM_SETTLING_TIMES];
 uint8_t settling_time_pointer = 0;
 uint8_t settled = 1;
-
+int16_t low_voltages[3];
 struct esc_fsm_data * esc_data = 0;
 
 /**
@@ -282,9 +282,9 @@ void DMA1_Channel1_IRQHandler(void)
 		case ESC_MODE_LOW_ON_PWM_HIGH:
 			// Doesn't work quite right yet
 			for(int i = 0; i < DOWNSAMPLING; i++) {
-				int16_t high = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + high_pin];
-				int16_t low = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + low_pin];
-				int16_t undriven = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + undriven_pin];
+				int16_t high = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + high_pin] - low_voltages[high_pin];
+				int16_t low = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + low_pin] - low_voltages[low_pin];
+				int16_t undriven = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + undriven_pin] - low_voltages[undriven_pin];
 				int16_t ref = (high + low) / 2;
 				int16_t diff;
 
@@ -347,7 +347,6 @@ void panic(int diagnostic_code)
 	}
 }
 
-
 //TODO: Abstract out constants.  Need to know battery voltage too
 void test_esc() {
 	int32_t voltages[6][3];
@@ -357,6 +356,10 @@ void test_esc() {
 	zero_current = PIOS_ADC_PinGet(0);
 
 	PIOS_ESC_Arm();
+
+	low_voltages[0] = PIOS_ADC_PinGet(1);
+	low_voltages[1] = PIOS_ADC_PinGet(2);
+	low_voltages[2] = PIOS_ADC_PinGet(3);
 
 	PIOS_ESC_SetDutyCycle(0.5);
 	PIOS_ESC_TestGate(ESC_A_LOW);
