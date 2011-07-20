@@ -97,7 +97,6 @@ struct esc_config {
 	float ki;
 	float kff;
 	float kff2;
-	float accum;
 	float ilim;
 	float max_dc_change;
 	float min_dc;

@@ -38,6 +38,9 @@
 //TODO: Look into using TIM1
 //know the exact time of each sample and the PWM phase
 
+#define BACKBUFFER
+#define BACKBUFFER_ZCD
+
 /* Prototype of PIOS_Board_Init() function */
 extern void PIOS_Board_Init(void);
 
@@ -222,7 +225,7 @@ void adc_callback(float * buffer)
 
 	curr_state = PIOS_ESC_GetState();
 
-#ifdef BACKBUFFER
+#ifdef BACKBUFFER_ADC
 	// Debugging code - keep a buffer of old ADC values
 	if((back_buf_point + 3 * DOWNSAMPLING + 3) > (sizeof(back_buf) / sizeof(back_buf[0])))
 		back_buf_point = 0;
@@ -307,7 +310,12 @@ void adc_callback(float * buffer)
 					detected ++;
 					esc_data->detected = true;
 					esc_fsm_inject_event(ESC_EVENT_ZCD, below_time);
-
+#ifdef BACKBUFFER_ZCD
+					back_buf[back_buf_point++] = below_time;
+					back_buf[back_buf_point++] = esc_data->speed_setpoint;
+					if(back_buf_point > (sizeof(back_buf) / sizeof(back_buf[0])))
+						back_buf_point = 0;
+#endif /* BACKBUFFER_ZCD */
 					break;
 				}
 			}

@@ -27,11 +27,10 @@
 #define ESC_CONFIG_MAGIC 0x763fedc
 
 struct esc_config config = {
-	.kp = 0.0005,
+	.kp = 0.0025,
 	.ki = 0.001,
 	.kff = 1.3e-4,
 	.kff2 = -0.05,
-	.accum = 0.0,
 	.ilim = 0.5,
 	.max_dc_change = 20,
 	.min_dc = 0.01,
@@ -350,7 +349,7 @@ static void go_esc_startup_zcd(uint16_t time)
 	// Schedule next commutation
 	esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, time + RPM_TO_US(esc_data.current_speed) / 2);
 
-	if(esc_data.consecutive_detected > 10) {
+	if(esc_data.consecutive_detected > 20) {
 		esc_fsm_inject_event(ESC_EVENT_CLOSED, time);
 	}
 }
