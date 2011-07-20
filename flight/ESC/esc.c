@@ -43,10 +43,12 @@ extern void PIOS_Board_Init(void);
 
 void adc_callback(float * buffer);
 
-#define DOWNSAMPLING 4
+#define DOWNSAMPLING 6
 
+#ifdef BACKBUFFER
 uint16_t back_buf[8096];
 uint16_t back_buf_point = 0;
+#endif
 
 #define LED_ERR LED1
 #define LED_GO  LED2
@@ -137,7 +139,7 @@ int main()
 
 		if((timer - last_step) > step_period) {
 			last_step = timer;
-			//esc_data->speed_setpoint = (esc_data->speed_setpoint == 1500) ? 2500 : 1500;
+			esc_data->speed_setpoint = (esc_data->speed_setpoint == 4500) ? 3500 : 4500;
 			settled = 0;
 		}
 
@@ -195,11 +197,11 @@ int main()
 }
 
 // When driving both legs to ground mid point is 580
-#define MID_POINT 580
-#define DIODE_LOW 460
-#define MIN_PRE_COUNT  1
+#define ZERO_POINT 290
+#define CROSS_ALPHA 0.5
+#define MIN_PRE_COUNT  2
 #define MIN_POST_COUNT 1
-#define DEMAG_BLANKING 100
+#define DEMAG_BLANKING 60
 uint16_t exceed_count = 0;
 
 uint32_t calls = 0;
@@ -215,10 +217,12 @@ void adc_callback(float * buffer)
 	static uint16_t below_time;
 	static uint16_t pre_count = 0;
 	static uint16_t post_count = 0;
-	static float running_avg;
+	static int16_t running_avg;
+	bool first;
 
 	curr_state = PIOS_ESC_GetState();
 
+#ifdef BACKBUFFER
 	// Debugging code - keep a buffer of old ADC values
 	if((back_buf_point + 3 * DOWNSAMPLING + 3) > (sizeof(back_buf) / sizeof(back_buf[0])))
 		back_buf_point = 0;
@@ -231,6 +235,7 @@ void adc_callback(float * buffer)
 		back_buf[back_buf_point++] = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 2];
 		back_buf[back_buf_point++] = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 3];
 	}
+#endif
 
 	// Wait for blanking
 	if(esc_data && PIOS_DELAY_DiffuS(esc_data->last_swap_time) < DEMAG_BLANKING)
@@ -259,8 +264,11 @@ void adc_callback(float * buffer)
 		prev_state = curr_state;
 		pre_count = 0;
 		post_count = 0;
-		running_avg = -100;
+		first = true;
+	} else {
+		first = false;
 	}
+
 
 	switch(PIOS_ESC_GetMode()) {
 		case ESC_MODE_LOW_ON_PWM_HIGH:
@@ -272,22 +280,26 @@ void adc_callback(float * buffer)
 				int16_t ref = (high + low) / 2;
 				int16_t diff;
 
-				if(pos) {
-					diff = undriven - ref - 290;
-					running_avg = 0.5 * running_avg + 0.5 * diff;
-					diff = running_avg;
-				} else {
-					diff = ref - undriven - 290;
-					running_avg = 0.5 * running_avg + 0.5 * diff;
-					diff = running_avg;
-				}
+				if(pos)
+					diff = undriven - ref - ZERO_POINT;
+				else
+					diff = ref - undriven - ZERO_POINT;
+
+				diff *= 10; // scale up to increase fixed point precision
+
+				if(first)
+					running_avg = diff;
+				else
+					running_avg = (running_avg + diff) / 2; //(1-CROSS_ALPHA) * running_avg + CROSS_ALPHA * diff;
+
+				diff = running_avg;
 
 				if(diff < 0) {
 					pre_count++;
 					// Keep setting so we store the time of zero crossing
 					below_time = enter_time - dT * (DOWNSAMPLING - i);
 				}
-				if(diff >0 && pre_count > MIN_PRE_COUNT) {
+				if(diff > 0 && pre_count > MIN_PRE_COUNT) {
 					post_count++;
 				}
 				if(diff > 0 && post_count >= MIN_POST_COUNT) {

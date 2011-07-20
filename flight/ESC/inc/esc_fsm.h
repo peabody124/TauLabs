@@ -28,7 +28,7 @@
 
 #include "stdint.h"
 
-#define NUM_STORED_SWAP_INTERVALS 10
+#define NUM_STORED_SWAP_INTERVALS 4
 
 enum esc_fsm_state {
 	ESC_STATE_FSM_FAULT = 0,               /* Must be zero so undefined transitions land here */
@@ -69,7 +69,7 @@ enum esc_event {
 
 struct esc_fsm_data {
 	float duty_cycle;
-	float current;
+	int16_t current;
 	uint16_t current_speed;
 	uint16_t speed_setpoint;
 	uint8_t scheduled_event_armed;

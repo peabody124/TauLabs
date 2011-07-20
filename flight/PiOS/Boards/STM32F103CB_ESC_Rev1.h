@@ -34,10 +34,10 @@
 Timer | Channel 1 | Channel 2 | Channel 3 | Channel 4
 ------+-----------+-----------+-----------+----------
 TIM1  |           |           |           |
-TIM2  |    B-     |     B+    |     A-    |     A+    
+TIM2  |    B-     |     B+    |     A-    |     A+
 TIM3  |    C-     |     C+    |  RC In 3  |  RC In 4
-TIM4  |                     DELAY 
-TIM16 |  PWM in   |           |           |  
+TIM4  |                     DELAY
+TIM16 |  PWM in   |           |           |
 ------+-----------+-----------+-----------+----------
 */
 
@@ -122,21 +122,21 @@ TIM16 |  PWM in   |           |           |
 #define PIOS_ADC_TEMP_SENSOR_ADC_CHANNEL	1
 
 // Phase A (PA6)
-#define PIOS_ADC_PIN1_GPIO_PORT			GPIOB			
+#define PIOS_ADC_PIN1_GPIO_PORT			GPIOB
 #define PIOS_ADC_PIN1_GPIO_PIN			GPIO_Pin_0
 #define PIOS_ADC_PIN1_GPIO_CHANNEL		ADC_Channel_8
 #define PIOS_ADC_PIN1_ADC			ADC1
 #define PIOS_ADC_PIN1_ADC_NUMBER		1
 
 // Phase A (PA6)
-#define PIOS_ADC_PIN2_GPIO_PORT			GPIOA			
-#define PIOS_ADC_PIN2_GPIO_PIN			GPIO_Pin_6		
+#define PIOS_ADC_PIN2_GPIO_PORT			GPIOA
+#define PIOS_ADC_PIN2_GPIO_PIN			GPIO_Pin_6
 #define PIOS_ADC_PIN2_GPIO_CHANNEL		ADC_Channel_6
 #define PIOS_ADC_PIN2_ADC			ADC2
 #define PIOS_ADC_PIN2_ADC_NUMBER		1
 
 // Phase B (PA5)
-#define PIOS_ADC_PIN3_GPIO_PORT			GPIOA	
+#define PIOS_ADC_PIN3_GPIO_PORT			GPIOA
 #define PIOS_ADC_PIN3_GPIO_PIN			GPIO_Pin_5
 #define PIOS_ADC_PIN3_GPIO_CHANNEL		ADC_Channel_5
 #define PIOS_ADC_PIN3_ADC			ADC1
@@ -156,7 +156,7 @@ TIM16 |  PWM in   |           |           |
 #define PIOS_ADC_CHANNELS			{ PIOS_ADC_PIN1_GPIO_CHANNEL, PIOS_ADC_PIN2_GPIO_CHANNEL, PIOS_ADC_PIN3_GPIO_CHANNEL, PIOS_ADC_PIN4_GPIO_CHANNEL }
 #define PIOS_ADC_MAPPING			{ PIOS_ADC_PIN1_ADC, PIOS_ADC_PIN2_ADC, PIOS_ADC_PIN3_ADC, PIOS_ADC_PIN4_ADC }
 #define PIOS_ADC_CHANNEL_MAPPING		{ PIOS_ADC_PIN1_ADC_NUMBER, PIOS_ADC_PIN2_ADC_NUMBER, PIOS_ADC_PIN3_ADC_NUMBER, PIOS_ADC_PIN4_ADC_NUMBER }
-#define PIOS_ADC_NUM_CHANNELS			(PIOS_ADC_NUM_PINS + PIOS_ADC_USE_TEMP_SENSOR) 
+#define PIOS_ADC_NUM_CHANNELS			(PIOS_ADC_NUM_PINS + PIOS_ADC_USE_TEMP_SENSOR)
 #define PIOS_ADC_NUM_ADC_CHANNELS		2
 #define PIOS_ADC_USE_ADC2			1
 #define PIOS_ADC_CLOCK_FUNCTION			RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1 | RCC_APB2Periph_ADC2, ENABLE)
@@ -166,8 +166,8 @@ TIM16 |  PWM in   |           |           |
 /* RCC_PCLK2_Div6: ADC clock = PCLK2/6 */
 /* RCC_PCLK2_Div8: ADC clock = PCLK2/8 */
 //#define PIOS_ADC_SAMPLE_TIME			ADC_SampleTime_71Cycles5
-#define PIOS_ADC_SAMPLE_TIME			ADC_SampleTime_28Cycles5
-//#define PIOS_ADC_SAMPLE_TIME			ADC_SampleTime_13Cycles5
+//#define PIOS_ADC_SAMPLE_TIME			ADC_SampleTime_28Cycles5
+#define PIOS_ADC_SAMPLE_TIME			ADC_SampleTime_13Cycles5
 /* Sample time: */
 /* With an ADCCLK = 14 MHz and a sampling time of 239.5 cycles: */
 /* Tconv = 13.5 + 12.5 = 26 cycles = 18�s */
@@ -178,8 +178,8 @@ TIM16 |  PWM in   |           |           |
 // PCKL2 = HCLK / 16
 // ADCCLK = PCLK2 / 2
 //#define PIOS_ADC_RATE		(72.0e6 / 1.0 / 8.0 / 84.0 / (PIOS_ADC_NUM_CHANNELS >> PIOS_ADC_USE_ADC2))
-#define PIOS_ADC_RATE		(72.0e6 / 1.0 / 8.0 / 41.0 / (PIOS_ADC_NUM_CHANNELS >> PIOS_ADC_USE_ADC2))
-//#define PIOS_ADC_RATE		(72.0e6 / 1.0 / 8.0 / 26.0 / (PIOS_ADC_NUM_CHANNELS >> PIOS_ADC_USE_ADC2))
+//#define PIOS_ADC_RATE		(72.0e6 / 1.0 / 8.0 / 41.0 / (PIOS_ADC_NUM_CHANNELS >> PIOS_ADC_USE_ADC2))
+#define PIOS_ADC_RATE		(72.0e6 / 1.0 / 8.0 / 26.0 / (PIOS_ADC_NUM_CHANNELS >> PIOS_ADC_USE_ADC2))
 #define PIOS_ADC_MAX_OVERSAMPLING               36
 
 
@@ -187,7 +187,7 @@ TIM16 |  PWM in   |           |           |
 // Delay Timer
 //-------------------------
 #define PIOS_DELAY_TIMER			TIM4
-#define PIOS_DELAY_TIMER_RCC_FUNC		RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM4, ENABLE) 
+#define PIOS_DELAY_TIMER_RCC_FUNC		RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM4, ENABLE)
 
 //-------------------------
 // System Settings
