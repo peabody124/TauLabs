@@ -44,8 +44,6 @@
 /* Prototype of PIOS_Board_Init() function */
 extern void PIOS_Board_Init(void);
 
-void adc_callback(float * buffer);
-
 #define DOWNSAMPLING 4
 
 #ifdef BACKBUFFER
@@ -95,7 +93,6 @@ int main()
 	PIOS_Board_Init();
 
 	PIOS_ADC_Config(DOWNSAMPLING);
-	PIOS_ADC_SetCallback(adc_callback);
 
 	// TODO: Move this into a PIOS_DELAY function
 	TIM_OCInitTypeDef tim_oc_init = {
@@ -205,14 +202,22 @@ int main()
 #define MIN_PRE_COUNT  2
 #define MIN_POST_COUNT 1
 #define DEMAG_BLANKING 70
-uint16_t exceed_count = 0;
 
-uint32_t calls = 0;
-uint32_t detected = 0;
-
-void adc_callback(float * buffer)
+#include "pios_adc_priv.h"
+void DMA1_Channel1_IRQHandler(void)
 {
-	calls ++;
+	if (DMA_GetFlagStatus(pios_adc_devs[0].cfg->full_flag /*DMA1_IT_TC1*/)) {	// whole double buffer filled
+		pios_adc_devs[0].valid_data_buffer = &pios_adc_devs[0].raw_data_buffer[pios_adc_devs[0].dma_half_buffer_size];
+		DMA_ClearFlag(pios_adc_devs[0].cfg->full_flag);
+	}
+	else if (DMA_GetFlagStatus(pios_adc_devs[0].cfg->half_flag /*DMA1_IT_HT1*/)) {
+		pios_adc_devs[0].valid_data_buffer = &pios_adc_devs[0].raw_data_buffer[0];
+		DMA_ClearFlag(pios_adc_devs[0].cfg->half_flag);
+	}
+	else {
+		// This should not happen, probably due to transfer errors
+		DMA_ClearFlag(pios_adc_devs[0].cfg->dma.irq.flags /*DMA1_FLAG_GL1*/);
+	}
 
 	int16_t * raw_buf = PIOS_ADC_GetRawBuffer();
 	static enum pios_esc_state prev_state = ESC_STATE_AB;
@@ -306,8 +311,6 @@ void adc_callback(float * buffer)
 					post_count++;
 				}
 				if(diff > 0 && post_count >= MIN_POST_COUNT) {
-
-					detected ++;
 					esc_data->detected = true;
 					esc_fsm_inject_event(ESC_EVENT_ZCD, below_time);
 #ifdef BACKBUFFER_ZCD

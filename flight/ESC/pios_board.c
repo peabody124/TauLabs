@@ -7,19 +7,19 @@
  * @see        The GNU Public License (GPL) Version 3
  *
  *****************************************************************************/
-/* 
- * This program is free software; you can redistribute it and/or modify 
- * it under the terms of the GNU General Public License as published by 
- * the Free Software Foundation; either version 3 of the License, or 
+/*
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
- * 
- * This program is distributed in the hope that it will be useful, but 
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY 
- * or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License 
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+ * or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
  * for more details.
- * 
- * You should have received a copy of the GNU General Public License along 
- * with this program; if not, write to the Free Software Foundation, Inc., 
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
  * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
@@ -35,7 +35,7 @@ void PIOS_TIM4_irq_handler() {
 #endif
 
 
-#define ESC_DEFAULT_PWM_RATE 30000
+#define ESC_DEFAULT_PWM_RATE 40000
 #include "pios_esc_priv.h"
 const struct pios_esc_cfg pios_esc_cfg = {
 	.tim_base_init = {
@@ -51,7 +51,7 @@ const struct pios_esc_cfg pios_esc_cfg = {
 		.TIM_OCMode = TIM_OCMode_PWM1,
 		.TIM_OutputState = TIM_OutputState_Enable,
 		.TIM_OutputNState = TIM_OutputNState_Disable,
-		.TIM_Pulse = 0,		
+		.TIM_Pulse = 0,
 		.TIM_OCPolarity = TIM_OCPolarity_High,
 		.TIM_OCNPolarity = TIM_OCPolarity_High,
 		.TIM_OCIdleState = TIM_OCIdleState_Reset,
@@ -60,8 +60,8 @@ const struct pios_esc_cfg pios_esc_cfg = {
 	.gpio_init = {
 		.GPIO_Mode = GPIO_Mode_AF_PP,
 		.GPIO_Speed = GPIO_Speed_2MHz,
-	},	
-	.phase_a_minus = { 
+	},
+	.phase_a_minus = {
 		.timer = TIM2,
 		.port = GPIOA,
 		.channel = TIM_Channel_3,
@@ -73,7 +73,7 @@ const struct pios_esc_cfg pios_esc_cfg = {
 		.channel = TIM_Channel_4,
 		.pin = GPIO_Pin_3,
 	},
-	.phase_b_minus = { 
+	.phase_b_minus = {
 		.timer = TIM2,
 		.port = GPIOA,
 		.channel = TIM_Channel_1,
@@ -100,11 +100,11 @@ const struct pios_esc_cfg pios_esc_cfg = {
 	.remap = GPIO_PartialRemap_TIM3,
 };
 
-/* 
- * PWM Inputs 
+/*
+ * PWM Inputs
  */
 
-//Using TIM4 CH3 for PWM input and TIM4 for delay.  Settings are 
+//Using TIM4 CH3 for PWM input and TIM4 for delay.  Settings are
 //compatiblefor both
 
 #if defined(PIOS_INCLUDE_PWM)
@@ -127,7 +127,7 @@ const struct pios_pwm_channel pios_pwm_channels[] = {
 		.ccr = TIM_IT_CC3,
 		.channel = TIM_Channel_3,
 		.pin = GPIO_Pin_8,
-	}, 
+	},
 };
 
 const struct pios_pwm_cfg pios_pwm_cfg = {
@@ -142,7 +142,7 @@ const struct pios_pwm_cfg pios_pwm_cfg = {
 		.TIM_ICPolarity = TIM_ICPolarity_Rising,
 		.TIM_ICSelection = TIM_ICSelection_DirectTI,
 		.TIM_ICPrescaler = TIM_ICPSC_DIV1,
-		.TIM_ICFilter = 0x0,		
+		.TIM_ICFilter = 0x0,
 	},
 	.gpio_init = {
 		.GPIO_Mode = GPIO_Mode_IPD,
@@ -168,8 +168,6 @@ const struct pios_pwm_cfg pios_pwm_cfg = {
  * ADC system
  */
 #include "pios_adc_priv.h"
-extern void PIOS_ADC_handler(void);
-void DMA1_Channel1_IRQHandler() __attribute__ ((alias("PIOS_ADC_handler")));
 // Remap the ADC DMA handler to this one
 const struct pios_adc_cfg pios_adc_cfg = {
 	.dma = {
@@ -198,7 +196,7 @@ const struct pios_adc_cfg pios_adc_cfg = {
 				.DMA_M2M                = DMA_M2M_Disable,
 			},
 		}
-	}, 
+	},
 	.half_flag = DMA1_IT_HT1,
 	.full_flag = DMA1_IT_TC1,
 	.compute_downsample = false
@@ -212,10 +210,6 @@ struct pios_adc_dev pios_adc_devs[] = {
 };
 
 uint8_t pios_adc_num_devices = NELEMENTS(pios_adc_devs);
-
-void PIOS_ADC_handler() {
-	PIOS_ADC_DMA_Handler();
-}
 
 
 #if defined(PIOS_INCLUDE_USART)
@@ -378,13 +372,13 @@ void PIOS_Board_Init(void) {
 
 	/* Delay system */
 	PIOS_DELAY_Init();
-	
+
 	PIOS_GPIO_Init();
-	
+
 	/* Bring up ADC for sensing BEMF */
 	PIOS_ADC_Init();
 	PIOS_ADC_Config(5);
-	
+
 	/* Remap AFIO pin */
 	GPIO_PinRemapConfig( GPIO_Remap_SWJ_NoJTRST, ENABLE);
 	PIOS_ESC_Init(&pios_esc_cfg);
@@ -392,7 +386,7 @@ void PIOS_Board_Init(void) {
 #if defined(PIOS_INCLUDE_PWM)
 	PIOS_PWM_Init();
 #endif
-	
+
 	/* Communication system */
 	if (PIOS_USART_Init(&pios_usart_debug_id, &pios_usart_debug_cfg)) {
 		PIOS_DEBUG_Assert(0);

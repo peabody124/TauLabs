@@ -469,8 +469,10 @@ static void go_esc_cl_nozcd(uint16_t time)
 	esc_data.consecutive_missed++;
 	if(esc_data.consecutive_missed > 10)
 		esc_fsm_inject_event(ESC_EVENT_FAULT, 0);
-	else
+	else {
+//		PIOS_ESC_SetDutyCycle(esc_data.duty_cycle / 10);
 		esc_fsm_inject_event(ESC_EVENT_COMMUTATED, 0);
+	}
 	esc_data.total_missed++;
 
 }
