@@ -87,6 +87,7 @@ struct esc_fsm_data * esc_data = 0;
 /**
  * @brief ESC Main function
  */
+uint16_t input;
 int main()
 {
 	esc_data = 0;
@@ -126,7 +127,7 @@ int main()
 
 	test_esc();
 	esc_data = esc_fsm_init();
-	esc_data->speed_setpoint = 2500;
+	esc_data->speed_setpoint = 0;
 
 	while(1) {
 		counter++;
@@ -149,6 +150,10 @@ int main()
 			if(settling_time_pointer > NUM_SETTLING_TIMES)
 				settling_time_pointer = 0;
 		}
+		
+		input = PIOS_PWM_Get(0);
+		esc_data->speed_setpoint = (input < 1200) ? 0 :
+			400 + 10 * (input - 1200);
 
 		esc_process_static_fsm_rxn();
 

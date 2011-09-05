@@ -37,7 +37,7 @@ struct esc_config config = {
 	.max_dc = 0.99,
 	.initial_startup_speed = 400,
 	.final_startup_speed = 1200,
-	.commutation_phase = 0.65,
+	.commutation_phase = 0.55,
 	.soft_current_limit = 750,
 	.hard_current_limit = 1800,
 	.magic = ESC_CONFIG_MAGIC,
@@ -106,7 +106,7 @@ const static struct esc_transition esc_transition[ESC_FSM_NUM_STATES] = {
 		.entry_fn = go_esc_stopped,
 		.next_state = {
 			// For now just loop in stopped state while we auto running
-			[ESC_EVENT_AUTO] = ESC_STATE_STOPPED /*ESC_STATE_IDLE*/,
+			[ESC_EVENT_ARM] = ESC_STATE_IDLE,
 		},
 	},
 
@@ -131,6 +131,7 @@ const static struct esc_transition esc_transition[ESC_FSM_NUM_STATES] = {
 			[ESC_EVENT_TIMEOUT] = ESC_STATE_STOPPING,
 			[ESC_EVENT_ZCD] = ESC_STATE_STARTUP_ZCD_DETECTED,
 			[ESC_EVENT_COMMUTATED] = ESC_STATE_STARTUP_NOZCD_COMMUTATED,
+			[ESC_EVENT_STOP] = ESC_STATE_STOPPING,
 		},
 	},
 	[ESC_STATE_STARTUP_ZCD_DETECTED] = {
@@ -139,6 +140,7 @@ const static struct esc_transition esc_transition[ESC_FSM_NUM_STATES] = {
 			[ESC_EVENT_ZCD] = ESC_STATE_STARTUP_ZCD_DETECTED,
 			[ESC_EVENT_COMMUTATED] = ESC_STATE_STARTUP_WAIT,
 			[ESC_EVENT_CLOSED] = ESC_STATE_CL_START,
+			[ESC_EVENT_STOP] = ESC_STATE_STOPPING,
 		},
 	},
 	[ESC_STATE_STARTUP_NOZCD_COMMUTATED] = {
@@ -146,6 +148,7 @@ const static struct esc_transition esc_transition[ESC_FSM_NUM_STATES] = {
 		.next_state = {
 			[ESC_EVENT_ZCD] = ESC_STATE_STARTUP_ZCD_DETECTED,
 			[ESC_EVENT_COMMUTATED] = ESC_STATE_STARTUP_NOZCD_COMMUTATED,
+			[ESC_EVENT_STOP] = ESC_STATE_STOPPING,
 		},
 	},
 
@@ -154,6 +157,7 @@ const static struct esc_transition esc_transition[ESC_FSM_NUM_STATES] = {
 		.entry_fn = go_esc_cl_start,
 		.next_state = {
 			[ESC_EVENT_COMMUTATED] = ESC_STATE_CL_COMMUTATED,
+			[ESC_EVENT_STOP] = ESC_STATE_STOPPING,
 		},
 	},
 	[ESC_STATE_CL_COMMUTATED] = {
@@ -161,12 +165,14 @@ const static struct esc_transition esc_transition[ESC_FSM_NUM_STATES] = {
 		.next_state = {
 			[ESC_EVENT_ZCD] = ESC_STATE_CL_ZCD,
 			[ESC_EVENT_TIMEOUT] = ESC_STATE_CL_NOZCD,
+			[ESC_EVENT_STOP] = ESC_STATE_STOPPING,
 		},
 	},
 	[ESC_STATE_CL_NOZCD] = {
 		.entry_fn = go_esc_cl_nozcd,
 		.next_state = {
 			[ESC_EVENT_COMMUTATED] = ESC_STATE_CL_COMMUTATED,
+			[ESC_EVENT_STOP] = ESC_STATE_STOPPING,
 		},
 	},
 	[ESC_STATE_CL_ZCD] = {
@@ -174,9 +180,9 @@ const static struct esc_transition esc_transition[ESC_FSM_NUM_STATES] = {
 		.next_state = {
 			[ESC_EVENT_COMMUTATED] = ESC_STATE_CL_COMMUTATED,
 			[ESC_EVENT_LATE_COMMUTATION] = ESC_STATE_CL_COMMUTATED,
+			[ESC_EVENT_STOP] = ESC_STATE_STOPPING,
 		},
 	},
-
 };
 
 static struct esc_fsm_data esc_data;
@@ -194,21 +200,17 @@ void esc_process_static_fsm_rxn() {
 			// No static rxn.  Goes straight to wait_for_arm.
 			break;
 		case ESC_STATE_WAIT_FOR_ARM:
-			// TODO: Monitor for low input.
-			// Now now make it immediately arm
-			esc_fsm_inject_event(ESC_EVENT_ARM,0);
+		case ESC_STATE_STOPPED:
+			if(esc_data.speed_setpoint == 0)
+				esc_fsm_inject_event(ESC_EVENT_ARM,0);
 			break;
 		case ESC_STATE_IDLE:
-			// TODO: Monitor for non-low input
-			// For now just start
-			esc_fsm_inject_event(ESC_EVENT_START,0);
+			if(esc_data.speed_setpoint > 0)
+				esc_fsm_inject_event(ESC_EVENT_START,0);
 			break;
 		case ESC_STATE_STOPPING:
 			// Monitor that the motor has stopped and current < threshold
 			PIOS_ESC_Off();
-			break;
-		case ESC_STATE_STOPPED:
-			// Not used
 			break;
 
 		/**
@@ -234,6 +236,10 @@ void esc_process_static_fsm_rxn() {
 			if(esc_data.duty_cycle > 0.2)
 				esc_data.duty_cycle = 0.2;
 			PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
+			
+			if(esc_data.speed_setpoint == 0)
+				esc_fsm_inject_event(ESC_EVENT_STOP,0);
+			
 			break;
 		}
 
@@ -258,6 +264,9 @@ void esc_process_static_fsm_rxn() {
 				PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
 			}
 			last_timer = cur_timer;
+
+			if(esc_data.speed_setpoint == 0)
+				esc_fsm_inject_event(ESC_EVENT_STOP,0);
 		}
 			break;
 
