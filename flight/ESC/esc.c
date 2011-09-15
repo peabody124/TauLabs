@@ -78,16 +78,16 @@ uint32_t timer;
 uint16_t timer_lower;
 uint32_t step_period = 0x0080000;
 uint32_t last_step = 0;
-uint32_t settling_time[NUM_SETTLING_TIMES];
-uint8_t settling_time_pointer = 0;
-uint8_t settled = 1;
 int16_t low_voltages[3];
 struct esc_fsm_data * esc_data = 0;
 
 /**
  * @brief ESC Main function
  */
-uint16_t input;
+#define INPUT_FILTER_LEN 4
+uint16_t input[INPUT_FILTER_LEN];
+uint8_t input_pointer = 0;
+
 int main()
 {
 	esc_data = 0;
@@ -138,22 +138,18 @@ int main()
 			timer += 0x00010000;
 		timer = (timer & 0xffff0000) | timer_lower;
 
-		if((timer - last_step) > step_period) {
-			last_step = timer;
-//			esc_data->speed_setpoint = (esc_data->speed_setpoint == 4500) ? 4000 : 4500;
-			settled = 0;
-		}
-
-		if(!settled && abs(esc_data->speed_setpoint - esc_data->current_speed) < 100) {
-			settled = 1;
-			settling_time[settling_time_pointer++] = timer - last_step;
-			if(settling_time_pointer > NUM_SETTLING_TIMES)
-				settling_time_pointer = 0;
-		}
+		input[input_pointer] = PIOS_PWM_Get(0);
+		input_pointer = (input_pointer + 1) % INPUT_FILTER_LEN;
+		uint16_t avg = 0;
+		for (uint32_t i = 0; i < INPUT_FILTER_LEN; i++)
+			avg += input[i];
+		avg /= 4;
+		avg = PIOS_PWM_Get(0);
 		
-		input = PIOS_PWM_Get(0);
-		esc_data->speed_setpoint = (input < 1200) ? 0 :
-			400 + 10 * (input - 1200);
+		if(avg > 990) {  // Temporary!!!
+		esc_data->speed_setpoint = (avg < 1050) ? 0 :
+			400 + 10 * (avg - 1050);
+		}
 
 		esc_process_static_fsm_rxn();
 
@@ -204,9 +200,12 @@ int main()
 // When driving both legs to ground mid point is 580
 #define ZERO_POINT 290
 #define CROSS_ALPHA 0.5
-#define MIN_PRE_COUNT  2
-#define MIN_POST_COUNT 1
 #define DEMAG_BLANKING 70
+
+#define MAX_RUNNING_FILTER 16
+static int16_t diff_filter[MAX_RUNNING_FILTER];
+int16_t running_filter_length = 4;
+static int16_t diff_filter_pointer = 0;
 
 #include "pios_adc_priv.h"
 void DMA1_Channel1_IRQHandler(void)
@@ -228,10 +227,6 @@ void DMA1_Channel1_IRQHandler(void)
 	static enum pios_esc_state prev_state = ESC_STATE_AB;
 	enum pios_esc_state curr_state;
 	static uint16_t below_time;
-	static uint16_t pre_count = 0;
-	static uint16_t post_count = 0;
-	static int16_t running_avg;
-	bool first;
 
 	curr_state = PIOS_ESC_GetState();
 
@@ -248,7 +243,7 @@ void DMA1_Channel1_IRQHandler(void)
 		back_buf[back_buf_point++] = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 2];
 		back_buf[back_buf_point++] = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 3];
 	}
-#endif
+#endif	
 
 	// Wait for blanking
 	if(esc_data && PIOS_DELAY_DiffuS(esc_data->last_swap_time) < DEMAG_BLANKING)
@@ -256,7 +251,7 @@ void DMA1_Channel1_IRQHandler(void)
 
 	if(esc_data) {
 		// Smooth the estimate of current a bit
-		int32_t this_current = 0;
+		uint32_t this_current = 0;
 		for(int i = 0; i < DOWNSAMPLING; i++)
 			this_current += raw_buf[PIOS_ADC_NUM_CHANNELS * i + 0];
 		this_current /= DOWNSAMPLING;
@@ -274,12 +269,11 @@ void DMA1_Channel1_IRQHandler(void)
 
 	// If detected this commutation don't bother here
 	if(curr_state != prev_state) {
+		for(uint8_t j = 0; j < MAX_RUNNING_FILTER; j++)
+			diff_filter[j] = -1;
+
 		prev_state = curr_state;
-		pre_count = 0;
-		post_count = 0;
-		first = true;
 	} else {
-		first = false;
 	}
 
 
@@ -298,24 +292,15 @@ void DMA1_Channel1_IRQHandler(void)
 				else
 					diff = ref - undriven - ZERO_POINT;
 
-				diff *= 10; // scale up to increase fixed point precision
-
-				if(first)
-					running_avg = diff;
-				else
-					running_avg = (running_avg + diff) / 2; //(1-CROSS_ALPHA) * running_avg + CROSS_ALPHA * diff;
-
-				diff = running_avg;
-
-				if(diff < 0) {
-					pre_count++;
-					// Keep setting so we store the time of zero crossing
+				diff_filter[diff_filter_pointer] = diff;
+				diff_filter_pointer = (diff_filter_pointer + 1) % running_filter_length;
+				
+				diff = 0;
+				for(uint8_t j = 0; j < running_filter_length; j++)
+					diff += diff_filter[j];
+				
+				if(diff > 0) {
 					below_time = enter_time - dT * (DOWNSAMPLING - i);
-				}
-				if(diff > 0 && pre_count > MIN_PRE_COUNT) {
-					post_count++;
-				}
-				if(diff > 0 && post_count >= MIN_POST_COUNT) {
 					esc_data->detected = true;
 					esc_fsm_inject_event(ESC_EVENT_ZCD, below_time);
 #ifdef BACKBUFFER_ZCD

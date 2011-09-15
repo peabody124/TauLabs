@@ -21,6 +21,9 @@
 // 5. In case of soft current limit, go into current limiting mode
 // 6. Freehweeling mode for when a ZCD is missed
 
+// To act like a normal open loop ESC
+//#define OPEN_LOOP
+
 #define RPM_TO_US(x) (1e6 * 60 / (x * COMMUTATIONS_PER_ROT) )
 #define US_TO_RPM(x) RPM_TO_US(x)
 #define COMMUTATIONS_PER_ROT (7*6)
@@ -35,8 +38,9 @@ struct esc_config config = {
 	.max_dc_change = 2,
 	.min_dc = 0.01,
 	.max_dc = 0.99,
-	.initial_startup_speed = 400,
+	.initial_startup_speed = 100,
 	.final_startup_speed = 1200,
+	.startup_current_target = 170,
 	.commutation_phase = 0.55,
 	.soft_current_limit = 750,
 	.hard_current_limit = 1800,
@@ -189,8 +193,9 @@ static struct esc_fsm_data esc_data;
 
 void esc_process_static_fsm_rxn() {
 
-	if(esc_data.current > config.hard_current_limit)
-		esc_fsm_inject_event(ESC_EVENT_OVERCURRENT, 0);
+	static uint32_t zero_time;
+//	if(esc_data.current > config.hard_current_limit)
+//		esc_fsm_inject_event(ESC_EVENT_OVERCURRENT, 0);
 
 	switch(esc_data.state) {
 		case ESC_STATE_FSM_FAULT:
@@ -201,8 +206,11 @@ void esc_process_static_fsm_rxn() {
 			break;
 		case ESC_STATE_WAIT_FOR_ARM:
 		case ESC_STATE_STOPPED:
-			if(esc_data.speed_setpoint == 0)
+			if(esc_data.speed_setpoint == 0 && zero_time > 10000) {
 				esc_fsm_inject_event(ESC_EVENT_ARM,0);
+				zero_time = 0;
+			}
+			else zero_time++;
 			break;
 		case ESC_STATE_IDLE:
 			if(esc_data.speed_setpoint > 0)
@@ -219,29 +227,11 @@ void esc_process_static_fsm_rxn() {
 		case ESC_STATE_STARTUP_GRAB:
 		case ESC_STATE_STARTUP_WAIT:
 		case ESC_STATE_STARTUP_ZCD_DETECTED:
-		case ESC_STATE_STARTUP_NOZCD_COMMUTATED:
-		{
-			// Timing adjusted in entry function
-			// This should perform run a current control loop
-			float current_error = (70 - esc_data.current);
-			current_error *= 0.0001;
-			if(current_error > 0.0002)
-				current_error = 0.0002;
-			if(current_error < -0.0002)
-				current_error = -0.0002;
-			esc_data.duty_cycle += current_error;
-
-			if(esc_data.duty_cycle < 0.01)
-				esc_data.duty_cycle = 0.01;
-			if(esc_data.duty_cycle > 0.2)
-				esc_data.duty_cycle = 0.2;
-			PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
-			
+		case ESC_STATE_STARTUP_NOZCD_COMMUTATED:			
 			if(esc_data.speed_setpoint == 0)
 				esc_fsm_inject_event(ESC_EVENT_STOP,0);
 			
 			break;
-		}
 
 		/**
 		 * Closed loop transitions
@@ -282,7 +272,7 @@ void esc_process_static_fsm_rxn() {
 static void go_esc_fault(uint16_t time)
 {
 	// Stop ADC quickly for grabbing debug buffer
-	PIOS_ADC_StopDma();
+//	PIOS_ADC_StopDma();
 	PIOS_ESC_Off();
 	esc_data.faults ++;
 }
@@ -301,7 +291,6 @@ static void go_esc_stopping(uint16_t time)
 static void go_esc_stopped(uint16_t time)
 {
 	TIM_ITConfig(TIM4, TIM_IT_CC1, DISABLE);
-	PIOS_ADC_StopDma();
 }
 
 /**
@@ -326,7 +315,7 @@ static void go_esc_startup_grab(uint16_t time)
 	// TODO: Set up a timeout for whole startup system
 
 	PIOS_ESC_SetState(0);
-	esc_data.current_speed = 200;
+	esc_data.current_speed = config.initial_startup_speed;
 	esc_data.duty_cycle = 0.10;
 	PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
 	esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, PIOS_DELAY_GetuS() + 30000);  // Grab stator for 30 ms
@@ -361,7 +350,21 @@ static void go_esc_startup_zcd(uint16_t time)
 
 	if(esc_data.consecutive_detected > 20) {
 		esc_fsm_inject_event(ESC_EVENT_CLOSED, time);
+	} else {		
+		// Timing adjusted in entry function
+		// This should perform run a current control loop
+
+/*		float current_error = (config.startup_current_target - esc_data.current);
+		current_error *= 0.00001;
+		esc_data.duty_cycle += current_error;
+		
+		if(esc_data.duty_cycle < 0.01)
+			esc_data.duty_cycle = 0.01;
+		if(esc_data.duty_cycle > 0.4)
+			esc_data.duty_cycle = 0.4;
+		PIOS_ESC_SetDutyCycle(esc_data.duty_cycle); */
 	}
+
 }
 
 /**
@@ -372,8 +375,8 @@ static void go_esc_startup_nozcd(uint16_t time)
 	esc_data.consecutive_detected = 0;
 	esc_data.consecutive_missed++;
 
-	if(esc_data.consecutive_missed > 10) {
-		esc_fsm_inject_event(ESC_EVENT_FAULT, time);
+	if(esc_data.consecutive_missed > 100) {
+//		esc_fsm_inject_event(ESC_EVENT_FAULT, time);
 	} else {
 		commutate();
 
@@ -383,7 +386,18 @@ static void go_esc_startup_nozcd(uint16_t time)
 
 		// Schedule next commutation
 		esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, PIOS_DELAY_GetuS() + RPM_TO_US(esc_data.current_speed));
-	}
+	} 
+			
+	// Timing adjusted in entry function
+	// This should perform run a current control loop
+/*	float current_error = (config.startup_current_target - esc_data.current);
+	current_error *= 0.001;
+	
+	if(esc_data.duty_cycle < 0.01)
+		esc_data.duty_cycle = 0.01;
+	if(esc_data.duty_cycle > 0.2)
+		esc_data.duty_cycle = 0.2;
+	PIOS_ESC_SetDutyCycle(esc_data.duty_cycle); */
 }
 
 /**
@@ -453,7 +467,11 @@ static void go_esc_cl_zcd(uint16_t time)
 		if(esc_data.error_accum < -config.ilim)
 			esc_data.error_accum = -config.ilim;
 
+#ifdef OPEN_LOOP
+		float new_dc = 0.3 ;//esc_data.speed_setpoint / 8000;
+#else
 		float new_dc = esc_data.speed_setpoint * config.kff - config.kff2 + config.kp * error + esc_data.error_accum;
+#endif
 
 		if((new_dc - esc_data.duty_cycle) > max_dc_change)
 			esc_data.duty_cycle += max_dc_change;
