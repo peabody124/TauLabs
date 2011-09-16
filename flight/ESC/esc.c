@@ -177,6 +177,7 @@ uint32_t calls_to_last_detect = 0;
 
 int32_t threshold = -200;
 int32_t this_current;
+uint32_t adc_timeval;
 
 #include "pios_adc_priv.h"
 void DMA1_Channel1_IRQHandler(void)
@@ -199,7 +200,6 @@ void DMA1_Channel1_IRQHandler(void)
 	static bool negative = false;
 	static enum pios_esc_state prev_state = ESC_STATE_AB;
 	enum pios_esc_state curr_state;
-	static uint16_t below_time;
 
 	curr_state = PIOS_ESC_GetState();
 	
@@ -221,7 +221,7 @@ void DMA1_Channel1_IRQHandler(void)
 	if(esc_data == NULL)
 		return;
 
-	if(esc_data && PIOS_DELAY_DiffuS(esc_data->last_swap_time) < DEMAG_BLANKING)
+	if(esc_data && PIOS_DELAY_DiffuS(adc_timeval) < DEMAG_BLANKING)
 		return;
 	
 	running_filter_length = (esc_data->current_speed > 4000) ? 4 :
@@ -236,8 +236,6 @@ void DMA1_Channel1_IRQHandler(void)
 		current_filter_pointer = (current_filter_pointer + 1) % CURRENT_FILTER;
 		esc_data->current = current_filter_sum / CURRENT_FILTER - zero_current;
 	}
-
-	uint16_t enter_time = PIOS_DELAY_GetuS();
 
 	// If detected this commutation don't bother here
 	if(curr_state != prev_state) {
@@ -286,7 +284,6 @@ void DMA1_Channel1_IRQHandler(void)
 		return;
 
 	calls_to_detect++;
-
 	
 	switch(PIOS_ESC_GetMode()) {
 		case ESC_MODE_LOW_ON_PWM_HIGH:
@@ -313,10 +310,11 @@ void DMA1_Channel1_IRQHandler(void)
 				if(running_filter_sum < threshold)
 					negative = true;
 				if(running_filter_sum > 0 && negative) {
-					below_time = enter_time - dT * (DOWNSAMPLING - i);
+					adc_timeval = PIOS_DELAY_GetRaw();
+					
 					negative = false;
 					esc_data->detected = true;
-					esc_fsm_inject_event(ESC_EVENT_ZCD, below_time);
+					esc_fsm_inject_event(ESC_EVENT_ZCD, 0);
 					calls_to_last_detect = calls_to_detect;
 					PIOS_GPIO_Toggle(1);
 #ifdef BACKBUFFER_ZCD
