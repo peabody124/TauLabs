@@ -38,15 +38,15 @@
 //TODO: Look into using TIM1
 //know the exact time of each sample and the PWM phase
 
-//#define BACKBUFFER
 //#define BACKBUFFER_ZCD
+//#define BACKBUFFER_ADC
 
 /* Prototype of PIOS_Board_Init() function */
 extern void PIOS_Board_Init(void);
 
 #define DOWNSAMPLING 4
 
-#ifdef BACKBUFFER
+#if defined(BACKBUFFER_ADC) || defined(BACKBUFFER_ZCD)
 uint16_t back_buf[8096];
 uint16_t back_buf_point = 0;
 #endif
@@ -79,6 +79,7 @@ uint16_t timer_lower;
 uint32_t step_period = 0x0080000;
 uint32_t last_step = 0;
 int16_t low_voltages[3];
+int32_t avg_low_voltage;
 struct esc_fsm_data * esc_data = 0;
 
 /**
@@ -119,6 +120,7 @@ int main()
 	// This pull up all the ADC voltages so the BEMF when at -0.7V
 	// is still positive
 	PIOS_GPIO_Enable(0);
+	PIOS_GPIO_Enable(1);
 	PIOS_GPIO_Off(0);
 
 	PIOS_LED_Off(LED_ERR);
@@ -128,6 +130,8 @@ int main()
 	test_esc();
 	esc_data = esc_fsm_init();
 	esc_data->speed_setpoint = 0;
+
+	PIOS_ADC_StartDma();
 
 	while(1) {
 		counter++;
@@ -152,60 +156,22 @@ int main()
 		}
 
 		esc_process_static_fsm_rxn();
-
-		switch(PIOS_ESC_GetState()) {
-			case ESC_STATE_AC:
-				low_pin = 0;
-				high_pin = 2;
-				undriven_pin = 1;
-				pos = true;
-				break;
-			case ESC_STATE_CA:
-				low_pin = 2;
-				high_pin = 0;
-				undriven_pin = 1;
-				pos = false;
-				break;
-			case ESC_STATE_AB:
-				low_pin = 0;
-				high_pin = 1;
-				undriven_pin = 2;
-				pos = false;
-				break;
-			case ESC_STATE_BA:
-				low_pin = 1;
-				high_pin = 0;
-				undriven_pin = 2;
-				pos = true;
-				break;
-			case ESC_STATE_BC:
-				low_pin = 1;
-				high_pin = 2;
-				undriven_pin = 0;
-				pos = false;
-				break;
-			case ESC_STATE_CB:
-				low_pin = 2;
-				high_pin = 1;
-				undriven_pin = 0;
-				pos = true;
-				break;
-			default:
-				PIOS_ESC_Off();
-		}
 	}
 	return 0;
 }
 
 // When driving both legs to ground mid point is 580
-#define ZERO_POINT 290
-#define CROSS_ALPHA 0.5
-#define DEMAG_BLANKING 70
-
-#define MAX_RUNNING_FILTER 16
+#define MAX_RUNNING_FILTER 64
 static int16_t diff_filter[MAX_RUNNING_FILTER];
-int16_t running_filter_length = 4;
+int16_t running_filter_length = 32;
+int32_t running_filter_sum;
 static int16_t diff_filter_pointer = 0;
+uint16_t DEMAG_BLANKING = 70;
+
+uint32_t calls_to_detect = 0;
+uint32_t calls_to_last_detect = 0;
+
+int32_t threshold = -20;
 
 #include "pios_adc_priv.h"
 void DMA1_Channel1_IRQHandler(void)
@@ -222,13 +188,13 @@ void DMA1_Channel1_IRQHandler(void)
 		// This should not happen, probably due to transfer errors
 		DMA_ClearFlag(pios_adc_devs[0].cfg->dma.irq.flags /*DMA1_FLAG_GL1*/);
 	}
-
-	int16_t * raw_buf = PIOS_ADC_GetRawBuffer();
+	
+	int16_t * raw_buf = (int16_t *) pios_adc_devs[0].valid_data_buffer;
+	
+	static bool negative = false;
 	static enum pios_esc_state prev_state = ESC_STATE_AB;
 	enum pios_esc_state curr_state;
 	static uint16_t below_time;
-
-	curr_state = PIOS_ESC_GetState();
 
 #ifdef BACKBUFFER_ADC
 	// Debugging code - keep a buffer of old ADC values
@@ -245,64 +211,109 @@ void DMA1_Channel1_IRQHandler(void)
 	}
 #endif	
 
-	// Wait for blanking
-	if(esc_data && PIOS_DELAY_DiffuS(esc_data->last_swap_time) < DEMAG_BLANKING)
+	if(esc_data == NULL)
 		return;
 
-	if(esc_data) {
-		// Smooth the estimate of current a bit
-		uint32_t this_current = 0;
-		for(int i = 0; i < DOWNSAMPLING; i++)
-			this_current += raw_buf[PIOS_ADC_NUM_CHANNELS * i + 0];
-		this_current /= DOWNSAMPLING;
-		this_current -= zero_current;
-		if(this_current < 0)
-			this_current = 0;
-		esc_data->current += (this_current - esc_data->current) * 0.01;
-	}
+	if(esc_data && PIOS_DELAY_DiffuS(esc_data->last_swap_time) < DEMAG_BLANKING)
+		return;
+	
+	curr_state = PIOS_ESC_GetState();
+	
+	running_filter_length = (esc_data->current_speed > 4000) ? 1 :
+		(esc_data->current_speed > 2000) ? 4 : 16;
+	
+	// Smooth the estimate of current a bit
+	int32_t this_current = 0;
+	for(int i = 0; i < DOWNSAMPLING; i++)
+		this_current += raw_buf[PIOS_ADC_NUM_CHANNELS * i + 0];
+	this_current /= DOWNSAMPLING;
+	this_current -= zero_current;
+	if(this_current < 0)
+		this_current = 0;
+	esc_data->current += (this_current - esc_data->current) * 0.01;
 
 	uint16_t enter_time = PIOS_DELAY_GetuS();
+
+	// If detected this commutation don't bother here
+	if(curr_state != prev_state) {
+		for(uint8_t j = 0; j < MAX_RUNNING_FILTER; j++)
+			diff_filter[j] = 0;
+
+		prev_state = curr_state;
+		calls_to_detect = 0;
+		negative = false;
+		running_filter_sum = 0;
+		diff_filter_pointer = 0;
+		
+		switch(curr_state) {
+			case ESC_STATE_AC:
+				undriven_pin = 1;
+				pos = true;
+				break;
+			case ESC_STATE_CA:
+				undriven_pin = 1;
+				pos = false;
+				break;
+			case ESC_STATE_AB:
+				undriven_pin = 2;
+				pos = false;
+				break;
+			case ESC_STATE_BA:
+				undriven_pin = 2;
+				pos = true;
+				break;
+			case ESC_STATE_BC:
+				undriven_pin = 0;
+				pos = false;
+				break;
+			case ESC_STATE_CB:
+				undriven_pin = 0;
+				pos = true;
+				break;
+			default:
+				PIOS_ESC_Off();
+		}
+		esc_data->detected = false;
+	}
 
 	// Already detected for this stage
 	if(esc_data && esc_data->detected)
 		return;
 
-	// If detected this commutation don't bother here
-	if(curr_state != prev_state) {
-		for(uint8_t j = 0; j < MAX_RUNNING_FILTER; j++)
-			diff_filter[j] = -1;
+	calls_to_detect++;
 
-		prev_state = curr_state;
-	} else {
-	}
-
-
+	
 	switch(PIOS_ESC_GetMode()) {
 		case ESC_MODE_LOW_ON_PWM_HIGH:
 			// Doesn't work quite right yet
 			for(int i = 0; i < DOWNSAMPLING; i++) {
-				int16_t high = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + high_pin] - low_voltages[high_pin];
-				int16_t low = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + low_pin] - low_voltages[low_pin];
 				int16_t undriven = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + undriven_pin] - low_voltages[undriven_pin];
-				int16_t ref = (high + low) / 2;
-				int16_t diff;
+				int16_t ref = (raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + 0] + 
+				    raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + 1] +
+				    raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + 2] - avg_low_voltage) / 3;
+				int32_t diff;
 
 				if(pos)
-					diff = undriven - ref - ZERO_POINT;
+					diff = undriven - ref;
 				else
-					diff = ref - undriven - ZERO_POINT;
-
+					diff = ref - undriven;
+				
+				// Update running sum and history
+				running_filter_sum += diff;
+				running_filter_sum -= diff_filter[diff_filter_pointer];
 				diff_filter[diff_filter_pointer] = diff;
 				diff_filter_pointer = (diff_filter_pointer + 1) % running_filter_length;
-				
-				diff = 0;
-				for(uint8_t j = 0; j < running_filter_length; j++)
-					diff += diff_filter[j];
-				
-				if(diff > 0) {
+								
+				//threshold = -hysteresis * running_filter_length;
+				if(running_filter_sum < threshold)
+					negative = true;
+				if(running_filter_sum > 0 && negative) {
 					below_time = enter_time - dT * (DOWNSAMPLING - i);
+					negative = false;
 					esc_data->detected = true;
 					esc_fsm_inject_event(ESC_EVENT_ZCD, below_time);
+					calls_to_last_detect = calls_to_detect;
+					PIOS_GPIO_Toggle(1);
 #ifdef BACKBUFFER_ZCD
 					back_buf[back_buf_point++] = below_time;
 					back_buf[back_buf_point++] = esc_data->speed_setpoint;
@@ -347,9 +358,16 @@ void test_esc() {
 
 	PIOS_ESC_Arm();
 
+	PIOS_ESC_TestGate(ESC_A_LOW);
+	PIOS_DELAY_WaituS(250);
 	low_voltages[0] = PIOS_ADC_PinGet(1);
+	PIOS_ESC_TestGate(ESC_B_LOW);
+	PIOS_DELAY_WaituS(250);
 	low_voltages[1] = PIOS_ADC_PinGet(2);
+	PIOS_ESC_TestGate(ESC_C_LOW);
+	PIOS_DELAY_WaituS(250);
 	low_voltages[2] = PIOS_ADC_PinGet(3);
+	avg_low_voltage = low_voltages[0] + low_voltages[1] + low_voltages[2];
 
 	PIOS_ESC_SetDutyCycle(0.5);
 	PIOS_ESC_TestGate(ESC_A_LOW);

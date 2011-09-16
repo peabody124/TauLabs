@@ -291,6 +291,8 @@ static void go_esc_stopping(uint16_t time)
 static void go_esc_stopped(uint16_t time)
 {
 	TIM_ITConfig(TIM4, TIM_IT_CC1, DISABLE);
+	esc_data.consecutive_detected = 0;
+	esc_data.current_speed = 0;
 }
 
 /**
@@ -415,7 +417,7 @@ static void go_esc_cl_start(uint16_t time)
 static void go_esc_cl_commutated(uint16_t time)
 {
 	commutate();
-	esc_fsm_schedule_event(ESC_EVENT_TIMEOUT, time + RPM_TO_US(esc_data.current_speed) * 1);
+	esc_fsm_schedule_event(ESC_EVENT_TIMEOUT, time + RPM_TO_US(esc_data.current_speed) * 2);
 	esc_data.Kv += (esc_data.current_speed / (12 * esc_data.duty_cycle) - esc_data.Kv) * 0.001;
 
 //	if(esc_data.Kv < 15)
@@ -468,7 +470,7 @@ static void go_esc_cl_zcd(uint16_t time)
 			esc_data.error_accum = -config.ilim;
 
 #ifdef OPEN_LOOP
-		float new_dc = 0.3 ;//esc_data.speed_setpoint / 8000;
+		float new_dc = (float) esc_data.speed_setpoint / 8000.0f;
 #else
 		float new_dc = esc_data.speed_setpoint * config.kff - config.kff2 + config.kp * error + esc_data.error_accum;
 #endif

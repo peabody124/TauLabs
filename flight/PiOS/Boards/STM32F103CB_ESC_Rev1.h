@@ -253,12 +253,15 @@ extern uint32_t pios_com_debug_id;
 //-------------------------
 #define PIOS_GPIO_1_PORT			GPIOA
 #define PIOS_GPIO_1_PIN				GPIO_Pin_7
-#define PIOS_GPIO_1_GPIO_CLK			RCC_APB2Periph_GPIOA
+#define PIOS_GPIO_1_GPIO_CLK		RCC_APB2Periph_GPIOA
+#define PIOS_GPIO_2_PORT			GPIOA
+#define PIOS_GPIO_2_PIN				GPIO_Pin_9
+#define PIOS_GPIO_2_GPIO_CLK		RCC_APB2Periph_GPIOA
 
-#define PIOS_GPIO_PORTS				{ PIOS_GPIO_1_PORT }
-#define PIOS_GPIO_PINS				{ PIOS_GPIO_1_PIN }
-#define PIOS_GPIO_CLKS				{ PIOS_GPIO_1_GPIO_CLK }
-#define PIOS_GPIO_NUM				1
+#define PIOS_GPIO_PORTS				{ PIOS_GPIO_1_PORT, PIOS_GPIO_2_PORT }
+#define PIOS_GPIO_PINS				{ PIOS_GPIO_1_PIN, PIOS_GPIO_2_PIN }
+#define PIOS_GPIO_CLKS				{ PIOS_GPIO_1_GPIO_CLK, PIOS_GPIO_2_GPIO_CLK }
+#define PIOS_GPIO_NUM				2
 
 //-------------------------
 // USB
