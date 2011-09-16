@@ -109,58 +109,54 @@ const struct pios_esc_cfg pios_esc_cfg = {
 
 #if defined(PIOS_INCLUDE_PWM)
 #include <pios_pwm_priv.h>
+#include <pios_tim_priv.h>
 
-extern void PIOS_DELAY_timeout();
-void TIM4_IRQHandler() __attribute__ ((alias("PIOS_TIM4_irq_handler")));
-void PIOS_TIM4_irq_handler() {
-	if(TIM_GetITStatus(TIM4,TIM_IT_CC1))
-		PIOS_DELAY_timeout();
-	if(TIM_GetITStatus(TIM4,TIM_IT_CC3))
-		PIOS_PWM_irq_handler(TIM4);
-}
+static const TIM_TimeBaseInitTypeDef tim_4_time_base = {
+	.TIM_Prescaler = (PIOS_MASTER_CLOCK / 1000000) - 1,
+	.TIM_ClockDivision = TIM_CKD_DIV1,
+	.TIM_CounterMode = TIM_CounterMode_Up,
+	.TIM_Period = ((1000000 / PIOS_SERVO_UPDATE_HZ) - 1),
+	.TIM_RepetitionCounter = 0x0000,
+};
 
-
-const struct pios_pwm_channel pios_pwm_channels[] = {
-	{
-		.timer = TIM4,
-		.port = GPIOB,
-		.ccr = TIM_IT_CC3,
-		.channel = TIM_Channel_3,
-		.pin = GPIO_Pin_8,
+static const struct pios_tim_clock_cfg tim_4_cfg = {
+	.timer = TIM1,
+	.time_base_init = &tim_4_time_base,
+	.irq = {
+		.init = {
+			.NVIC_IRQChannel                   = TIM4_IRQn,
+			.NVIC_IRQChannelPreemptionPriority = PIOS_IRQ_PRIO_MID,
+			.NVIC_IRQChannelSubPriority        = 0,
+			.NVIC_IRQChannelCmd                = ENABLE,
+		},
 	},
 };
 
-const struct pios_pwm_cfg pios_pwm_cfg = {
-	.tim_base_init = {
-		.TIM_Prescaler = (PIOS_MASTER_CLOCK / 1000000) - 1,
-		.TIM_ClockDivision = TIM_CKD_DIV1,
-		.TIM_CounterMode = TIM_CounterMode_Up,
-		.TIM_Period = 0xFFFF,
-		.TIM_RepetitionCounter = 0x0000,
+static const struct pios_tim_channel pios_tim_rcvrport_all_channels[] = {
+	{
+		.timer = TIM4,
+		.timer_chan = TIM_Channel_3,
+		.pin = {
+			.gpio = GPIOB,
+			.init = {
+				.GPIO_Pin   = GPIO_Pin_6,
+				.GPIO_Mode  = GPIO_Mode_IPD,
+				.GPIO_Speed = GPIO_Speed_2MHz,
+			},
+		},
 	},
+}
+
+const struct pios_pwm_cfg pios_pwm_cfg = {
 	.tim_ic_init = {
 		.TIM_ICPolarity = TIM_ICPolarity_Rising,
 		.TIM_ICSelection = TIM_ICSelection_DirectTI,
 		.TIM_ICPrescaler = TIM_ICPSC_DIV1,
 		.TIM_ICFilter = 0x0,
 	},
-	.gpio_init = {
-		.GPIO_Mode = GPIO_Mode_IPD,
-		.GPIO_Speed = GPIO_Speed_2MHz,
-	},
-	.remap = 0,
-	.irq = {
-		.handler = TIM4_IRQHandler,
-		.init    = {
-			.NVIC_IRQChannelPreemptionPriority = PIOS_IRQ_PRIO_HIGH,
-			.NVIC_IRQChannelSubPriority        = 0,
-			.NVIC_IRQChannelCmd                = ENABLE,
-		},
-	},
-	.channels = pios_pwm_channels,
-	.num_channels = NELEMENTS(pios_pwm_channels),
+	.channels = pios_tim_rcvrport_all_channels,
+	.num_channels = NELEMENTS(pios_tim_rcvrport_all_channels),
 };
-
 #endif
 
 
@@ -383,8 +379,16 @@ void PIOS_Board_Init(void) {
 	GPIO_PinRemapConfig( GPIO_Remap_SWJ_NoJTRST, ENABLE);
 	PIOS_ESC_Init(&pios_esc_cfg);
 
+	PIOS_TIM_InitClock(&tim_4_cfg);
 #if defined(PIOS_INCLUDE_PWM)
-	PIOS_PWM_Init();
+	uint32_t pios_pwm_id;
+	PIOS_PWM_Init(&pios_pwm_id, &pios_pwm_cfg);
+	
+	uint32_t pios_pwm_rcvr_id;
+	if (PIOS_RCVR_Init(&pios_pwm_rcvr_id, &pios_pwm_rcvr_driver, pios_pwm_id)) {
+		PIOS_Assert(0);
+	}
+	pios_rcvr_group_map[MANUALCONTROLSETTINGS_CHANNELGROUPS_PWM] = pios_pwm_rcvr_id;
 #endif
 
 	/* Communication system */

@@ -132,7 +132,7 @@ int main()
 	esc_data->speed_setpoint = 0;
 
 	PIOS_ADC_StartDma();
-
+	extern uint32_t pios_rcvr_group_map[];
 	while(1) {
 		counter++;
 
@@ -142,13 +142,12 @@ int main()
 			timer += 0x00010000;
 		timer = (timer & 0xffff0000) | timer_lower;
 
-		input[input_pointer] = PIOS_PWM_Get(0);
+		input[input_pointer] = PIOS_RCVR_Read(pios_rcvr_group_map[0],0);
 		input_pointer = (input_pointer + 1) % INPUT_FILTER_LEN;
 		uint16_t avg = 0;
 		for (uint32_t i = 0; i < INPUT_FILTER_LEN; i++)
 			avg += input[i];
 		avg /= 4;
-		avg = PIOS_PWM_Get(0);
 		
 		if(avg > 990) {  // Temporary!!!
 		esc_data->speed_setpoint = (avg < 1050) ? 0 :
