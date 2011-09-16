@@ -58,7 +58,7 @@ uint16_t back_buf_point = 0;
 // Tuning settings for control
 float state_offset[6] = {40, 40, 40, 40, 40, 40};
 
-uint16_t zero_current = 0;
+int16_t zero_current = 0;
 
 volatile uint8_t low_pin;
 volatile uint8_t high_pin;
@@ -166,12 +166,18 @@ static int16_t diff_filter[MAX_RUNNING_FILTER];
 int16_t running_filter_length = 32;
 int32_t running_filter_sum;
 static int16_t diff_filter_pointer = 0;
-uint16_t DEMAG_BLANKING = 70;
+uint16_t DEMAG_BLANKING = 50;
+
+#define CURRENT_FILTER 64
+static uint16_t current_filter[MAX_RUNNING_FILTER];
+int32_t current_filter_sum = 0;
+int32_t current_filter_pointer = 0;
 
 uint32_t calls_to_detect = 0;
 uint32_t calls_to_last_detect = 0;
 
-int32_t threshold = -20;
+int32_t threshold = -200;
+int32_t this_current;
 
 #include "pios_adc_priv.h"
 void DMA1_Channel1_IRQHandler(void)
@@ -196,6 +202,8 @@ void DMA1_Channel1_IRQHandler(void)
 	enum pios_esc_state curr_state;
 	static uint16_t below_time;
 
+	curr_state = PIOS_ESC_GetState();
+	
 #ifdef BACKBUFFER_ADC
 	// Debugging code - keep a buffer of old ADC values
 	if((back_buf_point + 3 * DOWNSAMPLING + 3) > (sizeof(back_buf) / sizeof(back_buf[0])))
@@ -217,20 +225,18 @@ void DMA1_Channel1_IRQHandler(void)
 	if(esc_data && PIOS_DELAY_DiffuS(esc_data->last_swap_time) < DEMAG_BLANKING)
 		return;
 	
-	curr_state = PIOS_ESC_GetState();
-	
-	running_filter_length = (esc_data->current_speed > 4000) ? 1 :
+	running_filter_length = (esc_data->current_speed > 4000) ? 4 :
 		(esc_data->current_speed > 2000) ? 4 : 16;
 	
-	// Smooth the estimate of current a bit
-	int32_t this_current = 0;
-	for(int i = 0; i < DOWNSAMPLING; i++)
-		this_current += raw_buf[PIOS_ADC_NUM_CHANNELS * i + 0];
-	this_current /= DOWNSAMPLING;
-	this_current -= zero_current;
-	if(this_current < 0)
-		this_current = 0;
-	esc_data->current += (this_current - esc_data->current) * 0.01;
+	// Smooth the estimate of current a bit 
+	
+	for(int i = 0; i < DOWNSAMPLING; i++) {
+		current_filter_sum += raw_buf[PIOS_ADC_NUM_CHANNELS * i + 0];
+		current_filter_sum -= current_filter[current_filter_pointer];
+		current_filter[current_filter_pointer] = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 0];
+		current_filter_pointer = (current_filter_pointer + 1) % CURRENT_FILTER;
+		esc_data->current = current_filter_sum / CURRENT_FILTER - zero_current;
+	}
 
 	uint16_t enter_time = PIOS_DELAY_GetuS();
 
@@ -352,8 +358,9 @@ void panic(int diagnostic_code)
 void test_esc() {
 	int32_t voltages[6][3];
 
-	PIOS_DELAY_WaitmS(150);
 
+	PIOS_ESC_Off();
+	PIOS_DELAY_WaitmS(150);
 	zero_current = PIOS_ADC_PinGet(0);
 
 	PIOS_ESC_Arm();

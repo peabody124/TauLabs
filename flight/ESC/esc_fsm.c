@@ -37,13 +37,13 @@ struct esc_config config = {
 	.ilim = 0.5,
 	.max_dc_change = 2,
 	.min_dc = 0.01,
-	.max_dc = 0.99,
+	.max_dc = 0.90,
 	.initial_startup_speed = 100,
 	.final_startup_speed = 1200,
-	.startup_current_target = 170,
+	.startup_current_target = 30,
 	.commutation_phase = 0.55,
-	.soft_current_limit = 750,
-	.hard_current_limit = 1800,
+	.soft_current_limit = 250,
+	.hard_current_limit = 500,
 	.magic = ESC_CONFIG_MAGIC,
 };
 
@@ -194,8 +194,8 @@ static struct esc_fsm_data esc_data;
 void esc_process_static_fsm_rxn() {
 
 	static uint32_t zero_time;
-//	if(esc_data.current > config.hard_current_limit)
-//		esc_fsm_inject_event(ESC_EVENT_OVERCURRENT, 0);
+	if(esc_data.current > config.hard_current_limit)
+		esc_fsm_inject_event(ESC_EVENT_OVERCURRENT, 0);
 
 	switch(esc_data.state) {
 		case ESC_STATE_FSM_FAULT:
@@ -318,7 +318,7 @@ static void go_esc_startup_grab(uint16_t time)
 
 	PIOS_ESC_SetState(0);
 	esc_data.current_speed = config.initial_startup_speed;
-	esc_data.duty_cycle = 0.10;
+	esc_data.duty_cycle = 0.08;
 	PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
 	esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, PIOS_DELAY_GetuS() + 30000);  // Grab stator for 30 ms
 }
@@ -378,7 +378,7 @@ static void go_esc_startup_nozcd(uint16_t time)
 	esc_data.consecutive_missed++;
 
 	if(esc_data.consecutive_missed > 100) {
-//		esc_fsm_inject_event(ESC_EVENT_FAULT, time);
+		esc_fsm_inject_event(ESC_EVENT_FAULT, time);
 	} else {
 		commutate();
 
@@ -417,12 +417,17 @@ static void go_esc_cl_start(uint16_t time)
 static void go_esc_cl_commutated(uint16_t time)
 {
 	commutate();
-	esc_fsm_schedule_event(ESC_EVENT_TIMEOUT, time + RPM_TO_US(esc_data.current_speed) * 2);
+	esc_fsm_schedule_event(ESC_EVENT_TIMEOUT, time + esc_data.swap_interval_sum / NUM_STORED_SWAP_INTERVALS * 1.0);
 	esc_data.Kv += (esc_data.current_speed / (12 * esc_data.duty_cycle) - esc_data.Kv) * 0.001;
 
 //	if(esc_data.Kv < 15)
 //		esc_fsm_inject_event(ESC_EVENT_FAULT, 0);
 }
+
+uint32_t wtf = 0;
+int32_t future_by_zcd;
+int32_t future_by_last_swap;
+int32_t future_diff;
 
 /**
  * When a zcd is detected
@@ -435,16 +440,19 @@ static void go_esc_cl_zcd(uint16_t time)
 	uint16_t last_time = esc_data.last_zcd_time;
 	zcd(time);
 
-	uint32_t interval = 0;
-	for (uint8_t i = 0; i < NUM_STORED_SWAP_INTERVALS; i++)
-		interval += esc_data.swap_intervals[i];
-	interval /= NUM_STORED_SWAP_INTERVALS;
+	uint32_t interval = esc_data.swap_interval_sum / NUM_STORED_SWAP_INTERVALS;
 	esc_data.current_speed = US_TO_RPM(interval);
 
-	uint16_t zcd_delay = RPM_TO_US(esc_data.current_speed) * (1 - config.commutation_phase);
-	int32_t future = time + zcd_delay - PIOS_DELAY_GetuS();
-	if(future < 1)
+	uint16_t now = PIOS_DELAY_GetuS();
+	uint16_t zcd_delay = interval * (1 - config.commutation_phase);
+	future_by_zcd = zcd_delay + time - now;
+	future_by_last_swap = interval + esc_data.last_swap_time - now;
+	future_diff = future_by_zcd - future_by_last_swap;
+	int32_t future = (future_by_zcd + future_by_last_swap) / 2;
+	if(future < 1) {
+		wtf++;
 		esc_fsm_inject_event(ESC_EVENT_LATE_COMMUTATION, PIOS_DELAY_GetuS());
+	}
 	else
 		esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, time + (zcd_delay));
 
@@ -497,7 +505,7 @@ static void go_esc_cl_nozcd(uint16_t time)
 {
 	esc_data.consecutive_detected = 0;
 	esc_data.consecutive_missed++;
-	if(esc_data.consecutive_missed > 10)
+	if(esc_data.consecutive_missed > 3)
 		esc_fsm_inject_event(ESC_EVENT_FAULT, 0);
 	else {
 //		PIOS_ESC_SetDutyCycle(esc_data.duty_cycle / 10);
@@ -628,10 +636,11 @@ static void commutate()
 	esc_data.last_swap_interval = (uint16_t) (this_swap_time - esc_data.last_swap_time);
 	esc_data.last_swap_time = this_swap_time;
 
-	esc_data.swap_intervals[esc_data.swap_intervals_pointer++] = esc_data.last_swap_interval;
-	if(esc_data.swap_intervals_pointer > NUM_STORED_SWAP_INTERVALS)
-		esc_data.swap_intervals_pointer = 0;
-
+	esc_data.swap_interval_sum += esc_data.last_swap_interval;
+	esc_data.swap_interval_sum -= esc_data.swap_intervals[esc_data.swap_intervals_pointer];
+	esc_data.swap_intervals[esc_data.swap_intervals_pointer] = esc_data.last_swap_interval;
+	esc_data.swap_intervals_pointer = (esc_data.swap_intervals_pointer + 1) % NUM_STORED_SWAP_INTERVALS;
+	
 	esc_data.detected = false;
 
 	PIOS_ESC_NextState();
