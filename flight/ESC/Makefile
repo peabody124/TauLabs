@@ -25,17 +25,11 @@
 WHEREAMI := $(dir $(lastword $(MAKEFILE_LIST)))
 TOP      := $(realpath $(WHEREAMI)/../../)
 include $(TOP)/make/firmware-defs.mk
-include $(TOP)/make/boards/$(BOARD_NAME)/board-info.mk
-
-# Target file name (without extension).
-TARGET := fw_$(BOARD_NAME)
-
-# Directory for output files (lst, obj, dep, elf, sym, map, hex, bin etc.)
-OUTDIR := $(TOP)/build/$(TARGET)
 
 # Set developer code and compile options
-# Set to YES to compile for debugging
+# Set to YES for debugging
 DEBUG ?= NO
+USE_BOOTLOADER ?= NO
 
 # Set to YES when using Code Sourcery toolchain
 CODE_SOURCERY ?= YES
@@ -47,6 +41,26 @@ REMOVE_CMD = rm
 endif
 
 FLASH_TOOL = OPENOCD
+
+# MCU name, submodel and board
+# - MCU used for compiler-option (-mcpu)
+# - MODEL used for linker-script name (-T) and passed as define
+# - BOARD just passed as define (optional)
+MCU      = cortex-m3
+CHIP     = STM32F103CBT
+BOARD    = STM32F103CB_ESC_Rev1
+MODEL    = MD
+ifeq ($(USE_BOOTLOADER), YES)
+BOOT_MODEL    = $(MODEL)_BL
+else
+BOOT_MODEL    = $(MODEL)_NB
+endif
+
+# Directory for output files (lst, obj, dep, elf, sym, map, hex, bin etc.)
+OUTDIR = $(TOP)/build/esc
+
+# Target file name (without extension).
+TARGET = ESC
 
 # Paths
 ESC = ./
@@ -101,6 +115,7 @@ SRC += $(PIOSSTM32F10X)/pios_tim.c
 ## PIOS Hardware (Common)
 SRC += $(PIOSCOMMON)/pios_com.c
 SRC += $(PIOSCOMMON)/pios_rcvr.c
+SRC += $(PIOSCOMMON)/pios_hmc5843.c
 SRC += $(PIOSCOMMON)/printf-stdarg.c
 SRC += $(PIOSCOMMON)/pios_iap.c
 
@@ -147,7 +162,7 @@ CPPSRCARM =
 # Even though the DOS/Win* filesystem matches both .s and .S the same,
 # it will preserve the spelling of the filenames, and gcc itself does
 # care about how the name is spelled on its command-line.
-ASRC = $(PIOSSTM32F10X)/startup_stm32f10x_$(MODEL)$(MODEL_SUFFIX).S
+ASRC = $(PIOSSTM32F10X)/startup_stm32f10x_$(MODEL).S
 
 # List Assembler source files here which must be assembled in ARM-Mode..
 ASRCARM =
@@ -188,9 +203,10 @@ LINKERSCRIPTPATH = $(PIOSSTM32F10X)
 # (Note: 3 is not always the best optimization level. See avr-libc FAQ.)
 
 ifeq ($(DEBUG),YES)
-OPT = 1
+CFLAGS += -O0
+CFLAGS += -DGENERAL_COV
 else
-OPT = s
+CFLAGS += -Os
 endif
 
 # Output format. (can be ihex or binary or both)
@@ -237,12 +253,7 @@ CSTANDARD = -std=gnu99
 #
 # Flags for C and C++ (arm-elf-gcc/arm-elf-g++)
 
-ifeq ($(DEBUG),YES)
-CFLAGS = -DDEBUG
-endif
-
 CFLAGS += -g$(DEBUGF)
-CFLAGS += -O$(OPT)
 
 CFLAGS += -ffast-math
 
@@ -288,12 +299,24 @@ LDFLAGS += $(MATH_LIB)
 LDFLAGS += -lc -lgcc
 
 # Set linker-script name depending on selected submodel name
-LDFLAGS += -T$(LINKERSCRIPTPATH)/link_$(BOARD)_memory.ld
-LDFLAGS += -T$(LINKERSCRIPTPATH)/link_$(BOARD)_sections.ld
+LDFLAGS +=-T$(LINKERSCRIPTPATH)/link_$(BOARD)_$(BOOT_MODEL).ld
+
+
+OOCD_LOADFILE+=$(OUTDIR)/$(TARGET).elf
+OOCD_CL=-d0 -s $(TOP)/flight/Project/OpenOCD -f foss-jtag.revb.cfg -f stm32f1x.cfg -c init -c "reset halt"
+# Program
+OOCD_CL+=-c "flash write_image erase $(OOCD_LOADFILE) 0x0 elf"
+# Verify
+OOCD_CL+=-c "verify_image $(OOCD_LOADFILE) 0x0 elf"
+# reset target
+OOCD_CL+=-c "reset run"
+# terminate OOCD after programming
+OOCD_CL+=-c shutdown
 
 # Define programs and commands.
 REMOVE  = $(REMOVE_CMD) -f
-PYTHON  = python
+###SHELL   = sh
+###COPY    = cp
 
 # List of all source files.
 ALLSRC     = $(ASRCARM) $(ASRC) $(SRCARM) $(SRC) $(CPPSRCARM) $(CPPSRC)
@@ -309,7 +332,7 @@ LSTFILES   = $(addprefix $(OUTDIR)/, $(addsuffix .lst, $(ALLSRCBASE)))
 DEPFILES   = $(addprefix $(OUTDIR)/dep/, $(addsuffix .o.d, $(ALLSRCBASE)))
 
 # Default target.
-all: build
+all: gccversion build
 
 ifeq ($(LOADFORMAT),ihex)
 build: elf hex lss sym
@@ -322,6 +345,23 @@ build: elf hex bin lss sym
 else
 $(error "$(MSG_FORMATERROR) $(FORMAT)")
 endif
+endif
+endif
+
+OOCD_EXE = openocd
+
+# Program the device.
+ifeq ($(USE_BOOTLOADER), YES)
+# Program the device with OP Upload Tool".
+program: $(OUTDIR)/$(TARGET).bin
+	@echo ${quote}Programming with OP Upload Tool${quote}
+	../../ground/src/experimental/upload-build-desktop/debug/OPUploadTool -d 1 -p $(OUTDIR)/$(TARGET).bin
+else
+ifeq ($(FLASH_TOOL),OPENOCD)
+# Program the device with Dominic Rath's OPENOCD in "batch-mode", needs cfg and "reset-script".
+program: $(OUTDIR)/$(TARGET).elf
+	@echo ${quote}Programming with OPENOCD${quote}
+	$(OOCD_EXE) $(OOCD_CL)
 endif
 endif
 
@@ -352,38 +392,21 @@ $(eval $(call PARTIAL_COMPILE_TEMPLATE, SRC))
 # Compile: create assembler files from C source files. ARM only
 $(eval $(call PARTIAL_COMPILE_ARM_TEMPLATE, SRCARM))
 
-$(OUTDIR)/$(TARGET).bin.o: $(OUTDIR)/$(TARGET).bin
-
-$(eval $(call OPFW_TEMPLATE,$(OUTDIR)/$(TARGET).bin,$(BOARD_TYPE),$(BOARD_REVISION)))
-
-# Add jtag targets (program and wipe)
-$(eval $(call JTAG_TEMPLATE,$(OUTDIR)/$(TARGET).bin,$(FW_BANK_BASE),$(FW_BANK_SIZE),$(OPENOCD_CONFIG)))
-
-.PHONY: elf lss sym hex bin bino opfw
+.PHONY: elf lss sym hex bin
 elf: $(OUTDIR)/$(TARGET).elf
 lss: $(OUTDIR)/$(TARGET).lss
 sym: $(OUTDIR)/$(TARGET).sym
 hex: $(OUTDIR)/$(TARGET).hex
 bin: $(OUTDIR)/$(TARGET).bin
-bino: $(OUTDIR)/$(TARGET).bin.o
-opfw: $(OUTDIR)/$(TARGET).opfw
 
 # Display sizes of sections.
 $(eval $(call SIZE_TEMPLATE, $(OUTDIR)/$(TARGET).elf))
+.PHONY: size
+size: $(OUTDIR)/$(TARGET).elf_size
 
 # Generate Doxygen documents
 docs:
 	doxygen  $(DOXYGENDIR)/doxygen.cfg
-
-# Install: install binary file with prefix/suffix into install directory
-install: $(OUTDIR)/$(TARGET).opfw
-ifneq ($(INSTALL_DIR),)
-	@echo $(MSG_INSTALLING) $(call toprel, $<)
-	$(V1) mkdir -p $(INSTALL_DIR)
-	$(V1) $(INSTALL) $< $(INSTALL_DIR)/$(INSTALL_PFX)$(TARGET)$(INSTALL_SFX).opfw
-else
-	$(error INSTALL_DIR must be specified for $@)
-endif
 
 # Target: clean project.
 clean: clean_list
@@ -396,9 +419,6 @@ clean_list :
 	$(V1) $(REMOVE) $(OUTDIR)/$(TARGET).bin
 	$(V1) $(REMOVE) $(OUTDIR)/$(TARGET).sym
 	$(V1) $(REMOVE) $(OUTDIR)/$(TARGET).lss
-	$(V1) $(REMOVE) $(OUTDIR)/$(TARGET).bin.o
-	$(V1) $(REMOVE) $(wildcard $(OUTDIR)/*.c)
-	$(V1) $(REMOVE) $(wildcard $(OUTDIR)/*.h)
 	$(V1) $(REMOVE) $(ALLOBJ)
 	$(V1) $(REMOVE) $(LSTFILES)
 	$(V1) $(REMOVE) $(DEPFILES)
@@ -406,7 +426,6 @@ clean_list :
 	$(V1) $(REMOVE) $(SRCARM:.c=.s)
 	$(V1) $(REMOVE) $(CPPSRC:.cpp=.s)
 	$(V1) $(REMOVE) $(CPPSRCARM:.cpp=.s)
-
 
 # Create output files directory
 # all known MS Windows OS define the ComSpec environment variable
@@ -420,8 +439,9 @@ endif
 ifdef ComSpec
 -include $(shell md $(subst /,\\,$(OUTDIR))\dep 2>NUL) $(wildcard $(OUTDIR)/dep/*)
 else
--include $(shell mkdir -p $(OUTDIR) 2>/dev/null) $(shell mkdir $(OUTDIR)/dep 2>/dev/null) $(wildcard $(OUTDIR)/dep/*)
+-include $(shell mkdir $(OUTDIR) 2>/dev/null) $(shell mkdir $(OUTDIR)/dep 2>/dev/null) $(wildcard $(OUTDIR)/dep/*)
 endif
 
+
 # Listing of phony targets.
-.PHONY : all build clean clean_list install
+.PHONY : all build clean clean_list program
