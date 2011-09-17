@@ -42,4 +42,7 @@
 #define PIOS_INCLUDE_USART
 #define PIOS_INCLUDE_RCVR
 
+// So that we can handle the hardware timing
+#define PIOS_TIM_EXCLUDE4
+
 #endif /* PIOS_CONFIG_H */

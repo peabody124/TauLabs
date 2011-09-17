@@ -389,11 +389,18 @@ static void PIOS_TIM_3_irq_handler (void)
 	PIOS_TIM_generic_irq_handler (TIM3);
 }
 
+#ifndef PIOS_TIM_EXCLUDE4
 void TIM4_IRQHandler(void) __attribute__ ((alias ("PIOS_TIM_4_irq_handler")));
 static void PIOS_TIM_4_irq_handler (void)
 {
 	PIOS_TIM_generic_irq_handler (TIM4);
 }
+#else
+void PIOS_TIM_4_irq_override(void)
+{
+	PIOS_TIM_generic_irq_handler (TIM4);
+}
+#endif
 
 void TIM5_IRQHandler(void) __attribute__ ((alias ("PIOS_TIM_5_irq_handler")));
 static void PIOS_TIM_5_irq_handler (void)

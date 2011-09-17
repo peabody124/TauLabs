@@ -445,6 +445,17 @@ void test_esc() {
 	// TODO: If other channels don't follow then motor lead bad
 }
 
+void PIOS_TIM_4_irq_override();
+extern void PIOS_DELAY_timeout();
+void TIM4_IRQHandler(void) __attribute__ ((alias ("PIOS_TIM_4_irq_handler")));
+static void PIOS_TIM_4_irq_handler (void)
+{
+	if(TIM_GetITStatus(TIM4,TIM_IT_CC1))
+		PIOS_DELAY_timeout();
+	else 
+		PIOS_TIM_4_irq_override();
+}
+
 /*
  Notes:
  1. For start up, definitely want to use complimentary PWM to ground the lower side, making zero crossing truly "zero"
