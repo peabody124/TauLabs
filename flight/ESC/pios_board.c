@@ -123,7 +123,7 @@ static const TIM_TimeBaseInitTypeDef tim_4_time_base = {
 };
 
 static const struct pios_tim_clock_cfg tim_4_cfg = {
-	.timer = TIM1,
+	.timer = TIM4,
 	.time_base_init = &tim_4_time_base,
 	.irq = {
 		.init = {
@@ -142,7 +142,7 @@ static const struct pios_tim_channel pios_tim_rcvrport_all_channels[] = {
 		.pin = {
 			.gpio = GPIOB,
 			.init = {
-				.GPIO_Pin   = GPIO_Pin_6,
+				.GPIO_Pin   = GPIO_Pin_8,
 				.GPIO_Mode  = GPIO_Mode_IPD,
 				.GPIO_Speed = GPIO_Speed_2MHz,
 			},

@@ -142,9 +142,9 @@ int main()
 			timer += 0x00010000;
 		timer = (timer & 0xffff0000) | timer_lower;
 
-		input[input_pointer] = PIOS_RCVR_Read(pios_rcvr_group_map[0],0);
+		input[input_pointer] = PIOS_RCVR_Read(pios_rcvr_group_map[0],1);
 		input_pointer = (input_pointer + 1) % INPUT_FILTER_LEN;
-		uint16_t avg = 0;
+		uint32_t avg = 0;
 		for (uint32_t i = 0; i < INPUT_FILTER_LEN; i++)
 			avg += input[i];
 		avg /= 4;
