@@ -34,8 +34,11 @@ void PIOS_TIM4_irq_handler() {
 }
 #endif
 
+#include "pios_rcvr_priv.h"
+uint32_t pios_rcvr_group_map[1];
 
 #define ESC_DEFAULT_PWM_RATE 40000
+
 #include "pios_esc_priv.h"
 const struct pios_esc_cfg pios_esc_cfg = {
 	.tim_base_init = {
@@ -115,7 +118,7 @@ static const TIM_TimeBaseInitTypeDef tim_4_time_base = {
 	.TIM_Prescaler = (PIOS_MASTER_CLOCK / 1000000) - 1,
 	.TIM_ClockDivision = TIM_CKD_DIV1,
 	.TIM_CounterMode = TIM_CounterMode_Up,
-	.TIM_Period = ((1000000 / PIOS_SERVO_UPDATE_HZ) - 1),
+	.TIM_Period = 0xFFFF,
 	.TIM_RepetitionCounter = 0x0000,
 };
 
@@ -145,7 +148,7 @@ static const struct pios_tim_channel pios_tim_rcvrport_all_channels[] = {
 			},
 		},
 	},
-}
+};
 
 const struct pios_pwm_cfg pios_pwm_cfg = {
 	.tim_ic_init = {
@@ -169,7 +172,6 @@ const struct pios_adc_cfg pios_adc_cfg = {
 	.dma = {
 		.ahb_clk  = RCC_AHBPeriph_DMA1,
 		.irq = {
-			.handler = PIOS_ADC_DMA_Handler,
 			.flags   = (DMA1_FLAG_TC1 | DMA1_FLAG_TE1 | DMA1_FLAG_HT1 | DMA1_FLAG_GL1),
 			.init    = {
 				.NVIC_IRQChannel                   = DMA1_Channel1_IRQn,
@@ -214,9 +216,6 @@ uint8_t pios_adc_num_devices = NELEMENTS(pios_adc_devs);
 /*
  * DEBUG USART
  */
-void PIOS_USART_debug_irq_handler(void);
-void USART1_IRQHandler()
-    __attribute__ ((alias("PIOS_USART_debug_irq_handler")));
 const struct pios_usart_cfg pios_usart_debug_cfg = {
 	.regs = USART1,
 	.init = {
@@ -228,7 +227,6 @@ const struct pios_usart_cfg pios_usart_debug_cfg = {
 		 .USART_Mode = USART_Mode_Rx | USART_Mode_Tx,
 		 },
 	.irq = {
-		.handler = PIOS_USART_debug_irq_handler,
 		.init = {
 			 .NVIC_IRQChannel = USART1_IRQn,
 			 .NVIC_IRQChannelPreemptionPriority = PIOS_IRQ_PRIO_MID,
@@ -254,11 +252,11 @@ const struct pios_usart_cfg pios_usart_debug_cfg = {
 	       },
 };
 
+#define UART_DEBUG_TX_LEN 128
+uint8_t uart_debug_tx_buffer[UART_DEBUG_TX_LEN];
+#define UART_DEBUG_RX_LEN 128
+uint8_t uart_debug_rx_buffer[UART_DEBUG_RX_LEN];
 static uint32_t pios_usart_debug_id;
-void PIOS_USART_debug_irq_handler(void)
-{
-	PIOS_USART_IRQ_Handler(pios_usart_debug_id);
-}
 
 #endif /* PIOS_INCLUDE_USART */
 
@@ -311,7 +309,6 @@ const struct pios_i2c_adapter_cfg pios_i2c_main_adapter_cfg = {
 			 },
 		},
 	.event = {
-		  .handler = PIOS_I2C_main_adapter_ev_irq_handler,
 		  .flags = 0,	/* FIXME: check this */
 		  .init = {
 			   .NVIC_IRQChannel = I2C1_EV_IRQn,
@@ -321,7 +318,6 @@ const struct pios_i2c_adapter_cfg pios_i2c_main_adapter_cfg = {
 			   },
 		  },
 	.error = {
-		  .handler = PIOS_I2C_main_adapter_er_irq_handler,
 		  .flags = 0,	/* FIXME: check this */
 		  .init = {
 			   .NVIC_IRQChannel = I2C1_ER_IRQn,
@@ -388,14 +384,21 @@ void PIOS_Board_Init(void) {
 	if (PIOS_RCVR_Init(&pios_pwm_rcvr_id, &pios_pwm_rcvr_driver, pios_pwm_id)) {
 		PIOS_Assert(0);
 	}
-	pios_rcvr_group_map[MANUALCONTROLSETTINGS_CHANNELGROUPS_PWM] = pios_pwm_rcvr_id;
+	pios_rcvr_group_map[0] = pios_pwm_rcvr_id;
 #endif
 
 	/* Communication system */
 	if (PIOS_USART_Init(&pios_usart_debug_id, &pios_usart_debug_cfg)) {
 		PIOS_DEBUG_Assert(0);
 	}
-	if (PIOS_COM_Init(&pios_com_debug_id, &pios_usart_com_driver, pios_usart_debug_id)) {
+#define UART_DEBUG_TX_LEN 128
+	uint8_t uart_debug_tx_buffer[UART_DEBUG_TX_LEN];
+#define UART_DEBUG_RX_LEN 128
+	uint8_t uart_debug_rx_buffer[UART_DEBUG_RX_LEN];
+
+	if (PIOS_COM_Init(&pios_com_debug_id, &pios_usart_com_driver, pios_usart_debug_id,
+					  uart_debug_rx_buffer,UART_DEBUG_RX_LEN,
+					  uart_debug_tx_buffer,UART_DEBUG_TX_LEN)) {
 		PIOS_DEBUG_Assert(0);
 	}
 }

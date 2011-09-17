@@ -44,7 +44,7 @@
 /* Prototype of PIOS_Board_Init() function */
 extern void PIOS_Board_Init(void);
 
-#define DOWNSAMPLING 4
+#define DOWNSAMPLING 1
 
 #if defined(BACKBUFFER_ADC) || defined(BACKBUFFER_ZCD)
 uint16_t back_buf[8096];

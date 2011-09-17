@@ -245,9 +245,10 @@ extern uint32_t pios_com_debug_id;
 //-------------------------
 // Receiver PWM inputs
 //-------------------------
-#define PIOS_PWM_MAX_INPUTS                     1
-
-
+#define PIOS_PWM_NUM_INPUTS 1
+#define PIOS_PWM_MAX_DEVS   1
+#define PIOS_TIM_MAX_DEVS   4
+#define PIOS_RCVR_MAX_DEVS  1
 //-------------------------
 // GPIO
 //-------------------------
