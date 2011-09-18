@@ -7,6 +7,17 @@ fclose(fid)
 %dat = reshape(dat,2,[]);
 dat = double(typecast(uint8(dat(:)),'uint16'));
 
+ref = mean(dat,2);
+h(1) = subplot(311)
+plot(dat(:,1) - ref,'.');
+h(2) = subplot(312);
+plot(dat(:,2) - ref,'.');
+h(3) = subplot(313);
+plot(dat(:,3) - ref,'.');
+linkaxes(h,'x');
+
+dat = reshape(dat(1:8092),4,[])';
+
 sync = find(dat == 65535);
 
 state = dat(sync + 1);

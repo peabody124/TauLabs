@@ -74,9 +74,13 @@ struct esc_fsm_data {
 	int16_t current;
 	uint16_t current_speed;
 	uint16_t speed_setpoint;
+
 	uint8_t scheduled_event_armed;
-	uint16_t last_swap_time;
-	uint16_t last_zcd_time;
+	uint16_t scheduled_event_time;
+	enum esc_event scheduled_event;
+
+	uint32_t last_swap_time;
+	uint32_t last_zcd_time;
 	uint16_t last_swap_interval;
 	uint16_t swap_intervals[NUM_STORED_SWAP_INTERVALS];
 	uint32_t swap_interval_sum;
@@ -94,7 +98,6 @@ struct esc_fsm_data {
 	enum esc_fsm_state pre_fault_state;
 	enum esc_event pre_fault_event;
 	enum esc_fsm_state state;
-	enum esc_event scheduled_event;
 };
 
 struct esc_config {

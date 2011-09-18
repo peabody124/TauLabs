@@ -482,7 +482,7 @@ void PIOS_ESC_TestGate(enum pios_esc_phase phase)
 			break;
 	}
 	
-	PIOS_ESC_SetDutyCycle(0.5);
+	PIOS_ESC_SetDutyCycle(1);
 	PIOS_ESC_UpdateOutputs();	
 }
 

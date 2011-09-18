@@ -206,7 +206,7 @@ ifeq ($(DEBUG),YES)
 CFLAGS += -O0
 CFLAGS += -DGENERAL_COV
 else
-CFLAGS += -Os
+CFLAGS += -O1
 endif
 
 # Output format. (can be ihex or binary or both)

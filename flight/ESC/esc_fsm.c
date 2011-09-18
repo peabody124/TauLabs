@@ -22,7 +22,7 @@
 // 6. Freehweeling mode for when a ZCD is missed
 
 // To act like a normal open loop ESC
-//#define OPEN_LOOP
+#define OPEN_LOOP
 
 #define RPM_TO_US(x) (1e6 * 60 / (x * COMMUTATIONS_PER_ROT) )
 #define US_TO_RPM(x) RPM_TO_US(x)
@@ -38,10 +38,10 @@ struct esc_config config = {
 	.max_dc_change = 2,
 	.min_dc = 0.01,
 	.max_dc = 0.90,
-	.initial_startup_speed = 100,
-	.final_startup_speed = 1200,
+	.initial_startup_speed = 200,
+	.final_startup_speed = 500,
 	.startup_current_target = 30,
-	.commutation_phase = 0.55,
+	.commutation_phase = 0.65,
 	.soft_current_limit = 250,
 	.hard_current_limit = 500,
 	.magic = ESC_CONFIG_MAGIC,
@@ -160,6 +160,7 @@ const static struct esc_transition esc_transition[ESC_FSM_NUM_STATES] = {
 	[ESC_STATE_CL_START] = {
 		.entry_fn = go_esc_cl_start,
 		.next_state = {
+			[ESC_EVENT_ZCD] = ESC_STATE_CL_ZCD,
 			[ESC_EVENT_COMMUTATED] = ESC_STATE_CL_COMMUTATED,
 			[ESC_EVENT_STOP] = ESC_STATE_STOPPING,
 		},
@@ -194,8 +195,8 @@ static struct esc_fsm_data esc_data;
 void esc_process_static_fsm_rxn() {
 
 	static uint32_t zero_time;
-	if(esc_data.current > config.hard_current_limit)
-		esc_fsm_inject_event(ESC_EVENT_OVERCURRENT, 0);
+	//if(esc_data.current > config.hard_current_limit)
+	//	esc_fsm_inject_event(ESC_EVENT_OVERCURRENT, 0);
 
 	switch(esc_data.state) {
 		case ESC_STATE_FSM_FAULT:
@@ -290,9 +291,10 @@ static void go_esc_stopping(uint16_t time)
  */
 static void go_esc_stopped(uint16_t time)
 {
-	TIM_ITConfig(TIM4, TIM_IT_CC1, DISABLE);
+//	TIM_ITConfig(TIM4, TIM_IT_CC1, DISABLE);
 	esc_data.consecutive_detected = 0;
 	esc_data.current_speed = 0;
+	esc_data.detected = true;
 }
 
 /**
@@ -319,6 +321,12 @@ static void go_esc_startup_grab(uint16_t time)
 	PIOS_ESC_SetState(0);
 	esc_data.current_speed = config.initial_startup_speed;
 	esc_data.duty_cycle = 0.08;
+	esc_data.consecutive_missed = 0;
+	esc_data.consecutive_detected = 0;
+	
+	for(uint8_t i = 0; i < NUM_STORED_SWAP_INTERVALS; i++)
+		esc_data.swap_intervals[i] = 0;
+	esc_data.swap_interval_sum = 0;
 	PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
 	esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, 30000);  // Grab stator for 30 ms
 }
@@ -327,17 +335,25 @@ static void go_esc_startup_grab(uint16_t time)
  * Called each time we enter the startup wait state or when a commutation occurs after ZCD
  * schedule a commutation.
  */
+uint32_t startup_waits = 0;
 static void go_esc_startup_wait(uint16_t time)
 {
 	commutate();
-	esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, RPM_TO_US(esc_data.speed_setpoint));
+	startup_waits ++;
+	esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, RPM_TO_US(esc_data.current_speed));
 }
 
 /**
  * ZCD detected. Hang out here till commutate.
  */
+ 
+uint16_t current_time;
+uint16_t prev_time;
+int16_t diff_time;
 static void go_esc_startup_zcd(uint16_t time)
 {
+//	PIOS_GPIO_Toggle(1);
+
 	esc_data.consecutive_detected++;
 	esc_data.consecutive_missed = 0;
 
@@ -348,27 +364,31 @@ static void go_esc_startup_zcd(uint16_t time)
 		esc_data.current_speed+=0;
 
 	// Schedule next commutation
-	esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, esc_data.swap_interval_sum / NUM_STORED_SWAP_INTERVALS / 2);
+//	esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, RPM_TO_US(esc_data.current_speed) * 0.7);
 
-	if(esc_data.consecutive_detected > 20) {
-		esc_fsm_inject_event(ESC_EVENT_CLOSED, time);
-	} else {		
+	prev_time = TIM4->CCR1;
+	current_time = TIM4->CNT + RPM_TO_US(esc_data.current_speed) / 2;
+	diff_time = prev_time - current_time;
+	
+	if(esc_data.consecutive_detected > 50) {
+//		esc_fsm_inject_event(ESC_EVENT_CLOSED, 0);
+	} else {
 		// Timing adjusted in entry function
 		// This should perform run a current control loop
 
 /*		float current_error = (config.startup_current_target - esc_data.current);
 		current_error *= 0.00001;
 		esc_data.duty_cycle += current_error;
-		
+
 		if(esc_data.duty_cycle < 0.01)
 			esc_data.duty_cycle = 0.01;
 		if(esc_data.duty_cycle > 0.4)
 			esc_data.duty_cycle = 0.4;
 		PIOS_ESC_SetDutyCycle(esc_data.duty_cycle); */
 	}
-
 }
 
+uint32_t startup_schedules = 0;
 /**
  * Commutation occured during startup without a ZCD
  */
@@ -377,17 +397,19 @@ static void go_esc_startup_nozcd(uint16_t time)
 	esc_data.consecutive_detected = 0;
 	esc_data.consecutive_missed++;
 
-	if(esc_data.consecutive_missed > 100) {
+	if(esc_data.consecutive_missed > 100000) {
 		esc_fsm_inject_event(ESC_EVENT_FAULT, time);
 	} else {
 		commutate();
 
 		// Since we aren't getting ZCD keep accelerating
 		if(esc_data.current_speed < config.final_startup_speed)
-			esc_data.current_speed+=10;
+			esc_data.current_speed+=2;
 
+		startup_schedules++;
+		
 		// Schedule next commutation
-		esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, esc_data.swap_interval_sum / NUM_STORED_SWAP_INTERVALS);
+		esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, RPM_TO_US(esc_data.current_speed));
 	} 
 			
 	// Timing adjusted in entry function
@@ -402,13 +424,17 @@ static void go_esc_startup_nozcd(uint16_t time)
 	PIOS_ESC_SetDutyCycle(esc_data.duty_cycle); */
 }
 
+uint32_t starts = 0;
+
 /**
  * Commutation in closed loop
  */
 static void go_esc_cl_start(uint16_t time)
 {
+	starts++;
 	esc_data.consecutive_detected = 0;
 	esc_data.consecutive_missed = 0;
+//	esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, esc_data.swap_interval_sum / NUM_STORED_SWAP_INTERVALS);
 }
 
 /**
@@ -427,27 +453,31 @@ static void go_esc_cl_commutated(uint16_t time)
 /**
  * When a zcd is detected
  */
+uint32_t fake_delay = 4500;
 static void go_esc_cl_zcd(uint16_t time)
 {
+	PIOS_GPIO_Toggle(1);
+
 	esc_data.consecutive_detected++;
 	esc_data.consecutive_missed = 0;
 
-	uint16_t last_time = esc_data.last_zcd_time;
+//	uint16_t last_time = esc_data.last_zcd_time;
 	zcd(time);
 
 	uint32_t interval = esc_data.swap_interval_sum / NUM_STORED_SWAP_INTERVALS;
 	esc_data.current_speed = US_TO_RPM(interval);
 
 	uint16_t zcd_delay = interval * (1 - config.commutation_phase);
+	zcd_delay = fake_delay;
 	esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, zcd_delay);
 
-	// Reenable interrupts before all the FP.  This isn't ideal but should be safe
-	PIOS_IRQ_Enable();
+	PIOS_ESC_SetDutyCycle((float) esc_data.speed_setpoint / 8000.0f);
+	return;
+	
+//	esc_data.dT = (uint16_t) (time - last_time);
+//	esc_data.dT *= 1e-6; // convert to seconds
 
-	esc_data.dT = (uint16_t) (time - last_time);
-	esc_data.dT *= 1e-6; // convert to seconds
-
-	float max_dc_change = config.max_dc_change * esc_data.dT;
+	float max_dc_change = 0.001; //config.max_dc_change; // * esc_data.dT;
 
 	if(esc_data.current > config.soft_current_limit) {
 		esc_data.duty_cycle -= max_dc_change;
@@ -522,6 +552,7 @@ struct esc_fsm_data * esc_fsm_init()
 	esc_data.scheduled_event_armed = false;
 	esc_data.faults = 0;
 	esc_data.total_missed = 0;
+	esc_data.detected = true;
 
 	esc_fsm_process_auto(PIOS_DELAY_GetuS());
 
@@ -595,39 +626,48 @@ static void esc_fsm_schedule_event(enum esc_event event, uint16_t time)
 	PIOS_IRQ_Disable();
 	esc_data.scheduled_event = event;
 	esc_data.scheduled_event_armed = true;
-	TIM_SetCompare1(TIM4, TIM4->CNT + time);
+	esc_data.scheduled_event_time = time + TIM4->CNT;
 	PIOS_IRQ_Enable();
+	TIM_SetCompare1(TIM4, esc_data.scheduled_event_time);
 }
 
+uint32_t timeouts = 0;
+uint32_t events = 0;
 /**
  * The event interrupt
  */
 void PIOS_DELAY_timeout() {
+	timeouts++;
 	TIM_ClearITPendingBit(TIM4,TIM_IT_CC1);
-	TIM_ClearFlag(TIM4,TIM_IT_CC1);
 	if(esc_data.scheduled_event_armed) {
+		events++;
 		esc_data.scheduled_event_armed = false;
 		esc_fsm_inject_event(esc_data.scheduled_event, PIOS_DELAY_GetuS());
 	}
 }
 
+uint32_t commutations;
 /**
  * Function to commutate the ESC and store any necessary information
  */
 static void commutate()
 {
 	//PIOS_COM_SendFormattedStringNonBlocking(PIOS_COM_DEBUG, "%u %u\n", (next - swap_time), (uint32_t) (dc * 10000));
-	uint16_t this_swap_time = PIOS_DELAY_GetuS();
-	esc_data.last_swap_interval = (uint16_t) (this_swap_time - esc_data.last_swap_time);
+	PIOS_IRQ_Disable();
+	uint32_t this_swap_time = PIOS_DELAY_GetRaw();
+	esc_data.last_swap_interval = PIOS_DELAY_DiffuS(esc_data.last_swap_time);
 	esc_data.last_swap_time = this_swap_time;
 
-	esc_data.swap_interval_sum += esc_data.last_swap_interval;
-	esc_data.swap_interval_sum -= esc_data.swap_intervals[esc_data.swap_intervals_pointer];
+	esc_data.swap_interval_sum += esc_data.last_swap_interval - esc_data.swap_intervals[esc_data.swap_intervals_pointer];
 	esc_data.swap_intervals[esc_data.swap_intervals_pointer] = esc_data.last_swap_interval;
-	esc_data.swap_intervals_pointer = (esc_data.swap_intervals_pointer + 1) % NUM_STORED_SWAP_INTERVALS;
+	esc_data.swap_intervals_pointer++;
+	if(esc_data.swap_intervals_pointer >= NUM_STORED_SWAP_INTERVALS)
+		esc_data.swap_intervals_pointer = 0;	
 	
 	esc_data.detected = false;
-
+	PIOS_IRQ_Enable();
+	commutations++;
+	
 	PIOS_ESC_NextState();
 }
 
@@ -636,10 +676,6 @@ static void commutate()
  */
 static void zcd(uint16_t time)
 {
-	uint16_t swap_diff = (uint16_t) (time - esc_data.last_swap_time);
-	esc_data.last_zcd_time = time;
-
-	esc_data.zcd_intervals[esc_data.zcd_intervals_pointer++] = swap_diff;
-	if(esc_data.zcd_intervals_pointer > NUM_STORED_SWAP_INTERVALS)
-		esc_data.zcd_intervals_pointer = 0;
+	esc_data.last_zcd_time = TIM4->CNT;
+	esc_data.detected = true;
 }

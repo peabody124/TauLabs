@@ -40,13 +40,14 @@
 
 //#define BACKBUFFER_ZCD
 //#define BACKBUFFER_ADC
+//#define BACKBUFFER_DIFF
 
 /* Prototype of PIOS_Board_Init() function */
 extern void PIOS_Board_Init(void);
 
 #define DOWNSAMPLING 1
 
-#if defined(BACKBUFFER_ADC) || defined(BACKBUFFER_ZCD)
+#if defined(BACKBUFFER_ADC) || defined(BACKBUFFER_ZCD) || defined(BACKBUFFER_DIFF)
 uint16_t back_buf[8096];
 uint16_t back_buf_point = 0;
 #endif
@@ -54,9 +55,6 @@ uint16_t back_buf_point = 0;
 #define LED_ERR LED1
 #define LED_GO  LED2
 #define LED_MSG LED3
-
-// Tuning settings for control
-float state_offset[6] = {40, 40, 40, 40, 40, 40};
 
 int16_t zero_current = 0;
 
@@ -85,9 +83,7 @@ struct esc_fsm_data * esc_data = 0;
 /**
  * @brief ESC Main function
  */
-#define INPUT_FILTER_LEN 4
-uint16_t input[INPUT_FILTER_LEN];
-uint8_t input_pointer = 0;
+uint16_t input;
 
 int main()
 {
@@ -95,7 +91,7 @@ int main()
 	PIOS_Board_Init();
 
 	PIOS_ADC_Config(DOWNSAMPLING);
-
+	
 	// TODO: Move this into a PIOS_DELAY function
 	TIM_OCInitTypeDef tim_oc_init = {
 		.TIM_OCMode = TIM_OCMode_PWM1,
@@ -108,7 +104,7 @@ int main()
 		.TIM_OCNIdleState = TIM_OCNIdleState_Reset,
 	};
 	TIM_OC1Init(TIM4, &tim_oc_init);
-	TIM_ITConfig(TIM4, TIM_IT_CC1, DISABLE);  // Enabled by FSM
+	TIM_ITConfig(TIM4, TIM_IT_CC1, ENABLE);  // Enabled by FSM
 
 	NVIC_InitTypeDef NVIC_InitStructure;
 	NVIC_InitStructure.NVIC_IRQChannel = TIM4_IRQn;
@@ -128,31 +124,18 @@ int main()
 	PIOS_LED_On(LED_MSG);
 
 	test_esc();
+
 	esc_data = esc_fsm_init();
 	esc_data->speed_setpoint = 0;
 
 	PIOS_ADC_StartDma();
+	
 	extern uint32_t pios_rcvr_group_map[];
 	while(1) {
 		counter++;
 
-		// Create large size timer
-		timer_lower = PIOS_DELAY_GetuS();
-		if(timer_lower < (timer & 0x0000ffff))
-			timer += 0x00010000;
-		timer = (timer & 0xffff0000) | timer_lower;
-
-		input[input_pointer] = PIOS_RCVR_Read(pios_rcvr_group_map[0],1);
-		input_pointer = (input_pointer + 1) % INPUT_FILTER_LEN;
-		uint32_t avg = 0;
-		for (uint32_t i = 0; i < INPUT_FILTER_LEN; i++)
-			avg += input[i];
-		avg /= 4;
-		
-		if(avg > 990) {  // Temporary!!!
-		esc_data->speed_setpoint = (avg < 1050) ? 0 :
-			400 + 10 * (avg - 1050);
-		}
+		input = PIOS_RCVR_Read(pios_rcvr_group_map[0],1);
+		esc_data->speed_setpoint = (input < 1050) ? 0 : 400 + ((input - 1050) << 3);
 
 		esc_process_static_fsm_rxn();
 	}
@@ -161,81 +144,81 @@ int main()
 
 // When driving both legs to ground mid point is 580
 #define MAX_RUNNING_FILTER 64
-static int16_t diff_filter[MAX_RUNNING_FILTER];
-int16_t running_filter_length = 32;
-int32_t running_filter_sum;
-static int16_t diff_filter_pointer = 0;
-uint16_t DEMAG_BLANKING = 50;
+uint32_t DEMAG_BLANKING = 100;
 
-#define CURRENT_FILTER 64
-static uint16_t current_filter[MAX_RUNNING_FILTER];
+#define MAX_CURRENT_FILTER 64
+int32_t current_filter[MAX_CURRENT_FILTER];
 int32_t current_filter_sum = 0;
 int32_t current_filter_pointer = 0;
+
+static int16_t diff_filter[MAX_RUNNING_FILTER];
+static int32_t diff_filter_pointer = 0;
+static int32_t running_filter_length = 16;
+static int32_t running_filter_sum = 0;
+
+uint32_t samples_averaged;
 
 uint32_t calls_to_detect = 0;
 uint32_t calls_to_last_detect = 0;
 
-int32_t threshold = -200;
-int32_t this_current;
-uint32_t adc_timeval;
+int32_t low_threshold = -0;
+int32_t high_threshold = 0;
 
 #include "pios_adc_priv.h"
+uint32_t detected;
+uint32_t bad_flips;
 void DMA1_Channel1_IRQHandler(void)
-{
+{	
+	static bool negative = false;
+	static enum pios_esc_state prev_state = ESC_STATE_AB;
+	static int16_t * raw_buf;
+	enum pios_esc_state curr_state;
+
 	if (DMA_GetFlagStatus(pios_adc_devs[0].cfg->full_flag /*DMA1_IT_TC1*/)) {	// whole double buffer filled
 		pios_adc_devs[0].valid_data_buffer = &pios_adc_devs[0].raw_data_buffer[pios_adc_devs[0].dma_half_buffer_size];
 		DMA_ClearFlag(pios_adc_devs[0].cfg->full_flag);
+//		PIOS_GPIO_On(1);		
 	}
 	else if (DMA_GetFlagStatus(pios_adc_devs[0].cfg->half_flag /*DMA1_IT_HT1*/)) {
 		pios_adc_devs[0].valid_data_buffer = &pios_adc_devs[0].raw_data_buffer[0];
 		DMA_ClearFlag(pios_adc_devs[0].cfg->half_flag);
+//		PIOS_GPIO_Off(1); 
 	}
 	else {
 		// This should not happen, probably due to transfer errors
 		DMA_ClearFlag(pios_adc_devs[0].cfg->dma.irq.flags /*DMA1_FLAG_GL1*/);
+		return;
 	}
-	
-	int16_t * raw_buf = (int16_t *) pios_adc_devs[0].valid_data_buffer;
-	
-	static bool negative = false;
-	static enum pios_esc_state prev_state = ESC_STATE_AB;
-	enum pios_esc_state curr_state;
+
+	bad_flips += (raw_buf == pios_adc_devs[0].valid_data_buffer);
+	raw_buf = (int16_t *) pios_adc_devs[0].valid_data_buffer;
 
 	curr_state = PIOS_ESC_GetState();
-	
+
 #ifdef BACKBUFFER_ADC
 	// Debugging code - keep a buffer of old ADC values
-	if((back_buf_point + 3 * DOWNSAMPLING + 3) > (sizeof(back_buf) / sizeof(back_buf[0])))
-		back_buf_point = 0;
-	back_buf[back_buf_point++] = 0xFFFF;
-	back_buf[back_buf_point++] = curr_state;
-	back_buf[back_buf_point++] = 0;
-	back_buf[back_buf_point++] = 0;
-	for(int i = 0; i < DOWNSAMPLING; i++) {
-		back_buf[back_buf_point++] = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1];
-		back_buf[back_buf_point++] = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 2];
-		back_buf[back_buf_point++] = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 3];
-	}
-#endif	
+	back_buf[back_buf_point++] = raw_buf[0];
+	back_buf[back_buf_point++] = raw_buf[1];
+	back_buf[back_buf_point++] = raw_buf[2];
+	back_buf[back_buf_point++] = raw_buf[ 3];
+	if(back_buf_point >= (NELEMENTS(back_buf)-3))
+#endif
 
-	if(esc_data == NULL)
-		return;
-
-	if(esc_data && PIOS_DELAY_DiffuS(adc_timeval) < DEMAG_BLANKING)
+	if((PIOS_DELAY_DiffuS(esc_data->last_swap_time) < DEMAG_BLANKING) ||
+	   esc_data->detected)
 		return;
 	
-	running_filter_length = (esc_data->current_speed > 4000) ? 4 :
-		(esc_data->current_speed > 2000) ? 4 : 16;
-	
-	// Smooth the estimate of current a bit 
-	
-	for(int i = 0; i < DOWNSAMPLING; i++) {
-		current_filter_sum += raw_buf[PIOS_ADC_NUM_CHANNELS * i + 0];
-		current_filter_sum -= current_filter[current_filter_pointer];
-		current_filter[current_filter_pointer] = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 0];
-		current_filter_pointer = (current_filter_pointer + 1) % CURRENT_FILTER;
-		esc_data->current = current_filter_sum / CURRENT_FILTER - zero_current;
-	}
+//	running_filter_length = (esc_data->current_speed > 4000) ? 4 :
+//		(esc_data->current_speed > 2000) ? 4 : 16;
+
+	// Smooth the estimate of current a bit 	
+	int32_t this_current = raw_buf[0] - zero_current;
+	current_filter_sum += this_current - current_filter[current_filter_pointer];
+	current_filter[current_filter_pointer] = this_current;
+	current_filter_pointer++;
+	if(current_filter_pointer >= MAX_CURRENT_FILTER)
+		current_filter_pointer = 0;
+	esc_data->current = current_filter_sum / MAX_CURRENT_FILTER;
 
 	// If detected this commutation don't bother here
 	if(curr_state != prev_state) {
@@ -247,6 +230,7 @@ void DMA1_Channel1_IRQHandler(void)
 		negative = false;
 		running_filter_sum = 0;
 		diff_filter_pointer = 0;
+		samples_averaged = 0;
 		
 		switch(curr_state) {
 			case ESC_STATE_AC:
@@ -276,61 +260,48 @@ void DMA1_Channel1_IRQHandler(void)
 			default:
 				PIOS_ESC_Off();
 		}
-		esc_data->detected = false;
 	}
-
-	// Already detected for this stage
-	if(esc_data && esc_data->detected)
-		return;
 
 	calls_to_detect++;
-	
-	switch(PIOS_ESC_GetMode()) {
-		case ESC_MODE_LOW_ON_PWM_HIGH:
-			// Doesn't work quite right yet
-			for(int i = 0; i < DOWNSAMPLING; i++) {
-				int16_t undriven = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + undriven_pin] - low_voltages[undriven_pin];
-				int16_t ref = (raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + 0] + 
-				    raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + 1] +
-				    raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + 2] - avg_low_voltage) / 3;
-				int32_t diff;
 
-				if(pos)
-					diff = undriven - ref;
-				else
-					diff = ref - undriven;
-				
-				// Update running sum and history
-				running_filter_sum += diff;
-				running_filter_sum -= diff_filter[diff_filter_pointer];
-				diff_filter[diff_filter_pointer] = diff;
-				diff_filter_pointer = (diff_filter_pointer + 1) % running_filter_length;
-								
-				//threshold = -hysteresis * running_filter_length;
-				if(running_filter_sum < threshold)
-					negative = true;
-				if(running_filter_sum > 0 && negative) {
-					adc_timeval = PIOS_DELAY_GetRaw();
-					
-					negative = false;
-					esc_data->detected = true;
-					esc_fsm_inject_event(ESC_EVENT_ZCD, 0);
-					calls_to_last_detect = calls_to_detect;
-					PIOS_GPIO_Toggle(1);
+	// Doesn't work quite right yet
+	int32_t undriven = raw_buf[1 + undriven_pin]; // - low_voltages[undriven_pin];
+	int32_t ref = (raw_buf[1] + raw_buf[2] + raw_buf[3]) / 3; // - avg_low_voltage) / 3;
+	int32_t diff = pos ? undriven - ref : ref - undriven;
+	
+	// Update running sum and history
+	running_filter_sum += diff - diff_filter[diff_filter_pointer];
+	diff_filter[diff_filter_pointer] = diff;
+	diff_filter_pointer++;
+	if(diff_filter_pointer >= running_filter_length)
+		diff_filter_pointer = 0;
+	samples_averaged++;
+
+	if(samples_averaged > running_filter_length) {
+		//threshold = -hysteresis * running_filter_length;
+		if(running_filter_sum < -low_threshold)
+			negative = true;
+		else if(running_filter_sum > high_threshold && negative) {
+			detected++;
+			esc_fsm_inject_event(ESC_EVENT_ZCD, 0);
+			calls_to_last_detect = calls_to_detect;
+			PIOS_GPIO_Toggle(1);
 #ifdef BACKBUFFER_ZCD
-					back_buf[back_buf_point++] = below_time;
-					back_buf[back_buf_point++] = esc_data->speed_setpoint;
-					if(back_buf_point > (sizeof(back_buf) / sizeof(back_buf[0])))
-						back_buf_point = 0;
+			back_buf[back_buf_point++] = below_time;
+			back_buf[back_buf_point++] = esc_data->speed_setpoint;
+			if(back_buf_point > (sizeof(back_buf) / sizeof(back_buf[0])))
+				back_buf_point = 0;
 #endif /* BACKBUFFER_ZCD */
-					break;
-				}
-			}
-			break;
-		default:
-			PIOS_ESC_Off();
-			break;
+		}
 	}
+	
+#ifdef BACKBUFFER_DIFF
+	// Debugging code - keep a buffer of old ADC values
+	back_buf[back_buf_point++] = diff;
+	if(back_buf_point >= NELEMENTS(back_buf))
+		back_buf_point = 0;
+#endif
+	
 }
 
 /* INS functions */
@@ -452,7 +423,7 @@ static void PIOS_TIM_4_irq_handler (void)
 {
 	if(TIM_GetITStatus(TIM4,TIM_IT_CC1))
 		PIOS_DELAY_timeout();
-	else 
+	else
 		PIOS_TIM_4_irq_override();
 }
 
