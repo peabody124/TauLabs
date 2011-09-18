@@ -370,8 +370,8 @@ static void go_esc_startup_zcd(uint16_t time)
 	current_time = TIM4->CNT + RPM_TO_US(esc_data.current_speed) / 2;
 	diff_time = prev_time - current_time;
 	
-	if(esc_data.consecutive_detected > 50) {
-//		esc_fsm_inject_event(ESC_EVENT_CLOSED, 0);
+	if(esc_data.consecutive_detected > 5000) {
+		esc_fsm_inject_event(ESC_EVENT_CLOSED, 0);
 	} else {
 		// Timing adjusted in entry function
 		// This should perform run a current control loop
@@ -653,7 +653,6 @@ uint32_t commutations;
 static void commutate()
 {
 	//PIOS_COM_SendFormattedStringNonBlocking(PIOS_COM_DEBUG, "%u %u\n", (next - swap_time), (uint32_t) (dc * 10000));
-	PIOS_IRQ_Disable();
 	uint32_t this_swap_time = PIOS_DELAY_GetRaw();
 	esc_data.last_swap_interval = PIOS_DELAY_DiffuS(esc_data.last_swap_time);
 	esc_data.last_swap_time = this_swap_time;
@@ -665,7 +664,6 @@ static void commutate()
 		esc_data.swap_intervals_pointer = 0;	
 	
 	esc_data.detected = false;
-	PIOS_IRQ_Enable();
 	commutations++;
 	
 	PIOS_ESC_NextState();

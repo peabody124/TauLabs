@@ -160,14 +160,14 @@ TIM16 |  PWM in   |           |           |
 #define PIOS_ADC_NUM_ADC_CHANNELS		2
 #define PIOS_ADC_USE_ADC2			1
 #define PIOS_ADC_CLOCK_FUNCTION			RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1 | RCC_APB2Periph_ADC2, ENABLE)
-#define PIOS_ADC_ADCCLK				RCC_PCLK2_Div6
+#define PIOS_ADC_ADCCLK				RCC_PCLK2_Div8
 /* RCC_PCLK2_Div2: ADC clock = PCLK2/2 */
 /* RCC_PCLK2_Div4: ADC clock = PCLK2/4 */
 /* RCC_PCLK2_Div6: ADC clock = PCLK2/6 */
 /* RCC_PCLK2_Div8: ADC clock = PCLK2/8 */
 //#define PIOS_ADC_SAMPLE_TIME			ADC_SampleTime_71Cycles5
-#define PIOS_ADC_SAMPLE_TIME			ADC_SampleTime_28Cycles5
-//#define PIOS_ADC_SAMPLE_TIME			ADC_SampleTime_13Cycles5
+//#define PIOS_ADC_SAMPLE_TIME			ADC_SampleTime_28Cycles5
+#define PIOS_ADC_SAMPLE_TIME			ADC_SampleTime_13Cycles5
 /* Sample time: */
 /* With an ADCCLK = 14 MHz and a sampling time of 239.5 cycles: */
 /* Tconv = 13.5 + 12.5 = 26 cycles = 18�s */

@@ -37,7 +37,7 @@ void PIOS_TIM4_irq_handler() {
 #include "pios_rcvr_priv.h"
 uint32_t pios_rcvr_group_map[1];
 
-#define ESC_DEFAULT_PWM_RATE 15000
+#define ESC_DEFAULT_PWM_RATE 40000
 
 #include "pios_esc_priv.h"
 const struct pios_esc_cfg pios_esc_cfg = {
@@ -128,7 +128,7 @@ static const struct pios_tim_clock_cfg tim_4_cfg = {
 	.irq = {
 		.init = {
 			.NVIC_IRQChannel                   = TIM4_IRQn,
-			.NVIC_IRQChannelPreemptionPriority = PIOS_IRQ_PRIO_MID,
+			.NVIC_IRQChannelPreemptionPriority = PIOS_IRQ_PRIO_HIGHEST,
 			.NVIC_IRQChannelSubPriority        = 0,
 			.NVIC_IRQChannelCmd                = ENABLE,
 		},
@@ -175,7 +175,7 @@ const struct pios_adc_cfg pios_adc_cfg = {
 			.flags   = (DMA1_FLAG_TC1 | DMA1_FLAG_TE1 | DMA1_FLAG_HT1 | DMA1_FLAG_GL1),
 			.init    = {
 				.NVIC_IRQChannel                   = DMA1_Channel1_IRQn,
-				.NVIC_IRQChannelPreemptionPriority = PIOS_IRQ_PRIO_HIGH,
+				.NVIC_IRQChannelPreemptionPriority = PIOS_IRQ_PRIO_HIGHEST,
 				.NVIC_IRQChannelSubPriority        = 0,
 				.NVIC_IRQChannelCmd                = ENABLE,
 			},
@@ -312,7 +312,7 @@ const struct pios_i2c_adapter_cfg pios_i2c_main_adapter_cfg = {
 		  .flags = 0,	/* FIXME: check this */
 		  .init = {
 			   .NVIC_IRQChannel = I2C1_EV_IRQn,
-			   .NVIC_IRQChannelPreemptionPriority = PIOS_IRQ_PRIO_HIGHEST,
+			   .NVIC_IRQChannelPreemptionPriority = PIOS_IRQ_PRIO_HIGH,
 			   .NVIC_IRQChannelSubPriority = 0,
 			   .NVIC_IRQChannelCmd = ENABLE,
 			   },
@@ -321,7 +321,7 @@ const struct pios_i2c_adapter_cfg pios_i2c_main_adapter_cfg = {
 		  .flags = 0,	/* FIXME: check this */
 		  .init = {
 			   .NVIC_IRQChannel = I2C1_ER_IRQn,
-			   .NVIC_IRQChannelPreemptionPriority = PIOS_IRQ_PRIO_HIGHEST,
+			   .NVIC_IRQChannelPreemptionPriority = PIOS_IRQ_PRIO_HIGH,
 			   .NVIC_IRQChannelSubPriority = 0,
 			   .NVIC_IRQChannelCmd = ENABLE,
 			   },
