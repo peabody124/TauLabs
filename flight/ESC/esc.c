@@ -45,7 +45,7 @@
 /* Prototype of PIOS_Board_Init() function */
 extern void PIOS_Board_Init(void);
 
-#define DOWNSAMPLING 4
+#define DOWNSAMPLING 1
 
 #if defined(BACKBUFFER_ADC) || defined(BACKBUFFER_ZCD) || defined(BACKBUFFER_DIFF)
 uint16_t back_buf[4048];
@@ -130,21 +130,20 @@ int main()
 
 	PIOS_ADC_StartDma();
 	
-//	extern uint32_t pios_rcvr_group_map[];
+	extern uint32_t pios_rcvr_group_map[];
 	while(1) {
 		counter++;
 
-//		input = PIOS_RCVR_Read(pios_rcvr_group_map[0],1);
-//		esc_data->speed_setpoint = (input < 1050) ? 0 : 400 + ((input - 1050) << 3);
+		input = PIOS_RCVR_Read(pios_rcvr_group_map[0],1);
+		esc_data->speed_setpoint = (input < 1050) ? 0 : 400 + ((input - 1050) << 3);
 
 		esc_process_static_fsm_rxn();
 	}
 	return 0;
 }
 
-// When driving both legs to ground mid point is 580
-#define MAX_RUNNING_FILTER 64
-uint32_t DEMAG_BLANKING = 50;
+#define MAX_RUNNING_FILTER 512
+uint32_t DEMAG_BLANKING = 0;
 
 #define MAX_CURRENT_FILTER 64
 int32_t current_filter[MAX_CURRENT_FILTER];
@@ -153,22 +152,20 @@ int32_t current_filter_pointer = 0;
 
 static int16_t diff_filter[MAX_RUNNING_FILTER];
 static int32_t diff_filter_pointer = 0;
-static int32_t running_filter_length = 16;
+int32_t running_filter_length = 512;
 static int32_t running_filter_sum = 0;
-
-uint32_t samples_averaged;
 
 uint32_t calls_to_detect = 0;
 uint32_t calls_to_last_detect = 0;
 
-int32_t threshold = -200;
+uint32_t samples_averaged;
+int32_t threshold = -10;
 
 #include "pios_adc_priv.h"
 uint32_t detected;
 uint32_t bad_flips;
 void DMA1_Channel1_IRQHandler(void)
 {	
-	static bool negative = false;
 	static enum pios_esc_state prev_state = ESC_STATE_AB;
 	static int16_t * raw_buf;
 	enum pios_esc_state curr_state;
@@ -206,8 +203,9 @@ void DMA1_Channel1_IRQHandler(void)
 	if( PIOS_DELAY_DiffuS(esc_data->last_swap_time) < DEMAG_BLANKING )
 		return;
 	
-//	running_filter_length = (esc_data->current_speed > 4000) ? 4 :
-//		(esc_data->current_speed > 2000) ? 4 : 16;
+/*	running_filter_length = (esc_data->current_speed > 4000) ? 4 :
+		(esc_data->current_speed > 2000) ? 4 : 16;
+	threshold = -esc_data->current_speed; */
 
 	// Smooth the estimate of current a bit 	
 	for(int i = 0; i < DOWNSAMPLING; i++) {
@@ -225,16 +223,21 @@ void DMA1_Channel1_IRQHandler(void)
 	if(curr_state == prev_state && esc_data->detected)
 	   return;
 	else if(curr_state != prev_state) {
-		for(uint8_t j = 0; j < MAX_RUNNING_FILTER; j++)
+		for(uint32_t j = 0; j < MAX_RUNNING_FILTER; j++)
 			diff_filter[j] = 0;
 
 		prev_state = curr_state;
 		calls_to_detect = 0;
-		negative = false;
 		running_filter_sum = 0;
 		diff_filter_pointer = 0;
 		samples_averaged = 0;
 		
+		running_filter_length = (esc_data->swap_interval_sum / 6) / 60;
+		if(running_filter_length >= MAX_RUNNING_FILTER)
+			running_filter_length = MAX_RUNNING_FILTER;
+//		if(running_filter_length < 4)
+//			running_filter_length = 4;
+			
 		switch(curr_state) {
 			case ESC_STATE_AC:
 				undriven_pin = 1;
@@ -266,11 +269,11 @@ void DMA1_Channel1_IRQHandler(void)
 	}
 
 	calls_to_detect++;
-	for(int i = 0; i < DOWNSAMPLING; i++) {
-		int16_t undriven = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + undriven_pin] - low_voltages[undriven_pin];
+	for(uint32_t i = 0; i < DOWNSAMPLING; i++) {
+		int16_t undriven = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + undriven_pin]; // - low_voltages[undriven_pin];
 		int16_t ref = (raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + 0] + 
 					   raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + 1] +
-					   raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + 2] - avg_low_voltage) / 3;
+					   raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + 2] - avg_low_voltage*0) / 3;
 		int32_t diff;
 		
 		if(pos)
@@ -285,14 +288,13 @@ void DMA1_Channel1_IRQHandler(void)
 		diff_filter_pointer++;
 		if(diff_filter_pointer >= running_filter_length)
 			diff_filter_pointer = 0;
+		samples_averaged++;
 		
 		//threshold = -hysteresis * running_filter_length;
-		if(running_filter_sum < threshold)
-			negative = true;
-		if(running_filter_sum > 0 && negative) {
-			PIOS_GPIO_Toggle(1);
-			negative = false;
+		if(running_filter_sum > 0 && samples_averaged >= running_filter_length) {
+//			PIOS_GPIO_Toggle(1);
 			esc_data->detected = true;
+			detected++;
 			esc_fsm_inject_event(ESC_EVENT_ZCD, 0);
 			calls_to_last_detect = calls_to_detect;
 #ifdef BACKBUFFER_ZCD
@@ -303,15 +305,13 @@ void DMA1_Channel1_IRQHandler(void)
 #endif /* BACKBUFFER_ZCD */
 			break;
 		}
-	}
-	
 #ifdef BACKBUFFER_DIFF
-	// Debugging code - keep a buffer of old ADC values
-	back_buf[back_buf_point++] = diff;
-	if(back_buf_point >= NELEMENTS(back_buf))
-		back_buf_point = 0;
+		// Debugging code - keep a buffer of old ADC values
+		back_buf[back_buf_point++] = diff;
+		if(back_buf_point >= NELEMENTS(back_buf))
+			back_buf_point = 0;
 #endif
-	
+	}	
 }
 
 /* INS functions */
@@ -434,9 +434,9 @@ static void PIOS_TIM_4_irq_handler (void)
 	if(TIM_GetITStatus(TIM4,TIM_IT_CC1))
 		PIOS_DELAY_timeout();
 	else {
-		TIM_ClearITPendingBit(TIM4,TIM_IT_CC3);
-		TIM_ClearITPendingBit(TIM4,TIM_IT_Update);
-//		PIOS_TIM_4_irq_override();
+//		TIM_ClearITPendingBit(TIM4,TIM_IT_CC3);
+//		TIM_ClearITPendingBit(TIM4,TIM_IT_Update);
+		PIOS_TIM_4_irq_override();
 	}
 }
 

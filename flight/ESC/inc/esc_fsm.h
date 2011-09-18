@@ -87,6 +87,7 @@ struct esc_fsm_data {
 	uint8_t swap_intervals_pointer;
 	uint16_t zcd_intervals[NUM_STORED_SWAP_INTERVALS];
 	uint8_t zcd_intervals_pointer;
+	float zcd_fraction;
 	uint16_t consecutive_detected;
 	uint16_t consecutive_missed;
 	uint16_t total_missed;
