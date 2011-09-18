@@ -42,8 +42,8 @@ struct esc_config config = {
 	.final_startup_speed = 700,
 	.startup_current_target = 30,
 	.commutation_phase = 0.70,
-	.soft_current_limit = 320,
-	.hard_current_limit = 400,
+	.soft_current_limit = 400,
+	.hard_current_limit = 1000,
 	.magic = ESC_CONFIG_MAGIC,
 };
 
@@ -191,7 +191,7 @@ const static struct esc_transition esc_transition[ESC_FSM_NUM_STATES] = {
 };
 
 static struct esc_fsm_data esc_data;
-
+uint32_t stops_requested;
 void esc_process_static_fsm_rxn() {
 
 	static uint32_t zero_time;
@@ -247,17 +247,19 @@ void esc_process_static_fsm_rxn() {
 
 			if(esc_data.current > config.soft_current_limit) {
 
-				float dT = (uint16_t) (cur_timer - last_timer);
-				dT *= 1e-6; // convert to seconds
-				float max_dc_change = config.max_dc_change * dT;
+//				float dT = (uint16_t) (cur_timer - last_timer);
+//				dT *= 1e-6; // convert to seconds
+//				float max_dc_change = config.max_dc_change * dT;
 
-				esc_data.duty_cycle -= max_dc_change;
+				esc_data.duty_cycle -= 0.001;
 				PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
 			}
 			last_timer = cur_timer;
 
-			if(esc_data.speed_setpoint == 0)
+			if(esc_data.speed_setpoint == 0) {
 				esc_fsm_inject_event(ESC_EVENT_STOP,0);
+				stops_requested++;
+			}
 		}
 			break;
 
@@ -512,7 +514,7 @@ static void go_esc_cl_nozcd(uint16_t time)
 {
 	esc_data.consecutive_detected = 0;
 	esc_data.consecutive_missed++;
-	if(esc_data.consecutive_missed > 3)
+	if(esc_data.consecutive_missed > 10000)
 		esc_fsm_inject_event(ESC_EVENT_FAULT, 0);
 	else {
 //		PIOS_ESC_SetDutyCycle(esc_data.duty_cycle / 10);

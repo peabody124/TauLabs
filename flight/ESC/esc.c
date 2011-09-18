@@ -83,7 +83,12 @@ struct esc_fsm_data * esc_data = 0;
 /**
  * @brief ESC Main function
  */
-uint16_t input;
+#define MAX_INPUT_FILTER 8
+uint16_t input[MAX_INPUT_FILTER];
+uint32_t input_filter_pointer = 0;
+uint32_t input_sum;
+
+uint32_t offs = 0;
 
 int main()
 {
@@ -130,13 +135,25 @@ int main()
 
 	PIOS_ADC_StartDma();
 	
-	extern uint32_t pios_rcvr_group_map[];
+	uint32_t off_time = 0;
+	uint32_t off_status = false;
+	
 	while(1) {
 		counter++;
-
-		input = PIOS_RCVR_Read(pios_rcvr_group_map[0],1);
-		esc_data->speed_setpoint = (input < 1050) ? 0 : 400 + ((input - 1050) << 3);
-
+		
+		if(input_sum > 1050)
+			esc_data->speed_setpoint = (input_sum < 1050) ? 0 : 400 + ((input_sum - 1050) << 3);
+		else {
+			if(off_status == false) {
+				off_status = true;
+				off_time = PIOS_DELAY_GetRaw();
+				offs++;
+			} else if (PIOS_DELAY_DiffuS(off_time) > 1000000) {
+				off_status = false;
+				esc_data->speed_setpoint = 0;
+			}
+		}
+		
 		esc_process_static_fsm_rxn();
 	}
 	return 0;
@@ -232,7 +249,7 @@ void DMA1_Channel1_IRQHandler(void)
 		diff_filter_pointer = 0;
 		samples_averaged = 0;
 		
-		running_filter_length = (esc_data->swap_interval_sum / 6) / 60;
+		running_filter_length = (esc_data->swap_interval_sum / 6) / 30;
 		if(running_filter_length >= MAX_RUNNING_FILTER)
 			running_filter_length = MAX_RUNNING_FILTER;
 //		if(running_filter_length < 4)
@@ -437,6 +454,24 @@ static void PIOS_TIM_4_irq_handler (void)
 //		TIM_ClearITPendingBit(TIM4,TIM_IT_CC3);
 //		TIM_ClearITPendingBit(TIM4,TIM_IT_Update);
 		PIOS_TIM_4_irq_override();
+		
+		extern uint32_t pios_rcvr_group_map[];
+		
+		uint16_t input_val = PIOS_RCVR_Read(pios_rcvr_group_map[0],1);
+		if(input_val < 900 || input_val > 2100)
+			return;
+			
+		input[input_filter_pointer] = input_val;
+		input_filter_pointer ++;
+		if(input_filter_pointer >= MAX_INPUT_FILTER)
+			input_filter_pointer = 0;
+		
+		input_sum = 0;
+		for(uint32_t i = 0; i < MAX_INPUT_FILTER; i++) {
+			input_sum += input[i] + 1;
+		}
+		input_sum /= MAX_INPUT_FILTER;
+		
 	}
 }
 
