@@ -125,6 +125,7 @@ const static struct esc_transition esc_transition[ESC_FSM_NUM_STATES] = {
 		.entry_fn = go_esc_startup_grab,
 		.next_state = {
 			[ESC_EVENT_COMMUTATED] = ESC_STATE_STARTUP_WAIT,
+			[ESC_EVENT_ZCD] = ESC_STATE_STARTUP_GRAB,
 		},
 	},
 	[ESC_STATE_STARTUP_WAIT] = {
@@ -294,6 +295,7 @@ static void go_esc_stopped(uint16_t time)
 	esc_data.consecutive_detected = 0;
 	esc_data.current_speed = 0;
 	esc_data.detected = true;
+	esc_data.scheduled_event_armed = false;
 }
 
 /**
