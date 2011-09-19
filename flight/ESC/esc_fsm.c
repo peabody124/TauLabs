@@ -30,8 +30,8 @@
 #define ESC_CONFIG_MAGIC 0x763fedc
 
 struct esc_config config = {
-	.kp = 0.0005,
-	.ki = 0.0001,
+	.kp = 0.0002,
+	.ki = 0.00001,
 	.kff = 1.3e-4,
 	.kff2 = -0.05,
 	.ilim = 0.5,
@@ -41,9 +41,9 @@ struct esc_config config = {
 	.initial_startup_speed = 100,
 	.final_startup_speed = 700,
 	.startup_current_target = 30,
-	.commutation_phase = 0.70,
-	.soft_current_limit = 400,
-	.hard_current_limit = 1000,
+	.commutation_phase = 0.7,
+	.soft_current_limit = 800,
+	.hard_current_limit = 2500,
 	.magic = ESC_CONFIG_MAGIC,
 };
 
@@ -471,7 +471,7 @@ static void go_esc_cl_zcd(uint16_t time)
 
 	PIOS_IRQ_Enable();
 	
-	float max_dc_change = 0.001; //config.max_dc_change; // * esc_data.dT;
+	float max_dc_change = 0.1; //config.max_dc_change; // * esc_data.dT;
 
 	if(esc_data.current > config.soft_current_limit) {
 		esc_data.duty_cycle -= max_dc_change;
