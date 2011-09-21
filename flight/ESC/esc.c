@@ -31,6 +31,8 @@
 #include "fifo_buffer.h"
 #include <pios_stm32.h>
 
+#define CURRENT_LIMIT 560
+
 //TODO: Check the ADC buffer pointer and make sure it isn't dropping swaps
 //TODO: Check the time commutation is being scheduled, make sure it's the future
 //TODO: Slave two timers together so in phase
@@ -162,7 +164,7 @@ int main()
 #define MAX_RUNNING_FILTER 512
 uint32_t DEMAG_BLANKING = 0;
 
-#define MAX_CURRENT_FILTER 64
+#define MAX_CURRENT_FILTER 16
 int32_t current_filter[MAX_CURRENT_FILTER];
 int32_t current_filter_sum = 0;
 int32_t current_filter_pointer = 0;
@@ -177,10 +179,13 @@ uint32_t calls_to_last_detect = 0;
 
 uint32_t samples_averaged;
 int32_t threshold = -10;
-
+int32_t divisor = 40;
 #include "pios_adc_priv.h"
 uint32_t detected;
 uint32_t bad_flips;
+
+uint32_t init_time;
+
 void DMA1_Channel1_IRQHandler(void)
 {	
 	static enum pios_esc_state prev_state = ESC_STATE_AB;
@@ -213,47 +218,46 @@ void DMA1_Channel1_IRQHandler(void)
 	back_buf[back_buf_point++] = raw_buf[0];
 	back_buf[back_buf_point++] = raw_buf[1];
 	back_buf[back_buf_point++] = raw_buf[2];
-	back_buf[back_buf_point++] = raw_buf[ 3];
+	back_buf[back_buf_point++] = raw_buf[3];
 	if(back_buf_point >= (NELEMENTS(back_buf)-3))
 #endif
 
 	if( PIOS_DELAY_DiffuS(esc_data->last_swap_time) < DEMAG_BLANKING )
 		return;
 	
-/*	running_filter_length = (esc_data->current_speed > 4000) ? 4 :
-		(esc_data->current_speed > 2000) ? 4 : 16;
-	threshold = -esc_data->current_speed; */
-
 	// Smooth the estimate of current a bit 	
-	for(int i = 0; i < DOWNSAMPLING; i++) {
-		current_filter_sum += raw_buf[PIOS_ADC_NUM_CHANNELS * i + 0];
-		current_filter_sum -= current_filter[current_filter_pointer];
-		current_filter[current_filter_pointer] = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 0];
-		current_filter_pointer++;
-		if(current_filter_pointer >= MAX_CURRENT_FILTER) 
-			current_filter_pointer = 0;
-		esc_data->current = current_filter_sum / MAX_CURRENT_FILTER - zero_current;
-	}
+	current_filter_sum += raw_buf[0];
+	current_filter_sum -= current_filter[current_filter_pointer];
+	current_filter[current_filter_pointer] = raw_buf[0];
+	current_filter_pointer++;
+	if(current_filter_pointer >= MAX_CURRENT_FILTER) 
+		current_filter_pointer = 0;
+#if MAX_CURRENT_FILTER == 16
+	esc_data->current = (current_filter_sum >> 4) - zero_current;
+#else
+	esc_data->current = current_filter_sum / MAX_CURRENT_FILTER - zero_current;
+#endif
+
+
+	if(esc_data->current > CURRENT_LIMIT)
+		esc_fsm_inject_event(ESC_EVENT_OVERCURRENT, 0);
 
 	   
 	// If detected this commutation don't bother here
 	if(curr_state == prev_state && esc_data->detected)
 	   return;
 	else if(curr_state != prev_state) {
-		for(uint32_t j = 0; j < MAX_RUNNING_FILTER; j++)
-			diff_filter[j] = 0;
-
+		uint32_t timeval = PIOS_DELAY_GetRaw();
+		
 		prev_state = curr_state;
 		calls_to_detect = 0;
 		running_filter_sum = 0;
 		diff_filter_pointer = 0;
 		samples_averaged = 0;
 		
-		running_filter_length = (esc_data->swap_interval_sum / 6) / 30;
+		running_filter_length = esc_data->swap_interval_smoothed / divisor;
 		if(running_filter_length >= MAX_RUNNING_FILTER)
 			running_filter_length = MAX_RUNNING_FILTER;
-//		if(running_filter_length < 4)
-//			running_filter_length = 4;
 			
 		switch(curr_state) {
 			case ESC_STATE_AC:
@@ -283,6 +287,7 @@ void DMA1_Channel1_IRQHandler(void)
 			default:
 				PIOS_ESC_Off();
 		}
+		init_time = PIOS_DELAY_DiffuS(timeval);
 	}
 
 	calls_to_detect++;
@@ -300,19 +305,18 @@ void DMA1_Channel1_IRQHandler(void)
 		
 		// Update running sum and history
 		running_filter_sum += diff;
-		running_filter_sum -= diff_filter[diff_filter_pointer];
+		// To avoid having to wipe the filter each commutation
+		if(samples_averaged >= running_filter_length)
+			running_filter_sum -= diff_filter[diff_filter_pointer];
 		diff_filter[diff_filter_pointer] = diff;
 		diff_filter_pointer++;
 		if(diff_filter_pointer >= running_filter_length)
 			diff_filter_pointer = 0;
 		samples_averaged++;
 		
-		//threshold = -hysteresis * running_filter_length;
 		if(running_filter_sum > 0 && samples_averaged >= running_filter_length) {
-//			PIOS_GPIO_Toggle(1);
 			esc_data->detected = true;
-			detected++;
-			esc_fsm_inject_event(ESC_EVENT_ZCD, 0);
+			esc_fsm_inject_event(ESC_EVENT_ZCD, TIM4->CNT);
 			calls_to_last_detect = calls_to_detect;
 #ifdef BACKBUFFER_ZCD
 			back_buf[back_buf_point++] = below_time;

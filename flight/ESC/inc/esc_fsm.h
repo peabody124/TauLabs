@@ -84,6 +84,7 @@ struct esc_fsm_data {
 	uint16_t last_swap_interval;
 	uint16_t swap_intervals[NUM_STORED_SWAP_INTERVALS];
 	uint32_t swap_interval_sum;
+	uint16_t swap_interval_smoothed;
 	uint8_t swap_intervals_pointer;
 	uint16_t zcd_intervals[NUM_STORED_SWAP_INTERVALS];
 	uint8_t zcd_intervals_pointer;
@@ -113,7 +114,7 @@ struct esc_config {
 	uint16_t initial_startup_speed;
 	uint16_t final_startup_speed;
 	uint16_t startup_current_target;
-	float commutation_phase;
+	int8_t commutation_phase;
 	float soft_current_limit;
 	float hard_current_limit;
 	uint32_t magic;
