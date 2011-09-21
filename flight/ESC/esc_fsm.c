@@ -22,7 +22,7 @@
 // 6. Freehweeling mode for when a ZCD is missed
 
 // To act like a normal open loop ESC
-#define OPEN_LOOP
+//#define OPEN_LOOP
 
 //#define RPM_TO_US(x) (1e6 * 60 / (x * COMMUTATIONS_PER_ROT) )
 #define RPM_TO_US(x) (1428571 / x)
@@ -322,7 +322,7 @@ static void go_esc_startup_grab(uint16_t time)
 
 	PIOS_ESC_SetState(0);
 	esc_data.current_speed = config.initial_startup_speed;
-	esc_data.duty_cycle = 0.08;
+	esc_data.duty_cycle = 0.1;
 	esc_data.consecutive_missed = 0;
 	esc_data.consecutive_detected = 0;
 	
@@ -365,14 +365,18 @@ static void go_esc_startup_zcd(uint16_t time)
 	if(esc_data.current_speed < config.final_startup_speed)
 		esc_data.current_speed+=0;
 
-	// Schedule next commutation
-	esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, RPM_TO_US(esc_data.current_speed) / 2);
+	// Schedule next commutation but only if the last ZCD was near where we expected.  Essentially
+	// this is dealing with a startup condition where noise will cause the ZCD to detect early, and
+	// then drive the speed up and make this happen really quickly and trigger a stall.  It can be
+	// neglected entirely but doing this makes it startup faster by phasing itself.
+	if(abs(esc_data.last_zcd_time - RPM_TO_US(esc_data.current_speed)) < 250)
+		esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, RPM_TO_US(esc_data.current_speed) / 2);
 
 	prev_time = TIM4->CCR1;
 	current_time = TIM4->CNT + RPM_TO_US(esc_data.current_speed) / 2;
 	diff_time = prev_time - current_time;
 	
-	if(esc_data.consecutive_detected > 20) {
+	if(esc_data.consecutive_detected > 10) {
 		esc_fsm_inject_event(ESC_EVENT_CLOSED, 0);
 	} else {
 		// Timing adjusted in entry function
@@ -406,7 +410,7 @@ static void go_esc_startup_nozcd(uint16_t time)
 
 		// Since we aren't getting ZCD keep accelerating
 		if(esc_data.current_speed < config.final_startup_speed)
-			esc_data.current_speed+=10;
+			esc_data.current_speed+=5;
 
 		startup_schedules++;
 		

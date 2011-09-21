@@ -31,7 +31,7 @@
 #include "fifo_buffer.h"
 #include <pios_stm32.h>
 
-#define CURRENT_LIMIT 560
+#define CURRENT_LIMIT 1210
 
 //TODO: Check the ADC buffer pointer and make sure it isn't dropping swaps
 //TODO: Check the time commutation is being scheduled, make sure it's the future
@@ -186,6 +186,152 @@ uint32_t bad_flips;
 
 uint32_t init_time;
 
+// Index to look up filter lengths by RPM (incrementing by 128 rpm per entry
+static const int32_t filter_length[] = {
+	744, // ... 128
+	372, // ... 256
+	248, // ... 384
+	186, // ... 512
+	149, // ... 640
+	124, // ... 768
+	106, // ... 896
+	93, // ... 1024
+	83, // ... 1152
+	74, // ... 1280
+	68, // ... 1408
+	62, // ... 1536
+	57, // ... 1664
+	53, // ... 1792
+	50, // ... 1920
+	47, // ... 2048
+	44, // ... 2176
+	41, // ... 2304
+	39, // ... 2432
+	37, // ... 2560
+	35, // ... 2688
+	34, // ... 2816
+	32, // ... 2944
+	31, // ... 3072
+	30, // ... 3200
+	29, // ... 3328
+	28, // ... 3456
+	27, // ... 3584
+	26, // ... 3712
+	25, // ... 3840
+	24, // ... 3968
+	14, // ... 4096
+	14, // ... 4224
+	13, // ... 4352
+	13, // ... 4480
+	12, // ... 4608
+	12, // ... 4736
+	12, // ... 4864
+	11, // ... 4992
+	11, // ... 5120
+	11, // ... 5248
+	11, // ... 5376
+	10, // ... 5504
+	10, // ... 5632
+	10, // ... 5760
+	10, // ... 5888
+	9, // ... 6016
+	9, // ... 6144
+	9, // ... 6272
+	9, // ... 6400
+	9, // ... 6528
+	9, // ... 6656
+	8, // ... 6784
+	8, // ... 6912
+	8, // ... 7040
+	8, // ... 7168
+	8, // ... 7296
+	8, // ... 7424
+	8, // ... 7552
+	7, // ... 7680
+	7, // ... 7808
+	7, // ... 7936
+	5, // ... 8064
+	5, // ... 8192
+	5, // ... 8320
+	5, // ... 8448
+	5, // ... 8576
+	5, // ... 8704
+	5, // ... 8832
+	5, // ... 8960
+	4, // ... 9088
+	4, // ... 9216
+	4, // ... 9344
+	4, // ... 9472
+	4, // ... 9600
+	4, // ... 9728
+	4, // ... 9856
+	4, // ... 9984
+	4, // ... 10112
+	4, // ... 10240
+	4, // ... 10368
+	4, // ... 10496
+	4, // ... 10624
+	4, // ... 10752
+	4, // ... 10880
+	4, // ... 11008
+	4, // ... 11136
+	4, // ... 11264
+	4, // ... 11392
+	4, // ... 11520
+	4, // ... 11648
+	3, // ... 11776
+	3, // ... 11904
+	2, // ... 12032
+	2, // ... 12160
+	2, // ... 12288
+	2, // ... 12416
+	2, // ... 12544
+	2, // ... 12672
+	2, // ... 12800
+	2, // ... 12928
+	2, // ... 13056
+	2, // ... 13184
+	2, // ... 13312
+	2, // ... 13440
+	2, // ... 13568
+	2, // ... 13696
+	2, // ... 13824
+	2, // ... 13952
+	2, // ... 14080
+	2, // ... 14208
+	2, // ... 14336
+	2, // ... 14464
+	2, // ... 14592
+	2, // ... 14720
+	2, // ... 14848
+	2, // ... 14976
+	2, // ... 15104
+	2, // ... 15232
+	2, // ... 15360
+	2, // ... 15488
+	2, // ... 15616
+	2, // ... 15744
+	2, // ... 15872
+	2, // ... 16000
+	2, // ... 16128
+	2, // ... 16256
+	2, // ... 16384
+	2, // ... 16512
+	2, // ... 16640
+	2, // ... 16768
+	2, // ... 16896
+	2, // ... 17024
+	2, // ... 17152
+	2, // ... 17280
+	2, // ... 17408
+	2, // ... 17536
+	2, // ... 17664
+	2, // ... 17792
+	2, // ... 17920
+	1,
+};	
+	
+
 void DMA1_Channel1_IRQHandler(void)
 {	
 	static enum pios_esc_state prev_state = ESC_STATE_AB;
@@ -255,7 +401,12 @@ void DMA1_Channel1_IRQHandler(void)
 		diff_filter_pointer = 0;
 		samples_averaged = 0;
 		
-		running_filter_length = esc_data->swap_interval_smoothed / divisor;
+		if((esc_data->current_speed >> 7) > NELEMENTS(filter_length))
+		   running_filter_length = filter_length[NELEMENTS(filter_length)-1];
+		else
+		   running_filter_length = filter_length[esc_data->current_speed >> 7];
+
+//		running_filter_length = esc_data->swap_interval_smoothed / divisor;
 		if(running_filter_length >= MAX_RUNNING_FILTER)
 			running_filter_length = MAX_RUNNING_FILTER;
 			
@@ -447,6 +598,7 @@ void test_esc() {
 	// TODO: If other channels don't follow then motor lead bad
 }
 
+uint32_t bad_inputs;
 void PIOS_TIM_4_irq_override();
 extern void PIOS_DELAY_timeout();
 void TIM4_IRQHandler(void) __attribute__ ((alias ("PIOS_TIM_4_irq_handler")));
@@ -461,21 +613,9 @@ static void PIOS_TIM_4_irq_handler (void)
 		
 		extern uint32_t pios_rcvr_group_map[];
 		
-		uint16_t input_val = PIOS_RCVR_Read(pios_rcvr_group_map[0],1);
-		if(input_val < 900 || input_val > 2100)
-			return;
-			
-		input[input_filter_pointer] = input_val;
-		input_filter_pointer ++;
-		if(input_filter_pointer >= MAX_INPUT_FILTER)
-			input_filter_pointer = 0;
-		
-		input_sum = 0;
-		for(uint32_t i = 0; i < MAX_INPUT_FILTER; i++) {
-			input_sum += input[i] + 1;
-		}
-		input_sum /= MAX_INPUT_FILTER;
-		
+		input_sum = PIOS_RCVR_Read(pios_rcvr_group_map[0],1);
+		if(input_sum == PIOS_RCVR_INVALID || input_sum == PIOS_RCVR_TIMEOUT)
+			input_sum = 0;		
 	}
 }
 
