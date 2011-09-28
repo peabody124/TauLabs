@@ -162,7 +162,7 @@ int main()
 }
 
 #define MAX_RUNNING_FILTER 512
-uint32_t DEMAG_BLANKING = 0;
+uint32_t DEMAG_BLANKING = 20;
 
 #define MAX_CURRENT_FILTER 16
 int32_t current_filter[MAX_CURRENT_FILTER];
@@ -406,10 +406,12 @@ void DMA1_Channel1_IRQHandler(void)
 		else
 		   running_filter_length = filter_length[esc_data->current_speed >> 7];
 
-//		running_filter_length = esc_data->swap_interval_smoothed / divisor;
 		if(running_filter_length >= MAX_RUNNING_FILTER)
 			running_filter_length = MAX_RUNNING_FILTER;
-			
+		
+		if(esc_data->current_speed > 8000)
+			running_filter_length = 10;
+
 		switch(curr_state) {
 			case ESC_STATE_AC:
 				undriven_pin = 1;
@@ -440,6 +442,10 @@ void DMA1_Channel1_IRQHandler(void)
 		}
 		init_time = PIOS_DELAY_DiffuS(timeval);
 	}
+
+	int32_t last_swap_delay = PIOS_DELAY_DiffuS(esc_data->last_swap_time);
+	if(last_swap_delay >= 0 && last_swap_delay < DEMAG_BLANKING)
+		return;
 
 	calls_to_detect++;
 	for(uint32_t i = 0; i < DOWNSAMPLING; i++) {
