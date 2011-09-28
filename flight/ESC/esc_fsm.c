@@ -37,11 +37,15 @@ struct esc_config config = {
 	.kff2 = -0.05,
 	.ilim = 0.5,
 <<<<<<< HEAD
+<<<<<<< HEAD
 	.max_dc_change = 2,
 	.min_dc = 0.01,
 	.max_dc = 0.90,
 =======
 	.max_dc_change = 0.2 * PIOS_ESC_MAX_DUTYCYCLE,
+=======
+	.max_dc_change = 0.02 * PIOS_ESC_MAX_DUTYCYCLE,
+>>>>>>> 330160d... ESC: More work to get startup more reliable
 	.min_dc = 0,
 	.max_dc = 0.90 * PIOS_ESC_MAX_DUTYCYCLE,
 >>>>>>> c458872... ESC: Convert duty cycle to fixed point.  PI controller still using FP but will
@@ -252,19 +256,10 @@ void esc_process_static_fsm_rxn() {
 			uint16_t cur_timer = PIOS_DELAY_GetuS();
 
 			if(esc_data.current > config.soft_current_limit) {
-<<<<<<< HEAD
-
-//				float dT = (uint16_t) (cur_timer - last_timer);
-//				dT *= 1e-6; // convert to seconds
-//				float max_dc_change = config.max_dc_change * dT;
-
-				esc_data.duty_cycle -= 0.001;
-=======
 				esc_data.duty_cycle -= 1;
 				if(esc_data.duty_cycle < config.min_dc)
 					esc_data.duty_cycle = config.min_dc;
 
->>>>>>> c458872... ESC: Convert duty cycle to fixed point.  PI controller still using FP but will
 				PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
 			}
 			last_timer = cur_timer;
