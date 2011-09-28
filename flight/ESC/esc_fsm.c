@@ -43,10 +43,10 @@ struct esc_config config = {
 	.max_dc = 0.90 * PIOS_ESC_MAX_DUTYCYCLE,
 	.initial_startup_speed = 100,
 	.final_startup_speed = 700,
-	.startup_current_target = 30,
-	.commutation_phase = 7,
-	.soft_current_limit = 800,
-	.hard_current_limit = 2500,
+	.startup_current_target = 70,
+	.commutation_phase = 10,
+	.soft_current_limit = 500,
+	.hard_current_limit = 1000,
 	.magic = ESC_CONFIG_MAGIC,
 };
 
