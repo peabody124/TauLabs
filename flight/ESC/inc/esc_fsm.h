@@ -94,7 +94,7 @@ struct esc_fsm_data {
 	uint16_t total_missed;
 	uint16_t faults;
 	uint8_t detected;
-	float error_accum;
+	int32_t error_accum;
 	float Kv;
 	float dT;
 	enum esc_fsm_state pre_fault_state;
@@ -103,11 +103,11 @@ struct esc_fsm_data {
 };
 
 struct esc_config {
-	float kp;
-	float ki;
-	float kff;
-	float kff2;
-	float ilim;
+	int16_t kp;
+	int16_t ki;
+	int16_t kff;
+	int16_t kff2;
+	int16_t ilim;
 	int32_t max_dc_change;
 	int32_t min_dc;
 	int32_t max_dc;

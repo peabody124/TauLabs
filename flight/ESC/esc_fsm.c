@@ -30,25 +30,17 @@
 #define COMMUTATIONS_PER_ROT (7*6)
 #define ESC_CONFIG_MAGIC 0x763fedc
 
+#define PID_SCALE 32178
 struct esc_config config = {
-	.kp = 0.0002,
-	.ki = 0.00001,
-	.kff = 1.3e-4,
-	.kff2 = -0.05,
-	.ilim = 0.5,
-<<<<<<< HEAD
-<<<<<<< HEAD
-	.max_dc_change = 2,
-	.min_dc = 0.01,
-	.max_dc = 0.90,
-=======
-	.max_dc_change = 0.2 * PIOS_ESC_MAX_DUTYCYCLE,
-=======
 	.max_dc_change = 0.02 * PIOS_ESC_MAX_DUTYCYCLE,
->>>>>>> 330160d... ESC: More work to get startup more reliable
+	.kp = 0.0002 * PID_SCALE,
+	.ki = 0.00001 * PID_SCALE,
+	.kff = 1.3e-4 * PID_SCALE,
+	.kff2 = -0.05 * PID_SCALE,
+	.ilim = 500,
+	.max_dc_change = 0.01 * PIOS_ESC_MAX_DUTYCYCLE,
 	.min_dc = 0,
 	.max_dc = 0.90 * PIOS_ESC_MAX_DUTYCYCLE,
->>>>>>> c458872... ESC: Convert duty cycle to fixed point.  PI controller still using FP but will
 	.initial_startup_speed = 100,
 	.final_startup_speed = 700,
 	.startup_current_target = 30,
@@ -470,6 +462,7 @@ uint32_t zcd2_time;
 uint32_t zcd3_time;
 uint32_t zcd4_time;
 uint32_t zcd5_time;
+int32_t new_dc;
 static void go_esc_cl_zcd(uint16_t time)
 {
 	uint32_t timeval = PIOS_DELAY_GetRaw();
@@ -492,9 +485,9 @@ static void go_esc_cl_zcd(uint16_t time)
 #ifdef OPEN_LOOP
 		esc_data.duty_cycle = esc_data.speed_setpoint * PIOS_ESC_MAX_DUTYCYCLE / 8000;
 #else
-		int16_t error = esc_data.speed_setpoint - esc_data.current_speed;
+		int32_t error = esc_data.speed_setpoint - esc_data.current_speed;
 
-		esc_data.error_accum += config.ki * error * esc_data.dT;
+		esc_data.error_accum += error;
 		if(esc_data.error_accum > config.ilim)
 			esc_data.error_accum = config.ilim;
 		if(esc_data.error_accum < -config.ilim)
@@ -502,10 +495,10 @@ static void go_esc_cl_zcd(uint16_t time)
 
 		zcd2_time = PIOS_DELAY_DiffuS(timeval);
 
-		float new_dc = esc_data.speed_setpoint * config.kff - config.kff2 + config.kp * error + esc_data.error_accum;
+		new_dc = (esc_data.speed_setpoint * config.kff - config.kff2 +
+		      error * config.kp) * PIOS_ESC_MAX_DUTYCYCLE / PID_SCALE; //* error + esc_data.error_accum;
 		
 		// For now keep this calculation as a float and rescale it here
-		new_dc *= PIOS_ESC_MAX_DUTYCYCLE;
 		if((new_dc - esc_data.duty_cycle) > config.max_dc_change)
 			esc_data.duty_cycle += config.max_dc_change;
 		else if((new_dc - esc_data.duty_cycle) < -config.max_dc_change)
