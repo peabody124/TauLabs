@@ -225,14 +225,15 @@ void PIOS_ESC_NextState()
 /**
  * @brief Sets the duty cycle of all PWM outputs
  */
-void PIOS_ESC_SetDutyCycle(float duty_cycle)
+void PIOS_ESC_SetDutyCycle(uint16_t duty_cycle)
 {
-	if(duty_cycle < 0 || duty_cycle > 1) {
+	if(duty_cycle > PIOS_ESC_MAX_DUTYCYCLE) {
 		PIOS_ESC_Off();
 		return;
 	}
-		
-	pios_esc_dev.duty_cycle = pios_esc_dev.cfg->tim_base_init.TIM_Period * duty_cycle;
+	
+	uint32_t temp = pios_esc_dev.cfg->tim_base_init.TIM_Period * duty_cycle / PIOS_ESC_MAX_DUTYCYCLE;
+	pios_esc_dev.duty_cycle = temp;
 }
 
 /**
@@ -482,7 +483,6 @@ void PIOS_ESC_TestGate(enum pios_esc_phase phase)
 			break;
 	}
 	
-	PIOS_ESC_SetDutyCycle(1);
 	PIOS_ESC_UpdateOutputs();	
 }
 

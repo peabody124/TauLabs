@@ -70,7 +70,7 @@ enum esc_event {
 };
 
 struct esc_fsm_data {
-	float duty_cycle;
+	int32_t duty_cycle;
 	int16_t current;
 	uint16_t current_speed;
 	uint16_t speed_setpoint;
@@ -108,9 +108,9 @@ struct esc_config {
 	float kff;
 	float kff2;
 	float ilim;
-	float max_dc_change;
-	float min_dc;
-	float max_dc;
+	int32_t max_dc_change;
+	int32_t min_dc;
+	int32_t max_dc;
 	uint16_t initial_startup_speed;
 	uint16_t final_startup_speed;
 	uint16_t startup_current_target;

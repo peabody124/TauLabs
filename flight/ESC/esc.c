@@ -526,55 +526,55 @@ void test_esc() {
 	low_voltages[2] = PIOS_ADC_PinGet(3);
 	avg_low_voltage = low_voltages[0] + low_voltages[1] + low_voltages[2];
 
-	PIOS_ESC_SetDutyCycle(0.5);
+	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 2);
 	PIOS_ESC_TestGate(ESC_A_LOW);
 	PIOS_DELAY_WaituS(250);
-	PIOS_ESC_SetDutyCycle(1);
+	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE);
 	PIOS_DELAY_WaituS(100);
 	voltages[1][0] = PIOS_ADC_PinGet(1);
 	voltages[1][1] = PIOS_ADC_PinGet(2);
 	voltages[1][2] = PIOS_ADC_PinGet(3);
 
-	PIOS_ESC_SetDutyCycle(0.5);
+	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 2);
 	PIOS_ESC_TestGate(ESC_A_HIGH);
 	PIOS_DELAY_WaituS(250);
-	PIOS_ESC_SetDutyCycle(1);
+	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE);
 	PIOS_DELAY_WaituS(100);
 	voltages[0][0] = PIOS_ADC_PinGet(1);
 	voltages[0][1] = PIOS_ADC_PinGet(2);
 	voltages[0][2] = PIOS_ADC_PinGet(3);
 
-	PIOS_ESC_SetDutyCycle(0.5);
+	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 2);
 	PIOS_ESC_TestGate(ESC_B_LOW);
 	PIOS_DELAY_WaituS(250);
-	PIOS_ESC_SetDutyCycle(1);
+	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE);
 	PIOS_DELAY_WaituS(100);
 	voltages[3][0] = PIOS_ADC_PinGet(1);
 	voltages[3][1] = PIOS_ADC_PinGet(2);
 	voltages[3][2] = PIOS_ADC_PinGet(3);
 
-	PIOS_ESC_SetDutyCycle(0.5);
+	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 2);
 	PIOS_ESC_TestGate(ESC_B_HIGH);
 	PIOS_DELAY_WaituS(250);
-	PIOS_ESC_SetDutyCycle(1);
+	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE);
 	PIOS_DELAY_WaituS(100);
 	voltages[2][0] = PIOS_ADC_PinGet(1);
 	voltages[2][1] = PIOS_ADC_PinGet(2);
 	voltages[2][2] = PIOS_ADC_PinGet(3);
 
-	PIOS_ESC_SetDutyCycle(0.5);
+	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 2);
 	PIOS_ESC_TestGate(ESC_C_LOW);
 	PIOS_DELAY_WaituS(250);
-	PIOS_ESC_SetDutyCycle(1);
+	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE);
 	PIOS_DELAY_WaituS(100);
 	voltages[5][0] = PIOS_ADC_PinGet(1);
 	voltages[5][1] = PIOS_ADC_PinGet(2);
 	voltages[5][2] = PIOS_ADC_PinGet(3);
 
-	PIOS_ESC_SetDutyCycle(0.5);
+	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 2);
 	PIOS_ESC_TestGate(ESC_C_HIGH);
 	PIOS_DELAY_WaituS(250);
-	PIOS_ESC_SetDutyCycle(1);
+	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE);
 	PIOS_DELAY_WaituS(100);
 	voltages[4][0] = PIOS_ADC_PinGet(1);
 	voltages[4][1] = PIOS_ADC_PinGet(2);

@@ -36,9 +36,15 @@ struct esc_config config = {
 	.kff = 1.3e-4,
 	.kff2 = -0.05,
 	.ilim = 0.5,
+<<<<<<< HEAD
 	.max_dc_change = 2,
 	.min_dc = 0.01,
 	.max_dc = 0.90,
+=======
+	.max_dc_change = 0.2 * PIOS_ESC_MAX_DUTYCYCLE,
+	.min_dc = 0,
+	.max_dc = 0.90 * PIOS_ESC_MAX_DUTYCYCLE,
+>>>>>>> c458872... ESC: Convert duty cycle to fixed point.  PI controller still using FP but will
 	.initial_startup_speed = 100,
 	.final_startup_speed = 700,
 	.startup_current_target = 30,
@@ -74,6 +80,7 @@ static void esc_fsm_schedule_event(enum esc_event event, uint16_t time);
 
 static void commutate();
 static void zcd(uint16_t time);
+static void bound_duty_cycle();
 
 const static struct esc_transition esc_transition[ESC_FSM_NUM_STATES] = {
 	[ESC_STATE_FSM_FAULT] = {
@@ -245,12 +252,19 @@ void esc_process_static_fsm_rxn() {
 			uint16_t cur_timer = PIOS_DELAY_GetuS();
 
 			if(esc_data.current > config.soft_current_limit) {
+<<<<<<< HEAD
 
 //				float dT = (uint16_t) (cur_timer - last_timer);
 //				dT *= 1e-6; // convert to seconds
 //				float max_dc_change = config.max_dc_change * dT;
 
 				esc_data.duty_cycle -= 0.001;
+=======
+				esc_data.duty_cycle -= 1;
+				if(esc_data.duty_cycle < config.min_dc)
+					esc_data.duty_cycle = config.min_dc;
+
+>>>>>>> c458872... ESC: Convert duty cycle to fixed point.  PI controller still using FP but will
 				PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
 			}
 			last_timer = cur_timer;
@@ -322,13 +336,13 @@ static void go_esc_startup_grab(uint16_t time)
 
 	PIOS_ESC_SetState(0);
 	esc_data.current_speed = config.initial_startup_speed;
-	esc_data.duty_cycle = 0.1;
 	esc_data.consecutive_missed = 0;
 	esc_data.consecutive_detected = 0;
 	
 	for(uint8_t i = 0; i < NUM_STORED_SWAP_INTERVALS; i++)
 		esc_data.swap_intervals[i] = 0;
 	esc_data.swap_interval_sum = 0;
+	esc_data.duty_cycle = 0.10 * PIOS_ESC_MAX_DUTYCYCLE;
 	PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
 	esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, 30000);  // Grab stator for 30 ms
 }
@@ -420,14 +434,12 @@ static void go_esc_startup_nozcd(uint16_t time)
 			
 	// Timing adjusted in entry function
 	// This should perform run a current control loop
-/*	float current_error = (config.startup_current_target - esc_data.current);
-	current_error *= 0.001;
-	
-	if(esc_data.duty_cycle < 0.01)
-		esc_data.duty_cycle = 0.01;
-	if(esc_data.duty_cycle > 0.2)
-		esc_data.duty_cycle = 0.2;
-	PIOS_ESC_SetDutyCycle(esc_data.duty_cycle); */
+	int32_t current_error = (config.startup_current_target - esc_data.current);
+	current_error /= 8;
+	esc_data.duty_cycle += current_error;
+
+	bound_duty_cycle();
+	PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
 }
 
 uint32_t starts = 0;
@@ -477,15 +489,13 @@ static void go_esc_cl_zcd(uint16_t time)
 	
 	zcd1_time = PIOS_DELAY_DiffuS(timeval);
 	
-	float max_dc_change = 0.1; //config.max_dc_change; // * esc_data.dT;
-
 	if(esc_data.current > config.soft_current_limit) {
-		esc_data.duty_cycle -= max_dc_change;
+		esc_data.duty_cycle -= config.max_dc_change;
+		bound_duty_cycle();
 		PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
 	} else {
 #ifdef OPEN_LOOP
-		float new_dc = (float) esc_data.speed_setpoint / 8000.0f;
-		esc_data.duty_cycle = new_dc;
+		esc_data.duty_cycle = esc_data.speed_setpoint * PIOS_ESC_MAX_DUTYCYCLE / 8000;
 #else
 		int16_t error = esc_data.speed_setpoint - esc_data.current_speed;
 
@@ -498,21 +508,20 @@ static void go_esc_cl_zcd(uint16_t time)
 		zcd2_time = PIOS_DELAY_DiffuS(timeval);
 
 		float new_dc = esc_data.speed_setpoint * config.kff - config.kff2 + config.kp * error + esc_data.error_accum;
-
-		if((new_dc - esc_data.duty_cycle) > max_dc_change)
-			esc_data.duty_cycle += max_dc_change;
-		else if((new_dc - esc_data.duty_cycle) < -max_dc_change)
-			esc_data.duty_cycle -= max_dc_change;
+		
+		// For now keep this calculation as a float and rescale it here
+		new_dc *= PIOS_ESC_MAX_DUTYCYCLE;
+		if((new_dc - esc_data.duty_cycle) > config.max_dc_change)
+			esc_data.duty_cycle += config.max_dc_change;
+		else if((new_dc - esc_data.duty_cycle) < -config.max_dc_change)
+			esc_data.duty_cycle -= config.max_dc_change;
 		else
 			esc_data.duty_cycle = new_dc;
 
 		zcd3_time = PIOS_DELAY_DiffuS(timeval);
 
-		if(esc_data.duty_cycle < config.min_dc)
-			esc_data.duty_cycle = config.min_dc;
-		if(esc_data.duty_cycle > config.max_dc)
-			esc_data.duty_cycle = config.max_dc;
 #endif	
+		bound_duty_cycle();
 		PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
 	}
 	zcd4_time = PIOS_DELAY_DiffuS(timeval);
@@ -691,3 +700,12 @@ static void zcd(uint16_t time)
 	esc_data.zcd_fraction += ((float) esc_data.last_zcd_time / esc_data.last_swap_interval - esc_data.zcd_fraction) * 0.05;
 	zcds++;
 }
+
+static void bound_duty_cycle()
+{
+	if(esc_data.duty_cycle < config.min_dc)
+		esc_data.duty_cycle = config.min_dc;
+	if(esc_data.duty_cycle > config.max_dc)
+		esc_data.duty_cycle = config.max_dc;
+}
+
