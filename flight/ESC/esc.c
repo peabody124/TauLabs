@@ -613,15 +613,33 @@ static void PIOS_TIM_4_irq_handler (void)
 	if(TIM_GetITStatus(TIM4,TIM_IT_CC1))
 		PIOS_DELAY_timeout();
 	else {
+#define MAX_INPUT_FILTER 6
+		static uint32_t input_filter_pointer;
+		static int16_t input[MAX_INPUT_FILTER];
+		static int32_t input_sum = 0;
+		static int16_t input_val;
 //		TIM_ClearITPendingBit(TIM4,TIM_IT_CC3);
 //		TIM_ClearITPendingBit(TIM4,TIM_IT_Update);
 		PIOS_TIM_4_irq_override();
 		
 		extern uint32_t pios_rcvr_group_map[];
 		
-		input_sum = PIOS_RCVR_Read(pios_rcvr_group_map[0],1);
-		if(input_sum == PIOS_RCVR_INVALID || input_sum == PIOS_RCVR_TIMEOUT)
-			input_sum = 0;		
+		input_val = PIOS_RCVR_Read(pios_rcvr_group_map[0],1);
+		if(input_val < 900 || input_val > 2100)
+			return;
+		
+		input[input_filter_pointer] = input_val;
+		input_filter_pointer ++;
+		if(input_filter_pointer >= MAX_INPUT_FILTER)
+			input_filter_pointer = 0;
+		
+		input_sum = 0;
+		for(uint32_t i = 0; i < MAX_INPUT_FILTER; i++) {
+			input_sum += input[i] + 1;
+		}
+		input_sum /= MAX_INPUT_FILTER;
+		esc_data->speed_setpoint = (input_sum < 1050) ? 0 : 400 + ((input_sum - 1050) << 3);
+
 	}
 }
 
