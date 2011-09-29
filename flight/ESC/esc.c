@@ -137,25 +137,9 @@ int main()
 
 	PIOS_ADC_StartDma();
 	
-	uint32_t off_time = 0;
-	uint32_t off_status = false;
-	
 	while(1) {
 		counter++;
-		
-		if(input_sum > 1050)
-			esc_data->speed_setpoint = (input_sum < 1050) ? 0 : 400 + ((input_sum - 1050) << 3);
-		else {
-			if(off_status == false) {
-				off_status = true;
-				off_time = PIOS_DELAY_GetRaw();
-				offs++;
-			} else if (PIOS_DELAY_DiffuS(off_time) > 1000000) {
-				off_status = false;
-				esc_data->speed_setpoint = 0;
-			}
-		}
-		
+
 		esc_process_static_fsm_rxn();
 	}
 	return 0;
@@ -383,7 +367,6 @@ void DMA1_Channel1_IRQHandler(void)
 #else
 	esc_data->current = current_filter_sum / MAX_CURRENT_FILTER - zero_current;
 #endif
-
 
 	if(esc_data->current > CURRENT_LIMIT)
 		esc_fsm_inject_event(ESC_EVENT_OVERCURRENT, 0);
@@ -613,7 +596,6 @@ static void PIOS_TIM_4_irq_handler (void)
 	if(TIM_GetITStatus(TIM4,TIM_IT_CC1))
 		PIOS_DELAY_timeout();
 	else {
-#define MAX_INPUT_FILTER 6
 		static uint32_t input_filter_pointer;
 		static int16_t input[MAX_INPUT_FILTER];
 		static int32_t input_sum = 0;
@@ -638,7 +620,7 @@ static void PIOS_TIM_4_irq_handler (void)
 			input_sum += input[i] + 1;
 		}
 		input_sum /= MAX_INPUT_FILTER;
-		esc_data->speed_setpoint = (input_sum < 1050) ? 0 : 400 + ((input_sum - 1050) << 3);
+		esc_data->speed_setpoint = (input_sum < 1050) ? 0 : 400 + (input_sum - 1050) * 6;
 
 	}
 }

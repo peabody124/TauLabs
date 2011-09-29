@@ -32,8 +32,8 @@
 
 #define PID_SCALE 32178
 struct esc_config config = {
-	.max_dc_change = 0.02 * PIOS_ESC_MAX_DUTYCYCLE,
-	.kp = 0.0002 * PID_SCALE,
+	.max_dc_change = 0.2 * PIOS_ESC_MAX_DUTYCYCLE,
+	.kp = 0.001 * PID_SCALE,
 	.ki = 0.00001 * PID_SCALE,
 	.kff = 1.3e-4 * PID_SCALE,
 	.kff2 = -0.05 * PID_SCALE,
@@ -43,7 +43,7 @@ struct esc_config config = {
 	.max_dc = 0.90 * PIOS_ESC_MAX_DUTYCYCLE,
 	.initial_startup_speed = 100,
 	.final_startup_speed = 700,
-	.startup_current_target = 70,
+	.startup_current_target = 100,
 	.commutation_phase = 10,
 	.soft_current_limit = 500,
 	.hard_current_limit = 1000,
@@ -195,7 +195,7 @@ const static struct esc_transition esc_transition[ESC_FSM_NUM_STATES] = {
 };
 
 static struct esc_fsm_data esc_data;
-uint32_t stops_requested;
+uint32_t stops_requested, stops_from_here;
 void esc_process_static_fsm_rxn() {
 
 	static uint32_t zero_time;
@@ -231,8 +231,10 @@ void esc_process_static_fsm_rxn() {
 		case ESC_STATE_STARTUP_WAIT:
 		case ESC_STATE_STARTUP_ZCD_DETECTED:
 		case ESC_STATE_STARTUP_NOZCD_COMMUTATED:			
-			if(esc_data.speed_setpoint == 0)
+			if(esc_data.speed_setpoint == 0) {
+				stops_from_here++;
 				esc_fsm_inject_event(ESC_EVENT_STOP,0);
+			}
 			
 			break;
 
@@ -257,8 +259,8 @@ void esc_process_static_fsm_rxn() {
 			last_timer = cur_timer;
 
 			if(esc_data.speed_setpoint == 0) {
-				esc_fsm_inject_event(ESC_EVENT_STOP,0);
 				stops_requested++;
+				esc_fsm_inject_event(ESC_EVENT_STOP,0);
 			}
 		}
 			break;
@@ -496,7 +498,7 @@ static void go_esc_cl_zcd(uint16_t time)
 		zcd2_time = PIOS_DELAY_DiffuS(timeval);
 
 		new_dc = (esc_data.speed_setpoint * config.kff - config.kff2 +
-		      error * config.kp) * PIOS_ESC_MAX_DUTYCYCLE / PID_SCALE; //* error + esc_data.error_accum;
+		      error * config.kp + esc_data.error_accum * config.ki) * PIOS_ESC_MAX_DUTYCYCLE / PID_SCALE; //* error + esc_data.error_accum;
 		
 		// For now keep this calculation as a float and rescale it here
 		if((new_dc - esc_data.duty_cycle) > config.max_dc_change)
@@ -565,6 +567,8 @@ struct esc_fsm_data * esc_fsm_init()
 /**
  * Respond to an event with state system
  */
+enum esc_event last_event;
+
 void esc_fsm_inject_event(enum esc_event event, uint16_t time)
 {
 	PIOS_IRQ_Disable();
@@ -582,7 +586,7 @@ void esc_fsm_inject_event(enum esc_event event, uint16_t time)
 	 * state.  This way, it cannot ever know what the previous state was.
 	 */
 	esc_data.state = esc_transition[esc_data.state].next_state[event];
-
+	last_event = event;
 	
 	PIOS_IRQ_Enable();
 
