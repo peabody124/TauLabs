@@ -85,10 +85,6 @@ struct esc_fsm_data * esc_data = 0;
 /**
  * @brief ESC Main function
  */
-#define MAX_INPUT_FILTER 8
-uint16_t input[MAX_INPUT_FILTER];
-uint32_t input_filter_pointer = 0;
-uint32_t input_sum;
 
 uint32_t offs = 0;
 
@@ -591,37 +587,80 @@ uint32_t bad_inputs;
 void PIOS_TIM_4_irq_override();
 extern void PIOS_DELAY_timeout();
 void TIM4_IRQHandler(void) __attribute__ ((alias ("PIOS_TIM_4_irq_handler")));
+static bool rising = false;
+
+static uint16_t rise_value;
+static uint16_t fall_value;
+static uint16_t capture_value;
+
+#define MAX_INPUT_FILTER 8
+static uint32_t input_filter_pointer;
+static int16_t input[MAX_INPUT_FILTER];
+static int32_t input_sum = 0;
+
 static void PIOS_TIM_4_irq_handler (void)
 {
-	if(TIM_GetITStatus(TIM4,TIM_IT_CC1))
+	static uint32_t last_input_update;
+	
+	if(TIM_GetITStatus(TIM4,TIM_IT_CC1)) {
 		PIOS_DELAY_timeout();
-	else {
-		static uint32_t input_filter_pointer;
-		static int16_t input[MAX_INPUT_FILTER];
-		static int32_t input_sum = 0;
-		static int16_t input_val;
-//		TIM_ClearITPendingBit(TIM4,TIM_IT_CC3);
-//		TIM_ClearITPendingBit(TIM4,TIM_IT_Update);
-		PIOS_TIM_4_irq_override();
+	}
+	else if (TIM_GetITStatus(TIM4, TIM_IT_CC3)) {
 		
-		extern uint32_t pios_rcvr_group_map[];
+		TIM_ClearITPendingBit(TIM4,TIM_IT_CC3);
 		
-		input_val = PIOS_RCVR_Read(pios_rcvr_group_map[0],1);
-		if(input_val < 900 || input_val > 2100)
-			return;
+		TIM_ICInitTypeDef TIM_ICInitStructure = {
+			.TIM_ICPolarity = TIM_ICPolarity_Rising,
+			.TIM_ICSelection = TIM_ICSelection_DirectTI,
+			.TIM_ICPrescaler = TIM_ICPSC_DIV1,
+			.TIM_ICFilter = 0x0,
+		};
 		
-		input[input_filter_pointer] = input_val;
+		if(rising) {
+			rising = false;
+			rise_value = TIM4->CNT;
+			
+			/* Switch polarity of input capture */
+			TIM_ICInitStructure.TIM_ICPolarity = TIM_ICPolarity_Falling;
+			TIM_ICInitStructure.TIM_Channel = TIM_Channel_3;
+			TIM_ICInit(TIM4, &TIM_ICInitStructure);
+		} else {
+			rising = true;
+			fall_value = TIM4->CNT;
+
+			/* Switch polarity of input capture */
+			TIM_ICInitStructure.TIM_ICPolarity = TIM_ICPolarity_Rising;;
+			TIM_ICInitStructure.TIM_Channel = TIM_Channel_3;
+			TIM_ICInit(TIM4, &TIM_ICInitStructure);
+			
+			if (fall_value > rise_value) {
+				capture_value = fall_value - rise_value;
+			} else {
+				capture_value = TIM4->ARR + fall_value - rise_value;
+			}
+			
+			last_input_update = PIOS_DELAY_GetRaw();
+		}
+		
+		if(capture_value < 900 || capture_value > 2200)
+			capture_value = 0;
+		else {
+
+		input[input_filter_pointer] = capture_value;
 		input_filter_pointer ++;
 		if(input_filter_pointer >= MAX_INPUT_FILTER)
 			input_filter_pointer = 0;
-		
 		input_sum = 0;
 		for(uint32_t i = 0; i < MAX_INPUT_FILTER; i++) {
 			input_sum += input[i] + 1;
 		}
 		input_sum /= MAX_INPUT_FILTER;
-		esc_data->speed_setpoint = (input_sum < 1050) ? 0 : 400 + (input_sum - 1050) * 6;
-
+			esc_data->speed_setpoint = (input_sum < 1050) ? 0 : 400 + (input_sum - 1050) * 6;
+		}
+	} else {
+		if (PIOS_DELAY_DiffuS(last_input_update) > 100000)
+			esc_data->speed_setpoint = 0;
+		TIM_ClearITPendingBit(TIM4,TIM_IT_Update);
 	}
 }
 
