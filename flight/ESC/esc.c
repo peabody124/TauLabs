@@ -490,8 +490,8 @@ void panic(int diagnostic_code)
 }
 
 //TODO: Abstract out constants.  Need to know battery voltage too
+int32_t voltages[6][3];
 void test_esc() {
-	int32_t voltages[6][3];
 
 
 	PIOS_ESC_Off();
@@ -569,15 +569,15 @@ void test_esc() {
 	// If the particular phase isn't moving fet is dead
 	if(voltages[0][0] < 1000)
 		panic(1);
-	if(voltages[1][0] > 700)
+	if(voltages[1][0] > 900)
 		panic(2);
 	if(voltages[2][1] < 1000)
 		panic(2);
-	if(voltages[3][1] > 700)
+	if(voltages[3][1] > 900)
 		panic(3);
 	if(voltages[4][2] < 1000)
 		panic(4);
-	if(voltages[5][2] > 700)
+	if(voltages[5][2] > 900)
 		panic(5);
 
 	// TODO: If other channels don't follow then motor lead bad
