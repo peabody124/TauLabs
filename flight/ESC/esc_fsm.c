@@ -33,7 +33,7 @@
 #define PID_SCALE 32178
 struct esc_config config = {
 	.max_dc_change = 0.1 * PIOS_ESC_MAX_DUTYCYCLE,
-	.kp = 0.0001 * PID_SCALE,
+	.kp = 0.0005 * PID_SCALE,
 	.ki = 0.00001 * PID_SCALE,
 	.kff = 1.3e-4 * PID_SCALE,
 	.kff2 = -0.05 * PID_SCALE,
