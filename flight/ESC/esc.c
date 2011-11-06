@@ -128,6 +128,8 @@ int main()
 
 	test_esc();
 
+	PIOS_WDG_RegisterFlag(1);
+	
 	esc_data = esc_fsm_init();
 	esc_data->speed_setpoint = 0;
 
@@ -136,7 +138,7 @@ int main()
 	
 	while(1) {
 		counter++;
-
+		PIOS_WDG_UpdateFlag(1);
 		esc_process_static_fsm_rxn();
 	}
 	return 0;

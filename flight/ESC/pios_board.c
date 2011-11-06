@@ -397,5 +397,7 @@ void PIOS_Board_Init(void) {
 					  uart_debug_tx_buffer,UART_DEBUG_TX_LEN)) {
 		PIOS_DEBUG_Assert(0);
 	}
+	
+	PIOS_WDG_Init();
 }
 

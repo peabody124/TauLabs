@@ -41,6 +41,7 @@
 #define PIOS_INCLUDE_SYS
 #define PIOS_INCLUDE_USART
 #define PIOS_INCLUDE_RCVR
+#define PIOS_INCLUDE_WDG
 
 // So that we can handle the hardware timing
 #define PIOS_TIM_EXCLUDE4
