@@ -32,7 +32,7 @@
 
 #define PID_SCALE 32178
 struct esc_config config = {
-	.max_dc_change = 0.2 * PIOS_ESC_MAX_DUTYCYCLE,
+	.max_dc_change = 0.1 * PIOS_ESC_MAX_DUTYCYCLE,
 	.kp = 0.0001 * PID_SCALE,
 	.ki = 0.00001 * PID_SCALE,
 	.kff = 1.3e-4 * PID_SCALE,
@@ -44,8 +44,8 @@ struct esc_config config = {
 	.final_startup_speed = 700,
 	.startup_current_target = 100,
 	.commutation_phase = 17,
-	.soft_current_limit = 500,
-	.hard_current_limit = 1000,
+	.soft_current_limit = 250,
+	.hard_current_limit = 600,
 	.magic = ESC_CONFIG_MAGIC,
 };
 
@@ -360,7 +360,7 @@ static void go_esc_startup_zcd(uint16_t time)
 
 	// Since we aren't getting ZCD keep accelerating
 	if(esc_data.current_speed < config.final_startup_speed)
-		esc_data.current_speed+=0;
+		esc_data.current_speed+=5;
 
 	// Schedule next commutation but only if the last ZCD was near where we expected.  Essentially
 	// this is dealing with a startup condition where noise will cause the ZCD to detect early, and
@@ -373,7 +373,7 @@ static void go_esc_startup_zcd(uint16_t time)
 	current_time = TIM4->CNT + RPM_TO_US(esc_data.current_speed) / 2;
 	diff_time = prev_time - current_time;
 	
-	if(esc_data.consecutive_detected > 10) {
+	if(esc_data.consecutive_detected > 6) {
 		esc_fsm_inject_event(ESC_EVENT_CLOSED, 0);
 	} else {
 		// Timing adjusted in entry function
@@ -400,7 +400,7 @@ static void go_esc_startup_nozcd(uint16_t time)
 	esc_data.consecutive_detected = 0;
 	esc_data.consecutive_missed++;
 
-	if(esc_data.consecutive_missed > 100000) {
+	if(esc_data.consecutive_missed > 100) {
 		esc_fsm_inject_event(ESC_EVENT_FAULT, time);
 	} else {
 		commutate();

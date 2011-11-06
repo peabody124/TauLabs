@@ -646,7 +646,7 @@ static void PIOS_TIM_4_irq_handler (void)
 		if(capture_value < 900 || capture_value > 2200)
 			capture_value = 0;
 		else {
-			esc_data->speed_setpoint = (capture_value < 1050) ? 0 : 400 + (capture_value - 1050) * 6;
+			esc_data->speed_setpoint = (capture_value < 1050) ? 0 : 400 + (capture_value - 1050) * 7;
 		}
 	} 
 	
