@@ -31,7 +31,7 @@
 #include "fifo_buffer.h"
 #include <pios_stm32.h>
 
-#define CURRENT_LIMIT 1210
+#define CURRENT_LIMIT 2600
 
 //TODO: Check the ADC buffer pointer and make sure it isn't dropping swaps
 //TODO: Check the time commutation is being scheduled, make sure it's the future
@@ -319,6 +319,7 @@ uint8_t filter_length_scalar = 100;
 void DMA1_Channel1_IRQHandler(void)
 {	
 	static enum pios_esc_state prev_state = ESC_STATE_AB;
+//	static uint8_t overcurrent_count = 0;
 	static int16_t * raw_buf;
 	enum pios_esc_state curr_state;
 
@@ -368,8 +369,11 @@ void DMA1_Channel1_IRQHandler(void)
 	esc_data->current = current_filter_sum / MAX_CURRENT_FILTER - zero_current;
 #endif
 
-	if(esc_data->current > CURRENT_LIMIT)
+/*	if (esc_data->current > CURRENT_LIMIT && overcurrent_count > 4)
 		esc_fsm_inject_event(ESC_EVENT_OVERCURRENT, 0);
+	else if (esc_data->current > CURRENT_LIMIT)
+			overcurrent_count ++;
+	else overcurrent_count = 0; */
 
 	   
 	// If detected this commutation don't bother here

@@ -32,7 +32,7 @@
 
 #define PID_SCALE 32178
 struct esc_config config = {
-	.max_dc_change = 0.1 * PIOS_ESC_MAX_DUTYCYCLE,
+	.max_dc_change = 0.05 * PIOS_ESC_MAX_DUTYCYCLE,
 	.kp = 0.0005 * PID_SCALE,
 	.ki = 0.00001 * PID_SCALE,
 	.kff = 1.3e-4 * PID_SCALE,
@@ -43,9 +43,9 @@ struct esc_config config = {
 	.initial_startup_speed = 100,
 	.final_startup_speed = 700,
 	.startup_current_target = 100,
-	.commutation_phase = 17,
-	.soft_current_limit = 250,
-	.hard_current_limit = 600,
+	.commutation_phase = 20,
+	.soft_current_limit = 1250,
+	.hard_current_limit = 1500,
 	.magic = ESC_CONFIG_MAGIC,
 };
 
