@@ -620,20 +620,22 @@ static void PIOS_TIM_4_irq_handler (void)
 		uint16_t tmp;
 		if(rising) {
 			rising = false;
-			rise_value = TIM4->CNT;
+			rise_value = TIM_GetCapture3(TIM4);
 			
-			tmp = rise_value | 0x0001;
-			
+			tmp = (rise_value & 0xFFFC) | 0x0001;
+			PIOS_COM_SendBuffer(PIOS_COM_DEBUG, (uint8_t *) &tmp, 2);
+
 			/* Switch polarity of input capture */
 			TIM_ICInitStructure.TIM_ICPolarity = TIM_ICPolarity_Falling;
 			TIM_ICInitStructure.TIM_Channel = TIM_Channel_3;
 			TIM_ICInit(TIM4, &TIM_ICInitStructure);
 		} else {
 			rising = true;
-			fall_value = TIM4->CNT;
+			fall_value = TIM_GetCapture3(TIM4);
 
-			tmp = fall_value & 0xFFFE;
-			
+			tmp = (fall_value & 0xFFFC) | 0x0002;
+			PIOS_COM_SendBuffer(PIOS_COM_DEBUG, (uint8_t *) &tmp, 2);
+
 			/* Switch polarity of input capture */
 			TIM_ICInitStructure.TIM_ICPolarity = TIM_ICPolarity_Rising;
 			TIM_ICInitStructure.TIM_Channel = TIM_Channel_3;
@@ -645,21 +647,23 @@ static void PIOS_TIM_4_irq_handler (void)
 				capture_value = TIM4->ARR + fall_value - rise_value;
 			}
 			
+			capture_value &= 0xFFFC;
+			PIOS_COM_SendBuffer(PIOS_COM_DEBUG, (uint8_t *) &capture_value, 2);
+
 			last_input_update = PIOS_DELAY_GetRaw();
 		}
 		
-		PIOS_COM_SendBuffer(PIOS_COM_DEBUG, (uint8_t *) &tmp, 2);
 		
 		if(capture_value < 900 || capture_value > 2200)
 			capture_value = 0;
 		else {
-			//esc_data->speed_setpoint = (capture_value < 1050) ? 0 : 400 + (capture_value - 1050) * 6;
+			esc_data->speed_setpoint = (capture_value < 1050) ? 0 : 400 + (capture_value - 1050) * 6;
 		}
 	} 
 	
 	if (TIM_GetITStatus(TIM4, TIM_IT_Update)) {
-//		if (PIOS_DELAY_DiffuS(last_input_update) > 100000)
-//			esc_data->speed_setpoint = 0;
+		if (PIOS_DELAY_DiffuS(last_input_update) > 100000)
+			esc_data->speed_setpoint = 0;
 		TIM_ClearITPendingBit(TIM4,TIM_IT_Update);
 	}
 }
