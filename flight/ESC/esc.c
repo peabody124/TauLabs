@@ -50,7 +50,7 @@ extern void PIOS_Board_Init(void);
 #define DOWNSAMPLING 1
 
 #if defined(BACKBUFFER_ADC) || defined(BACKBUFFER_ZCD) || defined(BACKBUFFER_DIFF)
-uint16_t back_buf[4048];
+uint16_t back_buf[2024];
 uint16_t back_buf_point = 0;
 #endif
 
@@ -93,8 +93,9 @@ int main()
 	esc_data = 0;
 	PIOS_Board_Init();
 
+
 	PIOS_ADC_Config(DOWNSAMPLING);
-	
+
 	// TODO: Move this into a PIOS_DELAY function
 	TIM_OCInitTypeDef tim_oc_init = {
 		.TIM_OCMode = TIM_OCMode_PWM1,
@@ -119,7 +120,6 @@ int main()
 	// This pull up all the ADC voltages so the BEMF when at -0.7V
 	// is still positive
 	PIOS_GPIO_Enable(0);
-	PIOS_GPIO_Enable(1);
 	PIOS_GPIO_Off(0);
 
 	PIOS_LED_Off(LED_ERR);
@@ -130,6 +130,7 @@ int main()
 
 	esc_data = esc_fsm_init();
 	esc_data->speed_setpoint = 0;
+
 
 	PIOS_ADC_StartDma();
 	
@@ -194,35 +195,35 @@ static const int32_t filter_length[] = {
 	31, // ... 3072
 	30, // ... 3200
 	29, // ... 3328
-	28, // ... 3456
-	27, // ... 3584
-	26, // ... 3712
-	25, // ... 3840
-	24, // ... 3968
-	14, // ... 4096
-	14, // ... 4224
-	13, // ... 4352
-	13, // ... 4480
-	12, // ... 4608
-	12, // ... 4736
-	12, // ... 4864
-	11, // ... 4992
-	11, // ... 5120
-	11, // ... 5248
-	11, // ... 5376
-	10, // ... 5504
-	10, // ... 5632
-	10, // ... 5760
-	10, // ... 5888
-	9, // ... 6016
-	9, // ... 6144
-	9, // ... 6272
-	9, // ... 6400
-	9, // ... 6528
-	9, // ... 6656
-	8, // ... 6784
-	8, // ... 6912
-	8, // ... 7040
+	33, // ... 3456
+	32, // ... 3584
+	31, // ... 3712
+	30, // ... 3840
+	29, // ... 3968
+	28, // ... 4096
+	27, // ... 4224
+	26, // ... 4352
+	25, // ... 4480
+	24, // ... 4608
+	23, // ... 4736
+	22, // ... 4864
+	21, // ... 4992
+	21, // ... 5120
+	20, // ... 5248
+	19, // ... 5376
+	18, // ... 5504
+	18, // ... 5632
+	18, // ... 5760
+	18, // ... 5888
+	17, // ... 6016
+	17, // ... 6144
+	17, // ... 6272
+	17, // ... 6400
+	17, // ... 6528
+	16, // ... 6656
+	16, // ... 6784
+	16, // ... 6912
+	16, // ... 7040
 	8, // ... 7168
 	8, // ... 7296
 	8, // ... 7424
@@ -310,7 +311,8 @@ static const int32_t filter_length[] = {
 	2, // ... 17920
 	1,
 };	
-	
+
+uint8_t filter_length_scalar = 100;
 
 void DMA1_Channel1_IRQHandler(void)
 {	
@@ -385,6 +387,8 @@ void DMA1_Channel1_IRQHandler(void)
 		else
 		   running_filter_length = filter_length[esc_data->current_speed >> 7];
 
+		running_filter_length = running_filter_length * filter_length_scalar / 100;
+		
 		if(running_filter_length >= MAX_RUNNING_FILTER)
 			running_filter_length = MAX_RUNNING_FILTER;
 		
@@ -593,19 +597,16 @@ static uint16_t rise_value;
 static uint16_t fall_value;
 static uint16_t capture_value;
 
-#define MAX_INPUT_FILTER 8
-static uint32_t input_filter_pointer;
-static int16_t input[MAX_INPUT_FILTER];
-static int32_t input_sum = 0;
-
 static void PIOS_TIM_4_irq_handler (void)
 {
 	static uint32_t last_input_update;
 	
 	if(TIM_GetITStatus(TIM4,TIM_IT_CC1)) {
 		PIOS_DELAY_timeout();
+		TIM_ClearITPendingBit(TIM4,TIM_IT_CC1);
 	}
-	else if (TIM_GetITStatus(TIM4, TIM_IT_CC3)) {
+	
+	if (TIM_GetITStatus(TIM4, TIM_IT_CC3)) {
 		
 		TIM_ClearITPendingBit(TIM4,TIM_IT_CC3);
 		
@@ -616,9 +617,12 @@ static void PIOS_TIM_4_irq_handler (void)
 			.TIM_ICFilter = 0x0,
 		};
 		
+		uint16_t tmp;
 		if(rising) {
 			rising = false;
 			rise_value = TIM4->CNT;
+			
+			tmp = rise_value | 0x0001;
 			
 			/* Switch polarity of input capture */
 			TIM_ICInitStructure.TIM_ICPolarity = TIM_ICPolarity_Falling;
@@ -628,8 +632,10 @@ static void PIOS_TIM_4_irq_handler (void)
 			rising = true;
 			fall_value = TIM4->CNT;
 
+			tmp = fall_value & 0xFFFE;
+			
 			/* Switch polarity of input capture */
-			TIM_ICInitStructure.TIM_ICPolarity = TIM_ICPolarity_Rising;;
+			TIM_ICInitStructure.TIM_ICPolarity = TIM_ICPolarity_Rising;
 			TIM_ICInitStructure.TIM_Channel = TIM_Channel_3;
 			TIM_ICInit(TIM4, &TIM_ICInitStructure);
 			
@@ -642,24 +648,18 @@ static void PIOS_TIM_4_irq_handler (void)
 			last_input_update = PIOS_DELAY_GetRaw();
 		}
 		
+		PIOS_COM_SendBuffer(PIOS_COM_DEBUG, (uint8_t *) &tmp, 2);
+		
 		if(capture_value < 900 || capture_value > 2200)
 			capture_value = 0;
 		else {
-
-		input[input_filter_pointer] = capture_value;
-		input_filter_pointer ++;
-		if(input_filter_pointer >= MAX_INPUT_FILTER)
-			input_filter_pointer = 0;
-		input_sum = 0;
-		for(uint32_t i = 0; i < MAX_INPUT_FILTER; i++) {
-			input_sum += input[i] + 1;
+			//esc_data->speed_setpoint = (capture_value < 1050) ? 0 : 400 + (capture_value - 1050) * 6;
 		}
-		input_sum /= MAX_INPUT_FILTER;
-			esc_data->speed_setpoint = (input_sum < 1050) ? 0 : 400 + (input_sum - 1050) * 6;
-		}
-	} else {
-		if (PIOS_DELAY_DiffuS(last_input_update) > 100000)
-			esc_data->speed_setpoint = 0;
+	} 
+	
+	if (TIM_GetITStatus(TIM4, TIM_IT_Update)) {
+//		if (PIOS_DELAY_DiffuS(last_input_update) > 100000)
+//			esc_data->speed_setpoint = 0;
 		TIM_ClearITPendingBit(TIM4,TIM_IT_Update);
 	}
 }

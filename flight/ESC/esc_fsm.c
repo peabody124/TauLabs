@@ -44,7 +44,7 @@ struct esc_config config = {
 	.initial_startup_speed = 100,
 	.final_startup_speed = 700,
 	.startup_current_target = 100,
-	.commutation_phase = 10,
+	.commutation_phase = 17,
 	.soft_current_limit = 500,
 	.hard_current_limit = 1000,
 	.magic = ESC_CONFIG_MAGIC,
@@ -295,7 +295,6 @@ static void go_esc_stopping(uint16_t time)
  */
 static void go_esc_stopped(uint16_t time)
 {
-//	TIM_ITConfig(TIM4, TIM_IT_CC1, DISABLE);
 	esc_data.consecutive_detected = 0;
 	esc_data.current_speed = 0;
 	esc_data.detected = true;
@@ -309,9 +308,6 @@ static void go_esc_startup_enable(uint16_t time)
 {
 	PIOS_ADC_StartDma();
 	PIOS_ESC_SetMode(ESC_MODE_LOW_ON_PWM_HIGH);
-
-	// TODO: This should not have hardware calls
-	TIM_ITConfig(TIM4, TIM_IT_CC1, ENABLE);
 
 	PIOS_ESC_Arm();
 }
@@ -357,7 +353,6 @@ uint16_t prev_time;
 int16_t diff_time;
 static void go_esc_startup_zcd(uint16_t time)
 {
-//	PIOS_GPIO_Toggle(1);
 
 	esc_data.consecutive_detected++;
 	esc_data.consecutive_missed = 0;
@@ -451,7 +446,7 @@ static void go_esc_cl_commutated(uint16_t time)
 {
 	uint32_t timeval = PIOS_DELAY_GetRaw();
 	commutate();
-	esc_fsm_schedule_event(ESC_EVENT_TIMEOUT, esc_data.swap_interval_smoothed << 1);
+	esc_fsm_schedule_event(ESC_EVENT_TIMEOUT, esc_data.swap_interval_smoothed << 2);
 //	esc_data.Kv += (esc_data.current_speed / (12 * esc_data.duty_cycle) - esc_data.Kv) * 0.001;
 	commutation_time = PIOS_DELAY_DiffuS(timeval);
 }
@@ -645,7 +640,6 @@ uint32_t events = 0;
  */
 void PIOS_DELAY_timeout() {
 	timeouts++;
-	TIM_ClearITPendingBit(TIM4,TIM_IT_CC1);
 	if(esc_data.scheduled_event_armed) {
 		events++;
 		esc_data.scheduled_event_armed = false;
@@ -659,9 +653,6 @@ uint32_t commutations;
  */
 static void commutate()
 {
-	PIOS_GPIO_Toggle(1);
-	//PIOS_COM_SendFormattedStringNonBlocking(PIOS_COM_DEBUG, "%u %u\n", (next - swap_time), (uint32_t) (dc * 10000));
-
 	esc_data.last_swap_interval = PIOS_DELAY_DiffuS(esc_data.last_swap_time);
 	esc_data.last_swap_time = PIOS_DELAY_GetRaw();
 
@@ -686,7 +677,6 @@ uint32_t zcds;
  */
 static void zcd(uint16_t time)
 {
-	PIOS_GPIO_Toggle(1);
 	esc_data.last_zcd_time = PIOS_DELAY_DiffuS(esc_data.last_swap_time);
 	esc_data.detected = true;
 	esc_data.zcd_fraction += ((float) esc_data.last_zcd_time / esc_data.last_swap_interval - esc_data.zcd_fraction) * 0.05;

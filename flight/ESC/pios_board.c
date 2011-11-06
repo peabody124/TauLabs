@@ -252,9 +252,9 @@ const struct pios_usart_cfg pios_usart_debug_cfg = {
 	       },
 };
 
-#define UART_DEBUG_TX_LEN 128
+#define UART_DEBUG_TX_LEN 32
 uint8_t uart_debug_tx_buffer[UART_DEBUG_TX_LEN];
-#define UART_DEBUG_RX_LEN 128
+#define UART_DEBUG_RX_LEN 32
 uint8_t uart_debug_rx_buffer[UART_DEBUG_RX_LEN];
 static uint32_t pios_usart_debug_id;
 
@@ -391,10 +391,6 @@ void PIOS_Board_Init(void) {
 	if (PIOS_USART_Init(&pios_usart_debug_id, &pios_usart_debug_cfg)) {
 		PIOS_DEBUG_Assert(0);
 	}
-#define UART_DEBUG_TX_LEN 128
-	uint8_t uart_debug_tx_buffer[UART_DEBUG_TX_LEN];
-#define UART_DEBUG_RX_LEN 128
-	uint8_t uart_debug_rx_buffer[UART_DEBUG_RX_LEN];
 
 	if (PIOS_COM_Init(&pios_com_debug_id, &pios_usart_com_driver, pios_usart_debug_id,
 					  uart_debug_rx_buffer,UART_DEBUG_RX_LEN,
