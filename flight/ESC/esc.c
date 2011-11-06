@@ -224,38 +224,38 @@ static const int32_t filter_length[] = {
 	16, // ... 6784
 	16, // ... 6912
 	16, // ... 7040
-	8, // ... 7168
-	8, // ... 7296
-	8, // ... 7424
-	8, // ... 7552
-	7, // ... 7680
-	7, // ... 7808
-	7, // ... 7936
-	5, // ... 8064
-	5, // ... 8192
-	5, // ... 8320
-	5, // ... 8448
-	5, // ... 8576
-	5, // ... 8704
-	5, // ... 8832
-	5, // ... 8960
-	4, // ... 9088
-	4, // ... 9216
-	4, // ... 9344
-	4, // ... 9472
-	4, // ... 9600
-	4, // ... 9728
-	4, // ... 9856
-	4, // ... 9984
-	4, // ... 10112
-	4, // ... 10240
-	4, // ... 10368
-	4, // ... 10496
-	4, // ... 10624
-	4, // ... 10752
-	4, // ... 10880
-	4, // ... 11008
-	4, // ... 11136
+	15, // ... 7168
+	15, // ... 7296
+	15, // ... 7424
+	14, // ... 7552
+	14, // ... 7680
+	14, // ... 7808
+	13, // ... 7936
+	13, // ... 8064
+	13, // ... 8192
+	12, // ... 8320
+	12, // ... 8448
+	11, // ... 8576
+	11, // ... 8704
+	11, // ... 8832
+	10, // ... 8960
+	10, // ... 9088
+	10, // ... 9216
+	9, // ... 9344
+	9, // ... 9472
+	9, // ... 9600
+	8, // ... 9728
+	8, // ... 9856
+	8, // ... 9984
+	7, // ... 10112
+	7, // ... 10240
+	7, // ... 10368
+	6, // ... 10496
+	6, // ... 10624
+	6, // ... 10752
+	5, // ... 10880
+	5, // ... 11008
+	5, // ... 11136
 	4, // ... 11264
 	4, // ... 11392
 	4, // ... 11520
@@ -392,9 +392,6 @@ void DMA1_Channel1_IRQHandler(void)
 		if(running_filter_length >= MAX_RUNNING_FILTER)
 			running_filter_length = MAX_RUNNING_FILTER;
 		
-		if(esc_data->current_speed > 8000)
-			running_filter_length = 10;
-
 		switch(curr_state) {
 			case ESC_STATE_AC:
 				undriven_pin = 1;
@@ -432,10 +429,10 @@ void DMA1_Channel1_IRQHandler(void)
 
 	calls_to_detect++;
 	for(uint32_t i = 0; i < DOWNSAMPLING; i++) {
-		int16_t undriven = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + undriven_pin]; // - low_voltages[undriven_pin];
+		int16_t undriven = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + undriven_pin];
 		int16_t ref = (raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + 0] + 
 					   raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + 1] +
-					   raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + 2] - avg_low_voltage*0) / 3;
+					   raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + 2]) / 3;
 		int32_t diff;
 		
 		if(pos)
@@ -617,14 +614,10 @@ static void PIOS_TIM_4_irq_handler (void)
 			.TIM_ICFilter = 0x0,
 		};
 		
-		uint16_t tmp;
 		if(rising) {
 			rising = false;
 			rise_value = TIM_GetCapture3(TIM4);
 			
-			tmp = (rise_value & 0xFFFC) | 0x0001;
-			PIOS_COM_SendBuffer(PIOS_COM_DEBUG, (uint8_t *) &tmp, 2);
-
 			/* Switch polarity of input capture */
 			TIM_ICInitStructure.TIM_ICPolarity = TIM_ICPolarity_Falling;
 			TIM_ICInitStructure.TIM_Channel = TIM_Channel_3;
@@ -632,9 +625,6 @@ static void PIOS_TIM_4_irq_handler (void)
 		} else {
 			rising = true;
 			fall_value = TIM_GetCapture3(TIM4);
-
-			tmp = (fall_value & 0xFFFC) | 0x0002;
-			PIOS_COM_SendBuffer(PIOS_COM_DEBUG, (uint8_t *) &tmp, 2);
 
 			/* Switch polarity of input capture */
 			TIM_ICInitStructure.TIM_ICPolarity = TIM_ICPolarity_Rising;
@@ -647,9 +637,6 @@ static void PIOS_TIM_4_irq_handler (void)
 				capture_value = TIM4->ARR + fall_value - rise_value;
 			}
 			
-			capture_value &= 0xFFFC;
-			PIOS_COM_SendBuffer(PIOS_COM_DEBUG, (uint8_t *) &capture_value, 2);
-
 			last_input_update = PIOS_DELAY_GetRaw();
 		}
 		

@@ -33,12 +33,11 @@
 #define PID_SCALE 32178
 struct esc_config config = {
 	.max_dc_change = 0.2 * PIOS_ESC_MAX_DUTYCYCLE,
-	.kp = 0.001 * PID_SCALE,
+	.kp = 0.0001 * PID_SCALE,
 	.ki = 0.00001 * PID_SCALE,
 	.kff = 1.3e-4 * PID_SCALE,
 	.kff2 = -0.05 * PID_SCALE,
 	.ilim = 500,
-	.max_dc_change = 0.01 * PIOS_ESC_MAX_DUTYCYCLE,
 	.min_dc = 0,
 	.max_dc = 0.90 * PIOS_ESC_MAX_DUTYCYCLE,
 	.initial_startup_speed = 100,
@@ -446,7 +445,7 @@ static void go_esc_cl_commutated(uint16_t time)
 {
 	uint32_t timeval = PIOS_DELAY_GetRaw();
 	commutate();
-	esc_fsm_schedule_event(ESC_EVENT_TIMEOUT, esc_data.swap_interval_smoothed << 2);
+	esc_fsm_schedule_event(ESC_EVENT_TIMEOUT, esc_data.swap_interval_smoothed * 1.5);
 //	esc_data.Kv += (esc_data.current_speed / (12 * esc_data.duty_cycle) - esc_data.Kv) * 0.001;
 	commutation_time = PIOS_DELAY_DiffuS(timeval);
 }
