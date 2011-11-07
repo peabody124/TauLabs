@@ -198,6 +198,7 @@ uint32_t stops_requested, stops_from_here;
 void esc_process_static_fsm_rxn() {
 
 	static uint32_t zero_time;
+	static uint32_t stop_time;
 
 	switch(esc_data.state) {
 		case ESC_STATE_FSM_FAULT:
@@ -257,10 +258,12 @@ void esc_process_static_fsm_rxn() {
 			}
 			last_timer = cur_timer;
 
-			if(esc_data.speed_setpoint == 0) {
+			if(esc_data.speed_setpoint == 0 && PIOS_DELAY_DiffuS(stop_time) > 100000) {
 				stops_requested++;
 				esc_fsm_inject_event(ESC_EVENT_STOP,0);
-			}
+			} else if (esc_data.speed_setpoint > 0)
+				stop_time = PIOS_DELAY_GetRaw();
+	
 		}
 			break;
 

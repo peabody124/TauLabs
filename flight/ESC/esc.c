@@ -31,7 +31,7 @@
 #include "fifo_buffer.h"
 #include <pios_stm32.h>
 
-#define CURRENT_LIMIT 2600
+#define CURRENT_LIMIT 4600
 
 //TODO: Check the ADC buffer pointer and make sure it isn't dropping swaps
 //TODO: Check the time commutation is being scheduled, make sure it's the future
@@ -117,18 +117,19 @@ int main()
 	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
 	NVIC_Init(&NVIC_InitStructure);
 
-	// This pull up all the ADC voltages so the BEMF when at -0.7V
-	// is still positive
-	PIOS_GPIO_Enable(0);
-	PIOS_GPIO_Off(0);
-
 	PIOS_LED_Off(LED_ERR);
 	PIOS_LED_On(LED_GO);
 	PIOS_LED_On(LED_MSG);
 
+	PIOS_ESC_Off();
+	PIOS_WDG_RegisterFlag(1);
+	for(int i = 0; i < 250; i++) {
+		PIOS_DELAY_WaitmS(1);
+		PIOS_WDG_UpdateFlag(1);
+	}
+	
 	test_esc();
 
-	PIOS_WDG_RegisterFlag(1);
 	
 	esc_data = esc_fsm_init();
 	esc_data->speed_setpoint = 0;
@@ -488,21 +489,36 @@ void panic(int diagnostic_code)
 		for(int i=0; i<diagnostic_code; i++)
 		{
 			PIOS_LED_Toggle(LED_ERR);
-			PIOS_DELAY_WaitmS(250);
+			for(int i = 0 ; i < 250; i++) {
+				PIOS_DELAY_WaitmS(1);
+				PIOS_WDG_UpdateFlag(1);
+			}
+
 			PIOS_LED_Toggle(LED_ERR);
-			PIOS_DELAY_WaitmS(250);
+			for(int i = 0 ; i < 250; i++) {
+				PIOS_DELAY_WaitmS(1);
+				PIOS_WDG_UpdateFlag(1);
+			}
+
 		}
 		PIOS_DELAY_WaitmS(1000);
 	}
 }
 
 //TODO: Abstract out constants.  Need to know battery voltage too
+//TODO: Other things to test for 
+//      - impedance from motor(?)
+//      - difference between high voltages
 int32_t voltages[6][3];
 void test_esc() {
 
 
 	PIOS_ESC_Off();
-	PIOS_DELAY_WaitmS(150);
+	for(int i = 0; i < 150; i++) {
+		PIOS_WDG_UpdateFlag(1);
+		PIOS_DELAY_WaitmS(1);
+	}
+
 	zero_current = PIOS_ADC_PinGet(0);
 
 	PIOS_ESC_Arm();
@@ -517,6 +533,7 @@ void test_esc() {
 	PIOS_DELAY_WaituS(250);
 	low_voltages[2] = PIOS_ADC_PinGet(3);
 	avg_low_voltage = low_voltages[0] + low_voltages[1] + low_voltages[2];
+	PIOS_WDG_UpdateFlag(1);
 
 	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 2);
 	PIOS_ESC_TestGate(ESC_A_LOW);
@@ -526,6 +543,7 @@ void test_esc() {
 	voltages[1][0] = PIOS_ADC_PinGet(1);
 	voltages[1][1] = PIOS_ADC_PinGet(2);
 	voltages[1][2] = PIOS_ADC_PinGet(3);
+	PIOS_WDG_UpdateFlag(1);
 
 	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 2);
 	PIOS_ESC_TestGate(ESC_A_HIGH);
@@ -535,6 +553,7 @@ void test_esc() {
 	voltages[0][0] = PIOS_ADC_PinGet(1);
 	voltages[0][1] = PIOS_ADC_PinGet(2);
 	voltages[0][2] = PIOS_ADC_PinGet(3);
+	PIOS_WDG_UpdateFlag(1);
 
 	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 2);
 	PIOS_ESC_TestGate(ESC_B_LOW);
@@ -544,6 +563,7 @@ void test_esc() {
 	voltages[3][0] = PIOS_ADC_PinGet(1);
 	voltages[3][1] = PIOS_ADC_PinGet(2);
 	voltages[3][2] = PIOS_ADC_PinGet(3);
+	PIOS_WDG_UpdateFlag(1);
 
 	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 2);
 	PIOS_ESC_TestGate(ESC_B_HIGH);
@@ -553,6 +573,7 @@ void test_esc() {
 	voltages[2][0] = PIOS_ADC_PinGet(1);
 	voltages[2][1] = PIOS_ADC_PinGet(2);
 	voltages[2][2] = PIOS_ADC_PinGet(3);
+	PIOS_WDG_UpdateFlag(1);
 
 	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 2);
 	PIOS_ESC_TestGate(ESC_C_LOW);
@@ -562,6 +583,7 @@ void test_esc() {
 	voltages[5][0] = PIOS_ADC_PinGet(1);
 	voltages[5][1] = PIOS_ADC_PinGet(2);
 	voltages[5][2] = PIOS_ADC_PinGet(3);
+	PIOS_WDG_UpdateFlag(1);
 
 	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 2);
 	PIOS_ESC_TestGate(ESC_C_HIGH);
@@ -571,6 +593,7 @@ void test_esc() {
 	voltages[4][0] = PIOS_ADC_PinGet(1);
 	voltages[4][1] = PIOS_ADC_PinGet(2);
 	voltages[4][2] = PIOS_ADC_PinGet(3);
+	PIOS_WDG_UpdateFlag(1);
 
 	PIOS_ESC_Off();
 	// If the particular phase isn't moving fet is dead
@@ -643,13 +666,13 @@ static void PIOS_TIM_4_irq_handler (void)
 				capture_value = TIM4->ARR + fall_value - rise_value;
 			}
 			
-			last_input_update = PIOS_DELAY_GetRaw();
 		}
 		
 		
 		if(capture_value < 900 || capture_value > 2200)
 			capture_value = 0;
 		else {
+			last_input_update = PIOS_DELAY_GetRaw();
 			esc_data->speed_setpoint = (capture_value < 1050) ? 0 : 400 + (capture_value - 1050) * 7;
 		}
 	} 
