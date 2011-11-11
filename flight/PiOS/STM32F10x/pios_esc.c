@@ -486,5 +486,32 @@ void PIOS_ESC_TestGate(enum pios_esc_phase phase)
 	PIOS_ESC_UpdateOutputs();	
 }
 
+/**
+ * @brief Set A and C low and B high.  Warning - uses 100% duty cycle
+ */
+void PIOS_ESC_BeepOn()
+{
+	pios_esc_dev.phase_a_minus = ESC_GATE_MODE_ON;
+	pios_esc_dev.phase_a_plus = ESC_GATE_MODE_OFF;
+	pios_esc_dev.phase_b_minus = ESC_GATE_MODE_OFF;
+	pios_esc_dev.phase_b_plus = ESC_GATE_MODE_PWM;
+	pios_esc_dev.phase_c_minus = ESC_GATE_MODE_ON;
+	pios_esc_dev.phase_c_plus = ESC_GATE_MODE_OFF;
+
+	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE >> 3);
+	PIOS_ESC_UpdateOutputs();	
+}
+
+/**
+ * @brief Set A and C low and B off.
+ */
+void PIOS_ESC_BeepOff()
+{
+	pios_esc_dev.phase_a_minus = ESC_GATE_MODE_ON;
+	pios_esc_dev.phase_b_plus = ESC_GATE_MODE_OFF;			
+	pios_esc_dev.phase_c_minus = ESC_GATE_MODE_ON;
+	
+	PIOS_ESC_UpdateOutputs();	
+}
 
 #endif

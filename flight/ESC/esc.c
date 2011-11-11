@@ -27,6 +27,7 @@
 
 /* OpenPilot Includes */
 #include "pios.h"
+#include "esc.h"
 #include "esc_fsm.h"
 #include "fifo_buffer.h"
 #include <pios_stm32.h>
@@ -88,6 +89,39 @@ struct esc_fsm_data * esc_data = 0;
 
 uint32_t offs = 0;
 
+/**
+ * Generate a tone by periodically applying power to one phase while
+ * grounding two others
+ *
+ * @param duration how many ms to generate tone for
+ * @param frequency frequency in hz to generate tone for
+ */
+void tone(uint32_t duration_ms, uint32_t frequency)
+{
+	const uint32_t on_duration_us = 10;
+	const uint32_t period_us = 1e6 / frequency;
+	
+	// Want to be reasonable about duty cycle
+	if(on_duration_us > period_us / 10)
+		return;
+
+	const uint32_t off_duration_us = period_us - on_duration_us;
+	
+	uint32_t start_time = PIOS_DELAY_GetRaw();
+	PIOS_ESC_Arm();
+	while(PIOS_DELAY_DiffuS(start_time) < duration_ms * 1000) {
+		PIOS_ESC_BeepOn();
+		PIOS_DELAY_WaituS(on_duration_us);
+		
+		PIOS_ESC_BeepOff();
+		PIOS_DELAY_WaituS(off_duration_us);
+		
+		PIOS_WDG_UpdateFlag(1);
+	}
+	PIOS_ESC_Off();
+	
+}
+
 int main()
 {
 	esc_data = 0;
@@ -130,6 +164,12 @@ int main()
 	
 	test_esc();
 
+	tone(100, NOTES_A);
+	tone(100, NOTES_B);
+	tone(100, NOTES_C);
+	tone(100, NOTES_D);
+	tone(100, NOTES_E);
+	tone(100, NOTES_F);
 	
 	esc_data = esc_fsm_init();
 	esc_data->speed_setpoint = 0;
