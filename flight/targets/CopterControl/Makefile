@@ -1,47 +1,44 @@
-###############################################################################
-# @file       Makefile
-# @author     The OpenPilot Team, http://www.openpilot.org, Copyright (C) 2009.
-# @author     PhoenixPilot, http://github.com/PhoenixPilot, Copyright (C) 2012
-# @addtogroup 
-# @{
-# @addtogroup 
-# @{
-# @brief Makefile to build firmware for the CopterControl board.
-###############################################################################
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
-# or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
-# for more details.
-#
-# You should have received a copy of the GNU General Public License along
-# with this program; if not, write to the Free Software Foundation, Inc.,
-# 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
-#
+ #####
+ # Project: OpenPilot
+ #
+ #
+ # Makefile for OpenPilot project build PiOS and the AP.
+ #
+ # The OpenPilot Team, http://www.openpilot.org, Copyright (C) 2009.
+ #
+ # 
+ # This program is free software; you can redistribute it and/or modify
+ # it under the terms of the GNU General Public License as published by
+ # the Free Software Foundation; either version 3 of the License, or
+ # (at your option) any later version.
+ #
+ # This program is distributed in the hope that it will be useful, but
+ # WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+ # or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
+ # for more details.
+ #
+ # You should have received a copy of the GNU General Public License along
+ # with this program; if not, write to the Free Software Foundation, Inc.,
+ # 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ #####
 
 WHEREAMI := $(dir $(lastword $(MAKEFILE_LIST)))
-TOP      := $(realpath $(WHEREAMI)/../../../)
+TOP      := $(realpath $(WHEREAMI)/../../)
 include $(TOP)/make/firmware-defs.mk
 include $(TOP)/make/boards/$(BOARD_NAME)/board-info.mk
+
+# Target file name (without extension).
+TARGET := fw_$(BOARD_NAME)
+
+# Directory for output files (lst, obj, dep, elf, sym, map, hex, bin etc.)
+OUTDIR := $(TOP)/build/$(TARGET)
 
 # Set developer code and compile options
 # Set to YES to compile for debugging
 DEBUG ?= NO
 
 # Include objects that are just nice information to show
-STACK_DIAGNOSTICS ?= NO
-MIXERSTATUS_DIAGNOSTICS ?= NO
-RATEDESIRED_DIAGNOSTICS ?= NO
-I2C_WDG_STATS_DIAGNOSTICS ?= NO
-DIAG_TASKS ?= NO
-
-#Or just turn on all the above diagnostics. WARNING: This consumes massive amounts of memory.
-ALL_DIGNOSTICS ?=NO
+DIAGNOSTICS ?= NO
 
 # Set to YES to build a FW version that will erase all flash memory
 ERASE_FLASH ?= NO
@@ -51,7 +48,17 @@ ENABLE_DEBUG_PINS ?= NO
 # Set to Yes to enable the AUX UART which is mapped on the S1 (Tx) and S2 (Rx) servo outputs
 ENABLE_AUX_UART ?= NO
 
-NAVIGATION ?= NO
+# Set to YES when using Code Sourcery toolchain
+CODE_SOURCERY ?= YES
+
+# Remove command is different for Code Sourcery on Windows
+ifeq ($(CODE_SOURCERY), YES)
+REMOVE_CMD = cs-rm
+else
+REMOVE_CMD = rm
+endif
+
+FLASH_TOOL = OPENOCD
 
 # Optional module and driver defaults
 USE_CAMERASTAB ?= YES
@@ -60,9 +67,7 @@ USE_GPS ?= YES
 USE_TXPID ?= YES
 USE_I2C ?= NO
 USE_ALTITUDE ?= NO
-USE_AUTOTUNE ?= YES
 TEST_FAULTS ?= NO
-USE_UAVOMAVLINKBRIDGE ?= YES
 
 # List of optional modules to include
 OPTMODULES =
@@ -88,37 +93,24 @@ endif
 ifeq ($(TEST_FAULTS), YES)
 OPTMODULES += Fault
 endif
-ifeq ($(USE_AUTOTUNE), YES)
-OPTMODULES += Autotune
-endif
-ifeq ($(USE_UAVOMAVLINKBRIDGE), YES)
-OPTMODULES += UAVOMavlinkBridge
-endif
 
 # List of mandatory modules to include
-ifeq ($(NAVIGATION), YES)
-MODULES += State/coptercontrol
-MODULES += PathFollower
-CFLAGS += -DNAVIGATION
-else
-MODULES += Attitude/coptercontrol
-endif
-MODULES += Stabilization Actuator ManualControl FirmwareIAP
-# MODULES += PathFollower/coptercontrol
+MODULES = Attitude Stabilization Actuator ManualControl FirmwareIAP
 # Telemetry must be last to grab the optional modules (why?)
 MODULES += Telemetry
 
 # Paths
 OPSYSTEM = ./System
 OPSYSTEMINC = $(OPSYSTEM)/inc
+OPUAVTALK = ../UAVTalk
 OPUAVTALKINC = $(OPUAVTALK)/inc
+OPUAVOBJ = ../UAVObjects
 OPUAVOBJINC = $(OPUAVOBJ)/inc
 OPTESTS  = ./Tests
+OPMODULEDIR = ../Modules
+FLIGHTLIB = ../Libraries
 FLIGHTLIBINC = $(FLIGHTLIB)/inc
-STATEESTIMATIONLIB = $(FLIGHTLIB)/StateEstimationFilters
-STATEESTIMATIONLIBINC = $(STATEESTIMATIONLIB)/inc
-MATHLIB = $(FLIGHTLIB)/math
-MATHLIBINC = $(FLIGHTLIB)/math
+PIOS = ../PiOS
 PIOSINC = $(PIOS)/inc
 PIOSSTM32F10X = $(PIOS)/STM32F10x
 PIOSCOMMON = $(PIOS)/Common
@@ -134,12 +126,12 @@ STMUSBINCDIR = $(STMUSBDIR)/inc
 CMSISDIR  = $(STMLIBDIR)/CMSIS/Core/CM3
 DOSFSDIR  = $(APPLIBDIR)/dosfs
 MSDDIR  = $(APPLIBDIR)/msd
-RTOSDIR = $(PIOSCOMMON)/Libraries/FreeRTOS
+RTOSDIR = $(APPLIBDIR)/FreeRTOS
 RTOSSRCDIR = $(RTOSDIR)/Source
 RTOSINCDIR = $(RTOSSRCDIR)/include
-RTOSPORTDIR = $(APPLIBDIR)/FreeRTOS/Source
 DOXYGENDIR = ../Doc/Doxygen
-MAVLINKINC  = $(FLIGHTLIB)/mavlink/v1.0/common
+AHRSBOOTLOADER = ../Bootloaders/AHRS/
+AHRSBOOTLOADERINC = $(AHRSBOOTLOADER)/inc
 PYMITE = $(FLIGHTLIB)/PyMite
 PYMITELIB = $(PYMITE)/lib
 PYMITEPLAT = $(PYMITE)/platform/openpilot
@@ -150,6 +142,9 @@ PYMITEINC += $(PYMITEPLAT)
 PYMITEINC += $(OUTDIR)
 FLIGHTPLANLIB = $(OPMODULEDIR)/FlightPlan/lib
 FLIGHTPLANS = $(OPMODULEDIR)/FlightPlan/flightplans
+HWDEFSINC = ../board_hw_defs/$(BOARD_NAME)
+
+OPUAVSYNTHDIR = $(OUTDIR)/../uavobject-synthetics/flight
 
 # List C source files here. (C dependencies are automatically generated.)
 # use file-extension c for "c-only"-files
@@ -162,7 +157,7 @@ SRC += ${foreach MOD, ${MODULES}, ${wildcard ${OPMODULEDIR}/${MOD}/*.c}}
 SRC += ${OPMODULEDIR}/System/systemmod.c
 SRC += $(OPSYSTEM)/coptercontrol.c
 SRC += $(OPSYSTEM)/pios_board.c
-SRC += $(FLIGHTLIB)/alarms.c
+SRC += $(OPSYSTEM)/alarms.c
 SRC += $(OPUAVTALK)/uavtalk.c
 SRC += $(OPUAVOBJ)/uavobjectmanager.c
 SRC += $(OPUAVOBJ)/eventdispatcher.c
@@ -190,8 +185,7 @@ SRC += $(OPUAVSYNTHDIR)/stabilizationsettings.c
 SRC += $(OPUAVSYNTHDIR)/actuatorcommand.c
 SRC += $(OPUAVSYNTHDIR)/actuatordesired.c
 SRC += $(OPUAVSYNTHDIR)/actuatorsettings.c
-SRC += $(OPUAVSYNTHDIR)/accels.c
-SRC += $(OPUAVSYNTHDIR)/gyros.c
+SRC += $(OPUAVSYNTHDIR)/attituderaw.c
 SRC += $(OPUAVSYNTHDIR)/attitudeactual.c
 SRC += $(OPUAVSYNTHDIR)/manualcontrolcommand.c
 SRC += $(OPUAVSYNTHDIR)/i2cstats.c
@@ -203,30 +197,15 @@ SRC += $(OPUAVSYNTHDIR)/attitudesettings.c
 SRC += $(OPUAVSYNTHDIR)/camerastabsettings.c
 SRC += $(OPUAVSYNTHDIR)/cameradesired.c
 SRC += $(OPUAVSYNTHDIR)/gpsposition.c
-SRC += $(OPUAVSYNTHDIR)/gpsvelocity.c
-SRC += $(OPUAVSYNTHDIR)/hwcoptercontrol.c
-SRC += $(OPUAVSYNTHDIR)/modulesettings.c
+SRC += $(OPUAVSYNTHDIR)/hwsettings.c
 SRC += $(OPUAVSYNTHDIR)/gcsreceiver.c
 SRC += $(OPUAVSYNTHDIR)/receiveractivity.c
-SRC += $(OPUAVSYNTHDIR)/relaytuningsettings.c
-SRC += $(OPUAVSYNTHDIR)/relaytuning.c
 SRC += $(OPUAVSYNTHDIR)/taskinfo.c
 SRC += $(OPUAVSYNTHDIR)/mixerstatus.c
 SRC += $(OPUAVSYNTHDIR)/ratedesired.c
 SRC += $(OPUAVSYNTHDIR)/baroaltitude.c
 SRC += $(OPUAVSYNTHDIR)/txpidsettings.c
-SRC += $(OPUAVSYNTHDIR)/fixedwingairspeeds.c
-SRC += $(OPUAVSYNTHDIR)/fixedwingpathfollowerstatus.c
-SRC += $(OPUAVSYNTHDIR)/fixedwingpathfollowersettingscc.c
-SRC += $(OPUAVSYNTHDIR)/pathstatus.c
-SRC += $(OPUAVSYNTHDIR)/pathdesired.c
-SRC += $(OPUAVSYNTHDIR)/homelocation.c
-SRC += $(OPUAVSYNTHDIR)/positionactual.c
-SRC += $(OPUAVSYNTHDIR)/velocityactual.c
-SRC += $(OPUAVSYNTHDIR)/airspeedactual.c
-SRC += $(OPUAVSYNTHDIR)/inertialsensorsettings.c
-SRC += $(OPUAVSYNTHDIR)/flightbatterystate.c
-SRC += $(OPUAVSYNTHDIR)/flightbatterysettings.c
+
 endif
 
 ## PIOS Hardware (STM32F10x)
@@ -242,53 +221,43 @@ SRC += $(PIOSSTM32F10X)/pios_spi.c
 SRC += $(PIOSSTM32F10X)/pios_ppm.c
 SRC += $(PIOSSTM32F10X)/pios_pwm.c
 SRC += $(PIOSSTM32F10X)/pios_dsm.c
+SRC += $(PIOSSTM32F10X)/pios_sbus.c
 SRC += $(PIOSSTM32F10X)/pios_debug.c
 SRC += $(PIOSSTM32F10X)/pios_gpio.c
 SRC += $(PIOSSTM32F10X)/pios_exti.c
 SRC += $(PIOSSTM32F10X)/pios_rtc.c
 SRC += $(PIOSSTM32F10X)/pios_wdg.c
-SRC += $(PIOSSTM32F10X)/pios_iap.c
 SRC += $(PIOSSTM32F10X)/pios_tim.c
-SRC += $(PIOSSTM32F10X)/pios_bl_helper.c
+
 
 # PIOS USB related files (separated to make code maintenance more easy)
 SRC += $(PIOSSTM32F10X)/pios_usb.c
 SRC += $(PIOSSTM32F10X)/pios_usbhook.c
 SRC += $(PIOSSTM32F10X)/pios_usb_hid.c
-SRC += $(PIOSSTM32F10X)/pios_usb_rctx.c
 SRC += $(PIOSSTM32F10X)/pios_usb_cdc.c
 SRC += $(PIOSSTM32F10X)/pios_usb_hid_istr.c
 SRC += $(PIOSSTM32F10X)/pios_usb_hid_pwr.c
 SRC += $(OPSYSTEM)/pios_usb_board_data.c
 SRC += $(PIOSCOMMON)/pios_usb_desc_hid_cdc.c
 SRC += $(PIOSCOMMON)/pios_usb_desc_hid_only.c
-SRC += $(PIOSCOMMON)/pios_usb_util.c
 
 ## PIOS Hardware (Common)
 SRC += $(PIOSCOMMON)/pios_crc.c
-SRC += $(PIOSCOMMON)/pios_flashfs_logfs.c
-SRC += $(PIOSCOMMON)/pios_flash_jedec.c
+SRC += $(PIOSCOMMON)/pios_flashfs_objlist.c
+SRC += $(PIOSCOMMON)/pios_flash_w25x.c
 SRC += $(PIOSCOMMON)/pios_adxl345.c
-SRC += $(PIOSCOMMON)/pios_mpu6000.c
 SRC += $(PIOSCOMMON)/pios_com.c
+SRC += $(PIOSCOMMON)/pios_i2c_esc.c
+SRC += $(PIOSCOMMON)/pios_bmp085.c
+SRC += $(PIOSCOMMON)/pios_iap.c
+SRC += $(PIOSCOMMON)/pios_bl_helper.c
 SRC += $(PIOSCOMMON)/pios_rcvr.c
-SRC += $(PIOSCOMMON)/pios_sbus.c
-SRC += $(PIOSCOMMON)/pios_sensors.c
 SRC += $(PIOSCOMMON)/pios_gcsrcvr.c
 SRC += $(PIOSCOMMON)/printf-stdarg.c
 ## Libraries for flight calculations
 SRC += $(FLIGHTLIB)/fifo_buffer.c
 SRC += $(FLIGHTLIB)/CoordinateConversions.c
 SRC += $(FLIGHTLIB)/taskmonitor.c
-SRC += $(FLIGHTLIB)/sanitycheck.c
-ifeq ($(NAVIGATION), YES)
-SRC += $(STATEESTIMATIONLIB)/ccc.c
-SRC += $(STATEESTIMATIONLIB)/premerlani_gps.c
-SRC += $(STATEESTIMATIONLIB)/premerlani_dcm.c
-endif
-SRC += $(MATHLIB)/sin_lookup.c
-SRC += $(MATHLIB)/misc_math.c
-SRC += $(MATHLIB)/pid.c
 
 ## CMSIS for STM32
 SRC += $(CMSISDIR)/core_cm3.c
@@ -328,8 +297,8 @@ SRC += $(RTOSSRCDIR)/queue.c
 SRC += $(RTOSSRCDIR)/tasks.c
 
 ## RTOS Portable
-SRC += $(RTOSPORTDIR)/portable/GCC/ARM_CM3/port.c
-SRC += $(RTOSPORTDIR)/portable/MemMang/heap_1.c
+SRC += $(RTOSSRCDIR)/portable/GCC/ARM_CM3/port.c
+SRC += $(RTOSSRCDIR)/portable/MemMang/heap_1.c
 
 ## Dosfs file system
 #SRC += $(DOSFSDIR)/dosfs.c
@@ -380,7 +349,6 @@ ASRCARM =
 # List any extra directories to look for include files here.
 #    Each directory must be seperated by a space.
 EXTRAINCDIRS  =  $(OPSYSTEM)
-EXTRAINCDIRS  += $(SHAREDAPIDIR)
 EXTRAINCDIRS  += $(OPSYSTEMINC)
 EXTRAINCDIRS  += $(OPUAVTALK)
 EXTRAINCDIRS  += $(OPUAVTALKINC)
@@ -390,10 +358,7 @@ EXTRAINCDIRS  += $(OPUAVSYNTHDIR)
 EXTRAINCDIRS  += $(PIOS)
 EXTRAINCDIRS  += $(PIOSINC)
 EXTRAINCDIRS  += $(FLIGHTLIBINC)
-EXTRAINCDIRS  += $(STATEESTIMATIONLIBINC)
-EXTRAINCDIRS  += $(MATHLIBINC)
 EXTRAINCDIRS  += $(PIOSSTM32F10X)
-EXTRAINCDIRS  += $(PIOSSTM32F10X)/inc
 EXTRAINCDIRS  += $(PIOSCOMMON)
 EXTRAINCDIRS  += $(PIOSBOARDS)
 EXTRAINCDIRS  += $(STMSPDINCDIR)
@@ -403,11 +368,10 @@ EXTRAINCDIRS  += $(DOSFSDIR)
 EXTRAINCDIRS  += $(MSDDIR)
 EXTRAINCDIRS  += $(RTOSINCDIR)
 EXTRAINCDIRS  += $(APPLIBDIR)
-EXTRAINCDIRS  += $(RTOSPORTDIR)/portable/GCC/ARM_CM3
+EXTRAINCDIRS  += $(RTOSSRCDIR)/portable/GCC/ARM_CM3
 EXTRAINCDIRS  += $(AHRSBOOTLOADERINC)
 EXTRAINCDIRS  += $(PYMITEINC)
 EXTRAINCDIRS  += $(HWDEFSINC)
-EXTRAINCDIRS  += $(MAVLINKINC)
 
 EXTRAINCDIRS += ${foreach MOD, ${OPTMODULES} ${MODULES}, ${OPMODULEDIR}/${MOD}/inc} ${OPMODULEDIR}/System/inc
 
@@ -457,8 +421,8 @@ CDEFS += -DUSE_$(BOARD)
 ifeq ($(ENABLE_DEBUG_PINS), YES)
 CDEFS += -DPIOS_ENABLE_DEBUG_PINS
 endif
-ifeq ($(ENABLE_DEBUG_CONSOLE), YES)
-CDEFS += -DPIOS_INCLUDE_DEBUG_CONSOLE
+ifeq ($(ENABLE_AUX_UART), YES)
+CDEFS += -DPIOS_ENABLE_AUX_UART
 endif
 ifeq ($(ERASE_FLASH), YES)
 CDEFS += -DERASE_FLASH
@@ -472,11 +436,8 @@ ifeq ($(USE_I2C), YES)
 CDEFS += -DUSE_I2C
 endif
 
-# Declare all non-optional modules as built-in to force inclusion, strip off any appended varieties of module
-get_mod_name = $(shell echo $(1) | sed "s/\/[^\/]*$///")
-BUILTIN_DEFS := ${foreach MOD, ${MODULES}, -DMODULE_$(call get_mod_name, $(MOD))_BUILTIN }
-CDEFS += ${BUILTIN_DEFS}
-
+# Declare all non-optional modules as built-in to force inclusion
+CDEFS += ${foreach MOD, ${MODULES}, -DMODULE_$(MOD)_BUILTIN }
 
 # Place project-specific -D and/or -U options for
 # Assembler with preprocessor here.
@@ -507,25 +468,13 @@ ifeq ($(DEBUG),YES)
 CFLAGS += -DDEBUG
 endif
 
-#The following Makefile command, ifneq (, $(filter) $(A), $(B) $(C)) is equivalent 
-# to the pseudocode `if(A== B || A==C)`
-ifneq (,$(filter YES,$(STACK_DIAGNOSTICS) $(ALL_DIGNOSTICS)))
-CFLAGS += -DSTACK_DIAGNOSTICS
+CFLAGS += -DSYSCLK_FREQ_72MHz=72000000
+
+ifeq ($(DIAGNOSTICS),YES)
+CFLAGS += -DDIAGNOSTICS
 endif
 
-ifneq (,$(filter YES,$(MIXERSTATUS_DIAGNOSTICS) $(ALL_DIGNOSTICS)))
-CFLAGS += -DMIXERSTATUS_DIAGNOSTICS
-endif
-
-ifneq (,$(filter YES,$(RATEDESIRED_DIAGNOSTICS) $(ALL_DIGNOSTICS)))
-CFLAGS += -DRATEDESIRED_DIAGNOSTICS
-endif
-
-ifneq (,$(filter YES,$(I2C_WDG_STATS_DIAGNOSTICS) $(ALL_DIGNOSTICS)))
-CFLAGS += -DI2C_WDG_STATS_DIAGNOSTICS
-endif
-
-ifneq (,$(filter YES,$(DIAG_TASKS) $(ALL_DIGNOSTICS)))
+ifeq ($(DIAG_TASKS),YES)
 CFLAGS += -DDIAG_TASKS
 endif
 
@@ -544,10 +493,12 @@ CFLAGS += $(patsubst %,-I%,$(EXTRAINCDIRS)) -I.
 
 CFLAGS += -mapcs-frame
 CFLAGS += -fomit-frame-pointer
+ifeq ($(CODE_SOURCERY), YES)
+CFLAGS += -fpromote-loop-indices
+endif
 
 CFLAGS += -Wall
 CFLAGS += -Werror
-CFLAGS += -ffunction-sections -fdata-sections
 CFLAGS += -Wa,-adhlns=$(addprefix $(OUTDIR)/, $(notdir $(addsuffix .lst, $(basename $<))))
 # Compiler flags to generate dependency files:
 CFLAGS += -MD -MP -MF $(OUTDIR)/dep/$(@F).d
@@ -576,15 +527,13 @@ LDFLAGS += -lc
 LDFLAGS += $(patsubst %,-l%,$(EXTRA_LIBS))
 LDFLAGS += $(MATH_LIB)
 LDFLAGS += -lc -lgcc
-LDFLAGS += -Wl,--warn-common
-LDFLAGS += -Wl,--fatal-warnings
 
 # Set linker-script name depending on selected submodel name
 LDFLAGS += -T$(LINKERSCRIPTPATH)/link_$(BOARD)_memory.ld
 LDFLAGS += -T$(LINKERSCRIPTPATH)/link_$(BOARD)_sections.ld
 
 # Define programs and commands.
-REMOVE  = rm -f
+REMOVE  = $(REMOVE_CMD) -f
 PYTHON  = python
 
 # List of all source files.
@@ -653,19 +602,19 @@ $(eval $(call PARTIAL_COMPILE_ARM_TEMPLATE, SRCARM))
 
 $(OUTDIR)/$(TARGET).bin.o: $(OUTDIR)/$(TARGET).bin
 
-$(eval $(call TLFW_TEMPLATE,$(OUTDIR)/$(TARGET).bin,$(BOARD_TYPE),$(BOARD_REVISION)))
+$(eval $(call OPFW_TEMPLATE,$(OUTDIR)/$(TARGET).bin,$(BOARD_TYPE),$(BOARD_REVISION)))
 
 # Add jtag targets (program and wipe)
-$(eval $(call JTAG_TEMPLATE,$(OUTDIR)/$(TARGET).bin,$(FW_BANK_BASE),$(FW_BANK_SIZE),$(OPENOCD_JTAG_CONFIG),$(OPENOCD_CONFIG)))
+$(eval $(call JTAG_TEMPLATE,$(OUTDIR)/$(TARGET).bin,$(FW_BANK_BASE),$(FW_BANK_SIZE),$(OPENOCD_CONFIG)))
 
-.PHONY: elf lss sym hex bin bino tlfw
+.PHONY: elf lss sym hex bin bino opfw
 elf: $(OUTDIR)/$(TARGET).elf
 lss: $(OUTDIR)/$(TARGET).lss
 sym: $(OUTDIR)/$(TARGET).sym
 hex: $(OUTDIR)/$(TARGET).hex
 bin: $(OUTDIR)/$(TARGET).bin
 bino: $(OUTDIR)/$(TARGET).bin.o
-tlfw: $(OUTDIR)/$(TARGET).tlfw
+opfw: $(OUTDIR)/$(TARGET).opfw
 
 # Display sizes of sections.
 $(eval $(call SIZE_TEMPLATE, $(OUTDIR)/$(TARGET).elf))
@@ -675,11 +624,11 @@ docs:
 	doxygen  $(DOXYGENDIR)/doxygen.cfg
 
 # Install: install binary file with prefix/suffix into install directory
-install: $(OUTDIR)/$(TARGET).tlfw
+install: $(OUTDIR)/$(TARGET).opfw
 ifneq ($(INSTALL_DIR),)
 	@echo $(MSG_INSTALLING) $(call toprel, $<)
 	$(V1) mkdir -p $(INSTALL_DIR)
-	$(V1) $(INSTALL) $< $(INSTALL_DIR)/$(INSTALL_PFX)$(TARGET)$(INSTALL_SFX).tlfw
+	$(V1) $(INSTALL) $< $(INSTALL_DIR)/$(INSTALL_PFX)$(TARGET)$(INSTALL_SFX).opfw
 else
 	$(error INSTALL_DIR must be specified for $@)
 endif

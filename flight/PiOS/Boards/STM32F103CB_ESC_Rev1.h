@@ -191,7 +191,7 @@ TIM16 |  PWM in   |           |           |
 //-------------------------
 // System Settings
 //-------------------------
-#define PIOS_MASTER_CLOCK			72000000
+#define PIOS_MASTER_CLOCK			64000000
 #define PIOS_PERIPHERAL_CLOCK			(PIOS_MASTER_CLOCK / 2)
 #if defined(USE_BOOTLOADER)
 #define PIOS_NVIC_VECTTAB_FLASH			(START_OF_USER_CODE)

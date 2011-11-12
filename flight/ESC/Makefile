@@ -258,6 +258,8 @@ CSTANDARD = -std=gnu99
 
 CFLAGS += -g$(DEBUGF)
 
+CFLAGS += -DSYSCLK_FREQ_72MHz=72000000
+
 CFLAGS += -ffast-math
 
 CFLAGS += -mcpu=$(MCU)

@@ -74,7 +74,7 @@
 /* #define SYSCLK_FREQ_36MHz  36000000 */
 /* #define SYSCLK_FREQ_48MHz  48000000 */
 /* #define SYSCLK_FREQ_56MHz  56000000 */
-#define SYSCLK_FREQ_72MHz  72000000
+//#define SYSCLK_FREQ_72MHz  72000000
 
 /*!< Uncomment the following line if you need to use external SRAM mounted
      on STM3210E-EVAL board (STM32 High density devices) as data memory  */ 
@@ -167,6 +167,8 @@ static void SetSysClock(void);
   static void SetSysClockTo56(void);  
 #elif defined SYSCLK_FREQ_72MHz
   static void SetSysClockTo72(void);
+#else
+  static void SetHsiClock(void);
 #endif
 
 /**
@@ -245,6 +247,8 @@ static void SetSysClock(void)
   SetSysClockTo56();  
 #elif defined SYSCLK_FREQ_72MHz
   SetSysClockTo72();
+#else
+  SetHsiClock();
 #endif
  
  /* If none of the define above is enabled, the HSI is used as System clock
@@ -913,6 +917,83 @@ static void SetSysClockTo72(void)
     {
     }
   }
+}
+
+#else
+
+/**
+ * @brief  Sets System clock frequency to 72MHz and configure HCLK, PCLK2 
+ *          and PCLK1 prescalers. 
+ * @note   This function should be used only after reset.
+ * @param  None
+ * @retval None
+ */
+static void SetHsiClock(void)
+{
+	/* SYSCLK, HCLK, PCLK2 and PCLK1 configuration ---------------------------*/    
+	
+	/* Enable Prefetch Buffer */
+	FLASH->ACR |= FLASH_ACR_PRFTBE;
+	
+	/* Flash 2 wait state */
+	FLASH->ACR &= (uint32_t)((uint32_t)~FLASH_ACR_LATENCY);
+	FLASH->ACR |= (uint32_t)FLASH_ACR_LATENCY_2;    
+	
+	
+	/* HCLK = SYSCLK */
+	RCC->CFGR |= (uint32_t)RCC_CFGR_HPRE_DIV1;
+	
+	/* PCLK2 = HCLK */
+	RCC->CFGR |= (uint32_t)RCC_CFGR_PPRE2_DIV1;
+	
+	/* PCLK1 = HCLK/2 */
+	RCC->CFGR |= (uint32_t)RCC_CFGR_PPRE1_DIV2;
+	
+#ifdef STM32F10X_CL
+	/* Configure PLLs ------------------------------------------------------*/
+	/* PLL2 configuration: PLL2CLK = (HSE / 5) * 8 = 40 MHz */
+	/* PREDIV1 configuration: PREDIV1CLK = PLL2 / 5 = 8 MHz */
+	
+	RCC->CFGR2 &= (uint32_t)~(RCC_CFGR2_PREDIV2 | RCC_CFGR2_PLL2MUL |
+							  RCC_CFGR2_PREDIV1 | RCC_CFGR2_PREDIV1SRC);
+	RCC->CFGR2 |= (uint32_t)(RCC_CFGR2_PREDIV2_DIV5 | RCC_CFGR2_PLL2MUL8 |
+							 RCC_CFGR2_PREDIV1SRC_PLL2 | RCC_CFGR2_PREDIV1_DIV5);
+	
+	/* Enable PLL2 */
+	RCC->CR |= RCC_CR_PLL2ON;
+	/* Wait till PLL2 is ready */
+	while((RCC->CR & RCC_CR_PLL2RDY) == 0)
+	{
+	}
+	
+	
+	/* PLL configuration: PLLCLK = PREDIV1 * 9 = 72 MHz */ 
+	RCC->CFGR &= (uint32_t)~(RCC_CFGR_PLLXTPRE | RCC_CFGR_PLLSRC | RCC_CFGR_PLLMULL);
+	RCC->CFGR |= (uint32_t)(RCC_CFGR_PLLXTPRE_PREDIV1 | RCC_CFGR_PLLSRC_PREDIV1 | 
+							RCC_CFGR_PLLMULL9); 
+#else    
+	/*  PLL configuration: PLLCLK = HSE * 9 = 72 MHz */
+	RCC->CFGR &= (uint32_t)((uint32_t)~(RCC_CFGR_PLLSRC | RCC_CFGR_PLLXTPRE |
+										RCC_CFGR_PLLMULL));
+	RCC->CFGR |= (uint32_t)(RCC_CFGR_PLLSRC_HSI_Div2 | RCC_CFGR_PLLMULL16);
+#endif /* STM32F10X_CL */
+	
+	/* Enable PLL */
+	RCC->CR |= RCC_CR_PLLON;
+	
+	/* Wait till PLL is ready */
+	while((RCC->CR & RCC_CR_PLLRDY) == 0)
+	{
+	}
+	
+	/* Select PLL as system clock source */
+	RCC->CFGR &= (uint32_t)((uint32_t)~(RCC_CFGR_SW));
+	RCC->CFGR |= (uint32_t)RCC_CFGR_SW_PLL;    
+	
+	/* Wait till PLL is used as system clock source */
+	while ((RCC->CFGR & (uint32_t)RCC_CFGR_SWS) != (uint32_t)0x08)
+	{
+	}
 }
 #endif
 

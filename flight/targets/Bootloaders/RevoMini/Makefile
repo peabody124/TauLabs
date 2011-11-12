@@ -1,8 +1,8 @@
  #####
- # Project: OpenPilot INS_BOOTLOADER
+ # Project: OpenPilot AHRS_BOOTLOADER
  #    
  #  
- # Makefile for OpenPilot INS project
+ # Makefile for OpenPilot AHRS_BOOTLOADER project
  #
  # The OpenPilot Team, http://www.openpilot.org, Copyright (C) 2009.
  #    
@@ -23,47 +23,100 @@
  #####
 
 WHEREAMI := $(dir $(lastword $(MAKEFILE_LIST)))
-TOP      := $(realpath $(WHEREAMI)/../../../../)
+TOP      := $(realpath $(WHEREAMI)/../../../)
 include $(TOP)/make/firmware-defs.mk
 include $(TOP)/make/boards/$(BOARD_NAME)/board-info.mk
+
+# Target file name (without extension).
+TARGET := bl_$(BOARD_NAME)
+
+# Directory for output files (lst, obj, dep, elf, sym, map, hex, bin etc.)
+OUTDIR := $(TOP)/build/$(TARGET)
 
 # Set developer code and compile options
 # Set to YES for debugging
 DEBUG ?= NO
 
+# Set to YES when using Code Sourcery toolchain
+CODE_SOURCERY ?= YES
+
+ifeq ($(CODE_SOURCERY), YES)
+REMOVE_CMD = cs-rm
+else
+REMOVE_CMD = rm
+endif
+
+FLASH_TOOL = OPENOCD
+
 # Paths
-REVO_BL = $(WHEREAMI)
-REVO_BLINC = $(REVO_BL)/inc
+AHRS_BL = ./
+AHRS_BLINC = $(AHRS_BL)/inc
+PIOS = ../../PiOS
 PIOSINC = $(PIOS)/inc
-FLIGHTLIBINC = $(FLIGHTLIB)/inc
-PIOSSTM32F4XX = $(PIOS)/STM32F4xx
+FLIGHTLIB = ../Libraries
+FLIGHTLIBINC = ../Libraries/inc
+PIOSSTM32F10X = $(PIOS)/STM32F10x
 PIOSCOMMON = $(PIOS)/Common
 PIOSBOARDS = $(PIOS)/Boards
-PIOSCOMMONLIB = $(PIOSCOMMON)/Libraries
-APPLIBDIR = $(PIOSSTM32F4XX)/Libraries
+APPLIBDIR = $(PIOSSTM32F10X)/Libraries
 STMLIBDIR = $(APPLIBDIR)
-STMSPDDIR = $(STMLIBDIR)/STM32F4xx_StdPeriph_Driver
+STMSPDDIR = $(STMLIBDIR)/STM32F10x_StdPeriph_Driver
+STMUSBDIR = $(STMLIBDIR)/STM32_USB-FS-Device_Driver
 STMSPDSRCDIR = $(STMSPDDIR)/src
 STMSPDINCDIR = $(STMSPDDIR)/inc
+CMSISDIR  = $(STMLIBDIR)/CMSIS/Core/CM3
+HWDEFSINC = ../../board_hw_defs/$(BOARD_NAME)
 
 # List C source files here. (C dependencies are automatically generated.)
 # use file-extension c for "c-only"-files
 
 ## BOOTLOADER:
-SRC += main.c
+SRC = main.c
 SRC += pios_board.c
-SRC += pios_usb_board_data.c
-SRC += op_dfu.c
+SRC += bl_fsm.c
+#SRC += insgps.c
+#SRC += $(FLIGHTLIB)/CoordinateConversions.c
 
-## PIOS Hardware (STM32F4xx)
-include $(PIOS)/STM32F4xx/library.mk
+## PIOS Hardware (STM32F10x)
+SRC += $(PIOSSTM32F10X)/pios_sys.c
+SRC += $(PIOSSTM32F10X)/pios_led.c
+SRC += $(PIOSSTM32F10X)/pios_delay.c
+SRC += $(PIOSSTM32F10X)/pios_usart.c
+SRC += $(PIOSSTM32F10X)/pios_irq.c
+#SRC += $(PIOSSTM32F10X)/pios_i2c.c
+SRC += $(PIOSSTM32F10X)/pios_gpio.c
+SRC += $(PIOSSTM32F10X)/pios_spi.c
 
-# PIOS Hardware (Common)
+## PIOS Hardware (Common)
+#SRC += $(PIOSCOMMON)/pios_com.c
+#SRC += $(PIOSCOMMON)/pios_hmc5843.c
 SRC += $(PIOSCOMMON)/pios_board_info.c
-SRC += $(PIOSCOMMON)/pios_com_msg.c
+SRC += $(PIOSCOMMON)/pios_opahrs_proto.c
 SRC += $(PIOSCOMMON)/printf-stdarg.c
-SRC += $(PIOSCOMMON)/pios_usb_desc_hid_only.c
-SRC += $(PIOSCOMMON)/pios_usb_util.c
+SRC += $(PIOSCOMMON)/pios_bl_helper.c
+SRC += $(PIOSCOMMON)/pios_iap.c
+
+## CMSIS for STM32
+SRC += $(CMSISDIR)/core_cm3.c
+SRC += $(CMSISDIR)/system_stm32f10x.c
+
+## Used parts of the STM-Library
+SRC += $(STMSPDSRCDIR)/stm32f10x_adc.c
+SRC += $(STMSPDSRCDIR)/stm32f10x_bkp.c
+SRC += $(STMSPDSRCDIR)/stm32f10x_crc.c
+SRC += $(STMSPDSRCDIR)/stm32f10x_dac.c
+SRC += $(STMSPDSRCDIR)/stm32f10x_dma.c
+SRC += $(STMSPDSRCDIR)/stm32f10x_exti.c
+SRC += $(STMSPDSRCDIR)/stm32f10x_flash.c
+SRC += $(STMSPDSRCDIR)/stm32f10x_gpio.c
+SRC += $(STMSPDSRCDIR)/stm32f10x_i2c.c
+SRC += $(STMSPDSRCDIR)/stm32f10x_pwr.c
+SRC += $(STMSPDSRCDIR)/stm32f10x_rcc.c
+SRC += $(STMSPDSRCDIR)/stm32f10x_rtc.c
+SRC += $(STMSPDSRCDIR)/stm32f10x_spi.c
+SRC += $(STMSPDSRCDIR)/stm32f10x_tim.c
+SRC += $(STMSPDSRCDIR)/stm32f10x_usart.c
+SRC += $(STMSPDSRCDIR)/misc.c
 
 # List C source files here which must be compiled in ARM-Mode (no -mthumb).
 # use file-extension c for "c-only"-files
@@ -79,17 +132,29 @@ CPPSRC =
 #CPPSRCARM = $(TARGET).cpp
 CPPSRCARM = 
 
+# List Assembler source files here.
+# Make them always end in a capital .S. Files ending in a lowercase .s
+# will not be considered source files but generated files (assembler
+# output from the compiler), and will be deleted upon "make clean"!
+# Even though the DOS/Win* filesystem matches both .s and .S the same,
+# it will preserve the spelling of the filenames, and gcc itself does
+# care about how the name is spelled on its command-line.
+ASRC = $(PIOSSTM32F10X)/startup_stm32f10x_$(MODEL)$(MODEL_SUFFIX).S
+
+# List Assembler source files here which must be assembled in ARM-Mode..
+ASRCARM = 
+
 # List any extra directories to look for include files here.
 #    Each directory must be seperated by a space.
 EXTRAINCDIRS  += $(PIOS)
 EXTRAINCDIRS  += $(PIOSINC)
 EXTRAINCDIRS  += $(FLIGHTLIBINC)
-EXTRAINCDIRS  += $(PIOSSTM34FXX)
+EXTRAINCDIRS  += $(PIOSSTM32F10X)
 EXTRAINCDIRS  += $(PIOSCOMMON)
 EXTRAINCDIRS  += $(PIOSBOARDS)
 EXTRAINCDIRS  += $(STMSPDINCDIR)
 EXTRAINCDIRS  += $(CMSISDIR)
-EXTRAINCDIRS  += $(REVO_BLINC)
+EXTRAINCDIRS  += $(AHRS_BLINC)
 EXTRAINCDIRS  += $(HWDEFSINC)
 
 # List any extra directories to look for library files here.
@@ -107,7 +172,7 @@ EXTRA_LIBDIRS =
 EXTRA_LIBS =
 
 # Path to Linker-Scripts
-LINKERSCRIPTPATH = $(PIOSSTM32FXX)
+LINKERSCRIPTPATH = $(PIOSSTM32F10X)
 
 # Optimization level, can be [0, 1, 2, 3, s]. 
 # 0 = turn off optimization. s = optimize for size.
@@ -131,9 +196,7 @@ DEBUGF = dwarf-2
 
 # Place project-specific -D (define) and/or 
 # -U options for C here.
-CDEFS = -DSTM32F4XX
-CDEFS += -DSYSCLK_FREQ=$(SYSCLK_FREQ)
-CDEFS += -DHSE_VALUE=$(OSCILLATOR_FREQ)
+CDEFS = -DSTM32F10X_$(MODEL)
 CDEFS += -DUSE_STDPERIPH_DRIVER
 CDEFS += -DUSE_$(BOARD)
 
@@ -175,11 +238,7 @@ ifeq ($(DEBUG),YES)
 CFLAGS = 
 endif
 
-# This is not the best place for these.  Really should abstract out
-# to the board file or something
-CFLAGS += -DSTM32F4XX
-CFLAGS += -DMEM_SIZE=1024000000
-
+CFLAGS += -DSYSCLK_FREQ_72MHz=72000000
 CFLAGS += -g$(DEBUGF)
 CFLAGS += -O$(OPT)
 ifeq ($(DEBUG),NO)
@@ -192,6 +251,9 @@ CFLAGS += $(patsubst %,-I%,$(EXTRAINCDIRS)) -I.
 
 CFLAGS += -mapcs-frame 
 CFLAGS += -fomit-frame-pointer
+ifeq ($(CODE_SOURCERY), YES)
+CFLAGS += -fpromote-loop-indices
+endif
 
 CFLAGS += -Wall
 CFLAGS += -Werror
@@ -226,14 +288,13 @@ LDFLAGS += -lc
 LDFLAGS += $(patsubst %,-l%,$(EXTRA_LIBS))
 LDFLAGS += $(MATH_LIB)
 LDFLAGS += -lc -lgcc 
-LDFLAGS += -Wl,--warn-common
-LDFLAGS += -Wl,--fatal-warnings
 
-#Linker scripts                                                                                                                                                                                                              
-LDFLAGS += $(addprefix -T,$(LINKER_SCRIPTS_BL))
+# Set linker-script name depending on selected submodel name
+LDFLAGS += -T$(LINKERSCRIPTPATH)/link_$(BOARD)_memory.ld
+LDFLAGS += -T$(LINKERSCRIPTPATH)/link_$(BOARD)_BL_sections.ld
 
 # Define programs and commands.
-REMOVE  = rm -f
+REMOVE  = $(REMOVE_CMD) -f
 
 # List of all source files.
 ALLSRC     = $(ASRCARM) $(ASRC) $(SRCARM) $(SRC) $(CPPSRCARM) $(CPPSRC)
@@ -294,10 +355,8 @@ $(eval $(call PARTIAL_COMPILE_ARM_TEMPLATE, SRCARM))
 
 $(OUTDIR)/$(TARGET).bin.o: $(OUTDIR)/$(TARGET).bin
 
-$(eval $(call TLFW_TEMPLATE,$(OUTDIR)/$(TARGET).bin,$(BOARD_TYPE),$(BOARD_REVISION)))
-
 # Add jtag targets (program and wipe)
-$(eval $(call JTAG_TEMPLATE,$(OUTDIR)/$(TARGET).bin,$(BL_BANK_BASE),$(BL_BANK_SIZE),$(OPENOCD_JTAG_CONFIG),$(OPENOCD_CONFIG)))
+$(eval $(call JTAG_TEMPLATE,$(OUTDIR)/$(TARGET).bin,$(BL_BANK_BASE),$(BL_BANK_SIZE),$(OPENOCD_CONFIG)))
 
 .PHONY: elf lss sym hex bin bino
 elf: $(OUTDIR)/$(TARGET).elf

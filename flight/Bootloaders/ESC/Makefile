@@ -271,6 +271,8 @@ ifeq ($(DEBUG),YES)
 CFLAGS = -DDEBUG
 endif
 
+CFLAGS += -DSYSCLK_FREQ_72MHz=72000000
+
 CFLAGS += -g$(DEBUGF)
 CFLAGS += -O$(OPT)
 ifeq ($(DEBUG),NO)
