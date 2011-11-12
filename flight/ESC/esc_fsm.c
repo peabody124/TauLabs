@@ -55,6 +55,9 @@ static void go_esc_fault(uint16_t);
 static void go_esc_stopping(uint16_t);
 static void go_esc_stopped(uint16_t);
 
+// Play sound on initially getting armed
+static void go_esc_armed_sound(uint16_t);
+
 // Startup states
 static void go_esc_startup_enable(uint16_t);
 static void go_esc_startup_grab(uint16_t);
@@ -93,7 +96,13 @@ const static struct esc_transition esc_transition[ESC_FSM_NUM_STATES] = {
 	[ESC_STATE_WAIT_FOR_ARM] = {
 		.entry_fn = go_esc_nothing,
 		.next_state = {
-			[ESC_EVENT_ARM] = ESC_STATE_IDLE,
+			[ESC_EVENT_ARM] = ESC_STATE_ARMED_SOUND,
+		},
+	},
+	[ESC_STATE_ARMED_SOUND] = {
+		.entry_fn = go_esc_armed_sound,
+		.next_state = {
+			[ESC_EVENT_AUTO] = ESC_STATE_IDLE,
 		},
 	},
 	[ESC_STATE_IDLE] = {
@@ -331,6 +340,16 @@ static void go_esc_stopped(uint16_t time)
 	esc_data.current_speed = 0;
 	esc_data.detected = true;
 	esc_data.scheduled_event_armed = false;
+}
+
+static void go_esc_armed_sound(uint16_t time)
+{
+	esc_tone(100, NOTES_F);
+	esc_tone(100, NOTES_E);
+	esc_tone(100, NOTES_D);
+	esc_tone(100, NOTES_C);
+	esc_tone(100, NOTES_B);
+	esc_tone(100, NOTES_A);
 }
 
 /**

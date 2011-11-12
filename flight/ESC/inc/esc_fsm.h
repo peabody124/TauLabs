@@ -35,7 +35,8 @@ enum esc_fsm_state {
 
 	ESC_STATE_INIT,                        /* Perform self test, load settings */
 	ESC_STATE_WAIT_FOR_ARM,                /* Cannot be used until throttle < threshold */
-
+	ESC_STATE_ARMED_SOUND,                 /* Play the sound to indicate got throttle */
+	
 	ESC_STATE_IDLE,                        /* Waiting for throttle command */
 	ESC_STATE_STOPPING,                    /* Safely shut down motor then wait for throttle */
 	ESC_STATE_STOPPED,                     /* Motor shut down */
@@ -73,7 +74,7 @@ struct esc_fsm_data {
 	int32_t duty_cycle;
 	int16_t current;
 	uint16_t current_speed;
-	uint16_t speed_setpoint;
+	int16_t speed_setpoint;
 
 	uint8_t scheduled_event_armed;
 	uint16_t scheduled_event_time;

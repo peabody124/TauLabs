@@ -680,7 +680,7 @@ static void PIOS_TIM_4_irq_handler (void)
 	
 	if (TIM_GetITStatus(TIM4, TIM_IT_Update)) {
 		if (PIOS_DELAY_DiffuS(last_input_update) > 100000)
-			esc_data->speed_setpoint = 0;
+			esc_data->speed_setpoint = -1;
 		TIM_ClearITPendingBit(TIM4,TIM_IT_Update);
 	}
 }
