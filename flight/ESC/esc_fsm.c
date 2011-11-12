@@ -194,7 +194,39 @@ const static struct esc_transition esc_transition[ESC_FSM_NUM_STATES] = {
 };
 
 static struct esc_fsm_data esc_data;
-uint32_t stops_requested, stops_from_here;
+
+/**
+ * Generate a tone by periodically applying power to one phase while
+ * grounding two others
+ *
+ * @param duration how many ms to generate tone for
+ * @param frequency frequency in hz to generate tone for
+ */
+static void esc_tone(uint32_t duration_ms, uint32_t frequency)
+{
+	const uint32_t on_duration_us = 10;
+	const uint32_t period_us = 1e6 / frequency;
+	
+	// Want to be reasonable about duty cycle
+	if(on_duration_us > period_us / 10)
+		return;
+	
+	const uint32_t off_duration_us = period_us - on_duration_us;
+	
+	uint32_t start_time = PIOS_DELAY_GetRaw();
+	PIOS_ESC_Arm();
+	while(PIOS_DELAY_DiffuS(start_time) < duration_ms * 1000) {
+		PIOS_ESC_BeepOn();
+		PIOS_DELAY_WaituS(on_duration_us);
+		
+		PIOS_ESC_BeepOff();
+		PIOS_DELAY_WaituS(off_duration_us);
+		
+		PIOS_WDG_UpdateFlag(1);
+	}
+	PIOS_ESC_Off();
+}
+
 void esc_process_static_fsm_rxn() {
 
 	static uint32_t zero_time;
@@ -232,7 +264,6 @@ void esc_process_static_fsm_rxn() {
 		case ESC_STATE_STARTUP_ZCD_DETECTED:
 		case ESC_STATE_STARTUP_NOZCD_COMMUTATED:			
 			if(esc_data.speed_setpoint == 0) {
-				stops_from_here++;
 				esc_fsm_inject_event(ESC_EVENT_STOP,0);
 			}
 			
@@ -259,7 +290,6 @@ void esc_process_static_fsm_rxn() {
 			last_timer = cur_timer;
 
 			if(esc_data.speed_setpoint == 0 && PIOS_DELAY_DiffuS(stop_time) > 100000) {
-				stops_requested++;
 				esc_fsm_inject_event(ESC_EVENT_STOP,0);
 			} else if (esc_data.speed_setpoint > 0)
 				stop_time = PIOS_DELAY_GetRaw();
@@ -554,6 +584,13 @@ struct esc_fsm_data * esc_fsm_init()
 	esc_data.faults = 0;
 	esc_data.total_missed = 0;
 	esc_data.detected = true;
+
+	esc_tone(100, NOTES_A);
+	esc_tone(100, NOTES_B);
+	esc_tone(100, NOTES_C);
+	esc_tone(100, NOTES_D);
+	esc_tone(100, NOTES_E);
+	esc_tone(100, NOTES_F);
 
 	esc_fsm_process_auto(PIOS_DELAY_GetuS());
 

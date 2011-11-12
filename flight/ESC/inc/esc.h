@@ -29,14 +29,4 @@
 /* PIOS Includes */
 #include <pios.h>
 
-#define NOTES_A  440
-#define NOTES_AS 466
-#define NOTES_B  494
-#define NOTES_C  523
-#define NOTES_CS 554
-#define NOTES_D  587
-#define NOTES_DS 622
-#define NOTES_E  659
-#define NOTES_F  698
-
 #endif /* ESC_H */
