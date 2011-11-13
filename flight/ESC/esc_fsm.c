@@ -344,12 +344,11 @@ static void go_esc_stopped(uint16_t time)
 
 static void go_esc_armed_sound(uint16_t time)
 {
-	esc_tone(100, NOTES_F);
-	esc_tone(100, NOTES_E);
-	esc_tone(100, NOTES_D);
-	esc_tone(100, NOTES_C);
-	esc_tone(100, NOTES_B);
-	esc_tone(100, NOTES_A);
+	esc_tone(150, NOTES_AS);
+	PIOS_DELAY_WaitmS(50);
+	esc_tone(350, NOTES_C);
+	PIOS_DELAY_WaitmS(50);
+	esc_tone(600, NOTES_F0);
 }
 
 /**
@@ -604,12 +603,13 @@ struct esc_fsm_data * esc_fsm_init()
 	esc_data.total_missed = 0;
 	esc_data.detected = true;
 
-	esc_tone(100, NOTES_A);
-	esc_tone(100, NOTES_B);
-	esc_tone(100, NOTES_C);
-	esc_tone(100, NOTES_D);
-	esc_tone(100, NOTES_E);
+	esc_tone(300, NOTES_F);
+	PIOS_DELAY_WaitmS(50);
 	esc_tone(100, NOTES_F);
+	PIOS_DELAY_WaitmS(50);	
+	esc_tone(180, NOTES_C);
+	PIOS_DELAY_WaitmS(20);
+	esc_tone(1000, NOTES_F);
 
 	esc_fsm_process_auto(PIOS_DELAY_GetuS());
 

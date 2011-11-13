@@ -131,6 +131,7 @@ struct esc_fsm_data * esc_fsm_init();
 void esc_fsm_inject_event(enum esc_event event, uint16_t time);
 void esc_process_static_fsm_rxn();
 
+#define NOTES_F0 349
 #define NOTES_A  440
 #define NOTES_AS 466
 #define NOTES_B  494
