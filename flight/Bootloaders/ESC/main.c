@@ -63,7 +63,6 @@ int main() {
 #pragma GCC optimize ("O0")
 void jump_to_app() {
 	const struct pios_board_info * bdinfo = &pios_board_info_blob;
-	bdinfo = (const struct pios_board_info *) 0x8002f80;
 	if (((*(__IO uint32_t*) bdinfo->fw_base) & 0x2FFE0000) == 0x20000000) { /* Jump to user application */
 		FLASH_Lock();
 		RCC_APB2PeriphResetCmd(0xffffffff, ENABLE);
