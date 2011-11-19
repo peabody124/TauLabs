@@ -64,43 +64,43 @@ const struct pios_esc_cfg pios_esc_cfg = {
 		.GPIO_Mode = GPIO_Mode_AF_PP,
 		.GPIO_Speed = GPIO_Speed_2MHz,
 	},
-	.phase_a_minus = {
-		.timer = TIM2,
-		.port = GPIOA,
+	.phase_a_minus = { /* needs to remap to alternative function */
+		.timer = TIM3,
+		.port = GPIOB,
 		.channel = TIM_Channel_3,
-		.pin = GPIO_Pin_2,
+		.pin = GPIO_Pin_0,
 	},
-	.phase_a_plus = {
+	.phase_a_plus = { /* needs to remap to alternative function */
+		.timer = TIM3,
+		.port = GPIOB,
+		.channel = TIM_Channel_4,
+		.pin = GPIO_Pin_1,
+	},
+	.phase_b_minus = {
 		.timer = TIM2,
 		.port = GPIOA,
 		.channel = TIM_Channel_4,
 		.pin = GPIO_Pin_3,
 	},
-	.phase_b_minus = {
+	.phase_b_plus = {
+		.timer = TIM2,
+		.port = GPIOA,
+		.channel = TIM_Channel_3,
+		.pin = GPIO_Pin_2,
+	},
+	.phase_c_minus = { 
 		.timer = TIM2,
 		.port = GPIOA,
 		.channel = TIM_Channel_1,
-		.pin = GPIO_Pin_0,
+		.pin = GPIO_Pin_0
 	},
-	.phase_b_plus = {
+	.phase_c_plus = { 
 		.timer = TIM2,
 		.port = GPIOA,
 		.channel = TIM_Channel_2,
 		.pin = GPIO_Pin_1,
 	},
-	.phase_c_minus = { /* needs to remap to alternative function */
-		.timer = TIM3,
-		.port = GPIOB,
-		.channel = TIM_Channel_1,
-		.pin = GPIO_Pin_4
-	},
-	.phase_c_plus = { /* needs to remap to alternative function */
-		.timer = TIM3,
-		.port = GPIOB,
-		.channel = TIM_Channel_2,
-		.pin = GPIO_Pin_5,
-	},
-	.remap = GPIO_PartialRemap_TIM3,
+	.remap = 0,
 };
 
 /*

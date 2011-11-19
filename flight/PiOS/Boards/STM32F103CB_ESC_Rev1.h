@@ -104,16 +104,16 @@ TIM16 |  PWM in   |           |           |
 #define PIOS_ADC_TEMP_SENSOR_ADC_CHANNEL	1
 
 // Phase A (PA6)
-#define PIOS_ADC_PIN1_GPIO_PORT			GPIOB
-#define PIOS_ADC_PIN1_GPIO_PIN			GPIO_Pin_0
-#define PIOS_ADC_PIN1_GPIO_CHANNEL		ADC_Channel_8
+#define PIOS_ADC_PIN1_GPIO_PORT			GPIOA
+#define PIOS_ADC_PIN1_GPIO_PIN			GPIO_Pin_7
+#define PIOS_ADC_PIN1_GPIO_CHANNEL		ADC_Channel_7
 #define PIOS_ADC_PIN1_ADC			ADC1
 #define PIOS_ADC_PIN1_ADC_NUMBER		1
 
 // Phase A (PA6)
 #define PIOS_ADC_PIN2_GPIO_PORT			GPIOA
-#define PIOS_ADC_PIN2_GPIO_PIN			GPIO_Pin_6
-#define PIOS_ADC_PIN2_GPIO_CHANNEL		ADC_Channel_6
+#define PIOS_ADC_PIN2_GPIO_PIN			GPIO_Pin_4
+#define PIOS_ADC_PIN2_GPIO_CHANNEL		ADC_Channel_4
 #define PIOS_ADC_PIN2_ADC			ADC2
 #define PIOS_ADC_PIN2_ADC_NUMBER		1
 
@@ -126,8 +126,8 @@ TIM16 |  PWM in   |           |           |
 
 // Phase C (PA4)
 #define PIOS_ADC_PIN4_GPIO_PORT			GPIOA
-#define PIOS_ADC_PIN4_GPIO_PIN			GPIO_Pin_4
-#define PIOS_ADC_PIN4_GPIO_CHANNEL		ADC_Channel_4
+#define PIOS_ADC_PIN4_GPIO_PIN			GPIO_Pin_6
+#define PIOS_ADC_PIN4_GPIO_CHANNEL		ADC_Channel_6
 #define PIOS_ADC_PIN4_ADC			ADC2
 #define PIOS_ADC_PIN4_ADC_NUMBER		2
 
@@ -230,14 +230,17 @@ extern uint32_t pios_com_debug_id;
 //-------------------------
 // GPIO
 //-------------------------
-#define PIOS_GPIO_1_PORT			GPIOA
-#define PIOS_GPIO_1_PIN				GPIO_Pin_7
+#define PIOS_GPIO_1_PORT			GPIOB
+#define PIOS_GPIO_1_PIN				GPIO_Pin_12
 #define PIOS_GPIO_1_GPIO_CLK		RCC_APB2Periph_GPIOA
+#define PIOS_GPIO_2_PORT			GPIOB
+#define PIOS_GPIO_2_PIN				GPIO_Pin_13
+#define PIOS_GPIO_2_GPIO_CLK		RCC_APB2Periph_GPIOA
 
-#define PIOS_GPIO_PORTS				{ PIOS_GPIO_1_PORT }
-#define PIOS_GPIO_PINS				{ PIOS_GPIO_1_PIN }
-#define PIOS_GPIO_CLKS				{ PIOS_GPIO_1_GPIO_CLK }
-#define PIOS_GPIO_NUM				1
+#define PIOS_GPIO_PORTS				{ PIOS_GPIO_1_PORT, PIOS_GPIO_2_PORT }
+#define PIOS_GPIO_PINS				{ PIOS_GPIO_1_PIN, PIOS_GPIO_2_PIN }
+#define PIOS_GPIO_CLKS				{ PIOS_GPIO_1_GPIO_CLK, PIOS_GPIO_2_GPIO_CLK }
+#define PIOS_GPIO_NUM				2
 
 //-------------------------
 // USB

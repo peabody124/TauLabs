@@ -55,9 +55,8 @@ uint16_t back_buf[2024];
 uint16_t back_buf_point = 0;
 #endif
 
-#define LED_ERR LED1
-#define LED_GO  LED2
-#define LED_MSG LED3
+#define LED_GO  LED1
+#define LED_ERR LED2
 
 int16_t zero_current = 0;
 
@@ -119,17 +118,13 @@ int main()
 	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
 	NVIC_Init(&NVIC_InitStructure);
 
-	PIOS_LED_Off(LED_ERR);
 	PIOS_LED_On(LED_GO);
-	PIOS_LED_On(LED_MSG);
+	PIOS_LED_On(LED_ERR);
 
+	
 	PIOS_ESC_Off();
 	PIOS_WDG_RegisterFlag(1);
-	for(int i = 0; i < 250; i++) {
-		PIOS_DELAY_WaitmS(1);
-		PIOS_WDG_UpdateFlag(1);
-	}
-	
+
 	test_esc();
 	
 	esc_data = esc_fsm_init();
