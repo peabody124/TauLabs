@@ -112,8 +112,8 @@ TIM16 |  PWM in   |           |           |
 
 // Phase A (PA6)
 #define PIOS_ADC_PIN2_GPIO_PORT			GPIOA
-#define PIOS_ADC_PIN2_GPIO_PIN			GPIO_Pin_4
-#define PIOS_ADC_PIN2_GPIO_CHANNEL		ADC_Channel_4
+#define PIOS_ADC_PIN2_GPIO_PIN			GPIO_Pin_6
+#define PIOS_ADC_PIN2_GPIO_CHANNEL		ADC_Channel_6
 #define PIOS_ADC_PIN2_ADC			ADC2
 #define PIOS_ADC_PIN2_ADC_NUMBER		1
 
@@ -126,8 +126,8 @@ TIM16 |  PWM in   |           |           |
 
 // Phase C (PA4)
 #define PIOS_ADC_PIN4_GPIO_PORT			GPIOA
-#define PIOS_ADC_PIN4_GPIO_PIN			GPIO_Pin_6
-#define PIOS_ADC_PIN4_GPIO_CHANNEL		ADC_Channel_6
+#define PIOS_ADC_PIN4_GPIO_PIN			GPIO_Pin_4
+#define PIOS_ADC_PIN4_GPIO_CHANNEL		ADC_Channel_4
 #define PIOS_ADC_PIN4_ADC			ADC2
 #define PIOS_ADC_PIN4_ADC_NUMBER		2
 
