@@ -125,18 +125,29 @@ int main()
 	PIOS_ESC_Off();
 	PIOS_WDG_RegisterFlag(1);
 
-	test_esc();
+	if(0) test_esc();
 	
 	esc_data = esc_fsm_init();
 	esc_data->speed_setpoint = 0;
 
-
 	PIOS_ADC_StartDma();
 	
+	counter = 0;
+	uint32_t timeval = PIOS_DELAY_GetRaw();
 	while(1) {
 		counter++;
+			
 		PIOS_WDG_UpdateFlag(1);
 		esc_process_static_fsm_rxn();
+		
+		if(counter % 1000)
+			PIOS_LED_Toggle(1);
+		if(PIOS_DELAY_DiffuS(timeval) > 1000000) {
+			esc_data->speed_setpoint += 100;
+			timeval = PIOS_DELAY_GetRaw();
+			if(esc_data->speed_setpoint > 5000)
+				esc_data->speed_setpoint = 400;
+		}
 	}
 	return 0;
 }
@@ -686,13 +697,13 @@ static void PIOS_TIM_4_irq_handler (void)
 			capture_value = 0;
 		else {
 			last_input_update = PIOS_DELAY_GetRaw();
-			esc_data->speed_setpoint = (capture_value < 1050) ? 0 : 400 + (capture_value - 1050) * 7;
+			//esc_data->speed_setpoint = (capture_value < 1050) ? 0 : 400 + (capture_value - 1050) * 7;
 		}
 	} 
 	
 	if (TIM_GetITStatus(TIM4, TIM_IT_Update)) {
-		if (PIOS_DELAY_DiffuS(last_input_update) > 100000)
-			esc_data->speed_setpoint = -1;
+		/*if (PIOS_DELAY_DiffuS(last_input_update) > 100000)
+			esc_data->speed_setpoint = -1;*/
 		TIM_ClearITPendingBit(TIM4,TIM_IT_Update);
 	}
 }
