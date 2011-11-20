@@ -125,7 +125,7 @@ int main()
 	PIOS_ESC_Off();
 	PIOS_WDG_RegisterFlag(1);
 
-	if(0) test_esc();
+	test_esc();
 	
 	esc_data = esc_fsm_init();
 	esc_data->speed_setpoint = 0;
@@ -134,20 +134,21 @@ int main()
 	
 	counter = 0;
 	uint32_t timeval = PIOS_DELAY_GetRaw();
+	uint32_t ms_count = 0;
 	while(1) {
 		counter++;
-			
+		
+		if(PIOS_DELAY_DiffuS(timeval) > 1000) {
+			ms_count++;
+			if(ms_count > 100) {
+				PIOS_LED_Toggle(0);
+				ms_count = 0;
+			}
+		}
+		
 		PIOS_WDG_UpdateFlag(1);
 		esc_process_static_fsm_rxn();
 		
-		if(counter % 1000)
-			PIOS_LED_Toggle(1);
-		if(PIOS_DELAY_DiffuS(timeval) > 1000000) {
-			esc_data->speed_setpoint += 100;
-			timeval = PIOS_DELAY_GetRaw();
-			if(esc_data->speed_setpoint > 5000)
-				esc_data->speed_setpoint = 400;
-		}
 	}
 	return 0;
 }
@@ -546,7 +547,7 @@ void test_esc() {
 	PIOS_ESC_TestGate(ESC_A_LOW);
 	PIOS_DELAY_WaituS(250);
 	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE);
-	PIOS_DELAY_WaituS(300);
+	PIOS_DELAY_WaituS(3000);
 	voltages[1][0] = PIOS_ADC_PinGet(1);
 	voltages[1][1] = PIOS_ADC_PinGet(2);
 	voltages[1][2] = PIOS_ADC_PinGet(3);
@@ -556,7 +557,7 @@ void test_esc() {
 	PIOS_ESC_TestGate(ESC_A_HIGH);
 	PIOS_DELAY_WaituS(250);
 	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE);
-	PIOS_DELAY_WaituS(300);
+	PIOS_DELAY_WaituS(3000);
 	voltages[0][0] = PIOS_ADC_PinGet(1);
 	voltages[0][1] = PIOS_ADC_PinGet(2);
 	voltages[0][2] = PIOS_ADC_PinGet(3);
@@ -566,7 +567,7 @@ void test_esc() {
 	PIOS_ESC_TestGate(ESC_B_LOW);
 	PIOS_DELAY_WaituS(250);
 	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE);
-	PIOS_DELAY_WaituS(300);
+	PIOS_DELAY_WaituS(3000);
 	voltages[3][0] = PIOS_ADC_PinGet(1);
 	voltages[3][1] = PIOS_ADC_PinGet(2);
 	voltages[3][2] = PIOS_ADC_PinGet(3);
@@ -576,7 +577,7 @@ void test_esc() {
 	PIOS_ESC_TestGate(ESC_B_HIGH);
 	PIOS_DELAY_WaituS(250);
 	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE);
-	PIOS_DELAY_WaituS(300);
+	PIOS_DELAY_WaituS(3000);
 	voltages[2][0] = PIOS_ADC_PinGet(1);
 	voltages[2][1] = PIOS_ADC_PinGet(2);
 	voltages[2][2] = PIOS_ADC_PinGet(3);
@@ -586,7 +587,7 @@ void test_esc() {
 	PIOS_ESC_TestGate(ESC_C_LOW);
 	PIOS_DELAY_WaituS(250);
 	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE);
-	PIOS_DELAY_WaituS(300);
+	PIOS_DELAY_WaituS(3000);
 	voltages[5][0] = PIOS_ADC_PinGet(1);
 	voltages[5][1] = PIOS_ADC_PinGet(2);
 	voltages[5][2] = PIOS_ADC_PinGet(3);
@@ -596,7 +597,7 @@ void test_esc() {
 	PIOS_ESC_TestGate(ESC_C_HIGH);
 	PIOS_DELAY_WaituS(250);
 	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE);
-	PIOS_DELAY_WaituS(300);
+	PIOS_DELAY_WaituS(3000);
 	voltages[4][0] = PIOS_ADC_PinGet(1);
 	voltages[4][1] = PIOS_ADC_PinGet(2);
 	voltages[4][2] = PIOS_ADC_PinGet(3);
@@ -697,13 +698,13 @@ static void PIOS_TIM_4_irq_handler (void)
 			capture_value = 0;
 		else {
 			last_input_update = PIOS_DELAY_GetRaw();
-			//esc_data->speed_setpoint = (capture_value < 1050) ? 0 : 400 + (capture_value - 1050) * 7;
+			esc_data->speed_setpoint = (capture_value < 1050) ? 0 : 400 + (capture_value - 1050) * 7;
 		}
 	} 
 	
 	if (TIM_GetITStatus(TIM4, TIM_IT_Update)) {
-		/*if (PIOS_DELAY_DiffuS(last_input_update) > 100000)
-			esc_data->speed_setpoint = -1;*/
+		if (PIOS_DELAY_DiffuS(last_input_update) > 100000)
+			esc_data->speed_setpoint = -1;
 		TIM_ClearITPendingBit(TIM4,TIM_IT_Update);
 	}
 }
