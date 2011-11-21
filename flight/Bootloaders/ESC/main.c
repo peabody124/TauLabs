@@ -63,7 +63,6 @@ int main() {
 	jump_to_app();
 	
 	// No valid app found
-	uint32_t timeval = PIOS_DELAY_GetRaw();
 	while(1) {
 		PIOS_LED_Toggle(0);
 		PIOS_DELAY_WaitmS(250);

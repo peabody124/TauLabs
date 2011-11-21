@@ -41,11 +41,11 @@ struct esc_config config = {
 	.min_dc = 0,
 	.max_dc = 0.90 * PIOS_ESC_MAX_DUTYCYCLE,
 	.initial_startup_speed = 100,
-	.final_startup_speed = 700,
-	.startup_current_target = 100,
+	.final_startup_speed = 400,
+	.startup_current_target = 20,
 	.commutation_phase = 20,
-	.soft_current_limit = 1250,
-	.hard_current_limit = 1500,
+	.soft_current_limit = 100, /* 10 mA per unit */
+	.hard_current_limit = 150,
 	.magic = ESC_CONFIG_MAGIC,
 };
 
@@ -411,7 +411,7 @@ static void go_esc_startup_zcd(uint16_t time)
 
 	// Since we aren't getting ZCD keep accelerating
 	if(esc_data.current_speed < config.final_startup_speed)
-		esc_data.current_speed+=5;
+		esc_data.current_speed+=10;
 
 	// Schedule next commutation but only if the last ZCD was near where we expected.  Essentially
 	// this is dealing with a startup condition where noise will cause the ZCD to detect early, and
@@ -424,13 +424,13 @@ static void go_esc_startup_zcd(uint16_t time)
 	current_time = TIM4->CNT + RPM_TO_US(esc_data.current_speed) / 2;
 	diff_time = prev_time - current_time;
 	
-	if(esc_data.consecutive_detected > 6) {
+	if(esc_data.consecutive_detected > 3) {
 		esc_fsm_inject_event(ESC_EVENT_CLOSED, 0);
 	} else {
 		// Timing adjusted in entry function
 		// This should perform run a current control loop
 
-/*		float current_error = (config.startup_current_target - esc_data.current);
+/*		int32_t current_error = (config.startup_current_target - esc_data.current);
 		current_error *= 0.00001;
 		esc_data.duty_cycle += current_error;
 
@@ -471,6 +471,8 @@ static void go_esc_startup_nozcd(uint16_t time)
 	int32_t current_error = (config.startup_current_target - esc_data.current);
 	current_error /= 8;
 	esc_data.duty_cycle += current_error;
+	if(esc_data.duty_cycle > PIOS_ESC_MAX_DUTYCYCLE / 5)
+		esc_data.duty_cycle = PIOS_ESC_MAX_DUTYCYCLE / 5;
 
 	bound_duty_cycle();
 	PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
