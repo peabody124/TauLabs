@@ -140,6 +140,7 @@ int main()
 		
 		if(PIOS_DELAY_DiffuS(timeval) > 1000) {
 			ms_count++;
+			timeval = PIOS_DELAY_GetRaw();
 			if(ms_count > 100) {
 				PIOS_LED_Toggle(0);
 				ms_count = 0;
