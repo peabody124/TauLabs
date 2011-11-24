@@ -372,7 +372,7 @@ void PIOS_Board_Init(void) {
 	PIOS_ADC_Config(5);
 
 	/* Remap AFIO pin */
-	GPIO_PinRemapConfig( GPIO_Remap_SWJ_NoJTRST, ENABLE);
+//	GPIO_PinRemapConfig( GPIO_Remap_SWJ_NoJTRST, ENABLE);
 	PIOS_ESC_Init(&pios_esc_cfg);
 
 	PIOS_TIM_InitClock(&tim_4_cfg);

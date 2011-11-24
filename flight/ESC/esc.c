@@ -39,6 +39,7 @@
 //TODO: Slave two timers together so in phase
 //TODO: Ideally lock ADC and delay timers together to both
 //TODO: Look into using TIM1
+//TODO: Reenable watchdog and replace all PIOS_DELAY_WaitmS with something safe
 //know the exact time of each sample and the PWM phase
 
 //#define BACKBUFFER_ZCD
@@ -119,13 +120,23 @@ int main()
 	NVIC_Init(&NVIC_InitStructure);
 
 	PIOS_LED_On(LED_GO);
-	PIOS_LED_On(LED_ERR);
+	PIOS_LED_Off(LED_ERR);
 
 	
 	PIOS_ESC_Off();
-	PIOS_WDG_RegisterFlag(1);
 
-	test_esc();
+	if(0) test_esc();
+	
+	// Blink LED briefly once passed	
+	PIOS_LED_Off(0);
+	PIOS_LED_Off(1);
+	PIOS_DELAY_WaitmS(250);
+	PIOS_LED_On(0);
+	PIOS_LED_On(1);
+	PIOS_DELAY_WaitmS(500);
+	PIOS_LED_Off(0);
+	PIOS_LED_Off(1);
+	PIOS_DELAY_WaitmS(250);
 	
 	esc_data = esc_fsm_init();
 	esc_data->speed_setpoint = 0;
@@ -141,13 +152,12 @@ int main()
 		if(PIOS_DELAY_DiffuS(timeval) > 1000) {
 			ms_count++;
 			timeval = PIOS_DELAY_GetRaw();
-			if(ms_count > 100) {
+			if(ms_count > 1000) {
 				PIOS_LED_Toggle(0);
 				ms_count = 0;
 			}
 		}
 		
-		PIOS_WDG_UpdateFlag(1);
 		esc_process_static_fsm_rxn();
 		
 	}
@@ -500,13 +510,11 @@ void panic(int diagnostic_code)
 			PIOS_LED_Toggle(LED_ERR);
 			for(int i = 0 ; i < 250; i++) {
 				PIOS_DELAY_WaitmS(1);
-				PIOS_WDG_UpdateFlag(1);
 			}
 
 			PIOS_LED_Toggle(LED_ERR);
 			for(int i = 0 ; i < 250; i++) {
 				PIOS_DELAY_WaitmS(1);
-				PIOS_WDG_UpdateFlag(1);
 			}
 
 		}
@@ -524,7 +532,6 @@ void test_esc() {
 
 	PIOS_ESC_Off();
 	for(int i = 0; i < 150; i++) {
-		PIOS_WDG_UpdateFlag(1);
 		PIOS_DELAY_WaitmS(1);
 	}
 
@@ -542,7 +549,6 @@ void test_esc() {
 	PIOS_DELAY_WaituS(250);
 	low_voltages[2] = PIOS_ADC_PinGet(3);
 	avg_low_voltage = low_voltages[0] + low_voltages[1] + low_voltages[2];
-	PIOS_WDG_UpdateFlag(1);
 
 	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 2);
 	PIOS_ESC_TestGate(ESC_A_LOW);
@@ -552,7 +558,6 @@ void test_esc() {
 	voltages[1][0] = PIOS_ADC_PinGet(1);
 	voltages[1][1] = PIOS_ADC_PinGet(2);
 	voltages[1][2] = PIOS_ADC_PinGet(3);
-	PIOS_WDG_UpdateFlag(1);
 
 	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 2);
 	PIOS_ESC_TestGate(ESC_A_HIGH);
@@ -562,7 +567,6 @@ void test_esc() {
 	voltages[0][0] = PIOS_ADC_PinGet(1);
 	voltages[0][1] = PIOS_ADC_PinGet(2);
 	voltages[0][2] = PIOS_ADC_PinGet(3);
-	PIOS_WDG_UpdateFlag(1);
 
 	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 2);
 	PIOS_ESC_TestGate(ESC_B_LOW);
@@ -572,7 +576,6 @@ void test_esc() {
 	voltages[3][0] = PIOS_ADC_PinGet(1);
 	voltages[3][1] = PIOS_ADC_PinGet(2);
 	voltages[3][2] = PIOS_ADC_PinGet(3);
-	PIOS_WDG_UpdateFlag(1);
 
 	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 2);
 	PIOS_ESC_TestGate(ESC_B_HIGH);
@@ -582,7 +585,6 @@ void test_esc() {
 	voltages[2][0] = PIOS_ADC_PinGet(1);
 	voltages[2][1] = PIOS_ADC_PinGet(2);
 	voltages[2][2] = PIOS_ADC_PinGet(3);
-	PIOS_WDG_UpdateFlag(1);
 
 	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 2);
 	PIOS_ESC_TestGate(ESC_C_LOW);
@@ -592,7 +594,6 @@ void test_esc() {
 	voltages[5][0] = PIOS_ADC_PinGet(1);
 	voltages[5][1] = PIOS_ADC_PinGet(2);
 	voltages[5][2] = PIOS_ADC_PinGet(3);
-	PIOS_WDG_UpdateFlag(1);
 
 	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 2);
 	PIOS_ESC_TestGate(ESC_C_HIGH);
@@ -602,7 +603,6 @@ void test_esc() {
 	voltages[4][0] = PIOS_ADC_PinGet(1);
 	voltages[4][1] = PIOS_ADC_PinGet(2);
 	voltages[4][2] = PIOS_ADC_PinGet(3);
-	PIOS_WDG_UpdateFlag(1);
 
 	PIOS_ESC_Off();
 	// If the particular phase isn't moving fet is dead

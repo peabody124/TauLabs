@@ -61,6 +61,8 @@ int main() {
 	PIOS_LED_On(0);
 	PIOS_LED_Off(1);
 	
+	PIOS_DELAY_WaitmS(150);
+	
 	jump_to_app();
 	
 	// No valid app found
