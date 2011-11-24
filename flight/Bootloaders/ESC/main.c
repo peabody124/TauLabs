@@ -56,20 +56,21 @@ int main() {
 
 	/* Brings up System using CMSIS functions, enables the LEDs. */
 	PIOS_SYS_Init();
+	PIOS_DELAY_Init();
 	
 	PIOS_LED_On(0);
 	PIOS_LED_Off(1);
-
+	
 	jump_to_app();
 	
 	// No valid app found
 	while(1) {
-		PIOS_LED_Toggle(0);
-		PIOS_DELAY_WaitmS(250);
 		PIOS_LED_Toggle(1);
 		PIOS_DELAY_WaitmS(250);
 		PIOS_LED_Toggle(0);
+		PIOS_DELAY_WaitmS(250);
 		PIOS_LED_Toggle(0);
+		PIOS_LED_Toggle(1);
 		PIOS_DELAY_WaitmS(250);
 	}
 }
