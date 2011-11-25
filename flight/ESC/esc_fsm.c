@@ -43,9 +43,9 @@ struct esc_config config = {
 	.initial_startup_speed = 100,
 	.final_startup_speed = 400,
 	.startup_current_target = 20,
-	.commutation_phase = 10,
-	.soft_current_limit = 1000, /* 10 mA per unit */
-	.hard_current_limit = 1350,
+	.commutation_phase = 23,
+	.soft_current_limit = 3000, /* 10 mA per unit */
+	.hard_current_limit = 2350,
 	.magic = ESC_CONFIG_MAGIC,
 };
 
