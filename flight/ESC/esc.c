@@ -125,7 +125,7 @@ int main()
 	
 	PIOS_ESC_Off();
 
-	if(0) test_esc();
+	test_esc();
 	
 	// Blink LED briefly once passed	
 	PIOS_LED_Off(0);
@@ -614,33 +614,33 @@ void test_esc() {
 	PIOS_ESC_Off();
 	// If the particular phase isn't moving fet is dead
 	if(voltages[0][0] < 1000) {
-		PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 2);
+		PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 10);
 		PIOS_ESC_TestGate(ESC_A_HIGH);
 		panic(1);
 	}
 	if(voltages[1][0] > 30) {
-		PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 2);
+		PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 10);
 		PIOS_ESC_TestGate(ESC_A_LOW);
 		panic(2);		
 	}
 	if(voltages[2][1] < 1000) {
-		PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 2);
+		PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 10);
 		PIOS_ESC_TestGate(ESC_B_HIGH);
 		panic(3);
 	}
 	if(voltages[3][1] > 30){
-		PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 2);
+		PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 10);
 		PIOS_ESC_TestGate(ESC_B_LOW);
 		panic(4);
 	}	
 	if(voltages[4][2] < 1000) {
-		PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 2);
+		PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 10);
 		PIOS_ESC_TestGate(ESC_C_HIGH);
 		panic(5);
 	}
 	if(voltages[5][2] > 30){
-		PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 2);
-		PIOS_ESC_TestGate(ESC_B_LOW);
+		PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 10);
+		PIOS_ESC_TestGate(ESC_C_LOW);
 		panic(6);
 	}
 	// TODO: If other channels don't follow then motor lead bad
