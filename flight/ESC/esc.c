@@ -139,7 +139,7 @@ int main()
 	PIOS_DELAY_WaitmS(250);
 	
 	esc_data = esc_fsm_init();
-	esc_data->speed_setpoint = 0;
+	esc_data->speed_setpoint = -1;
 
 	PIOS_ADC_StartDma();
 	
@@ -334,7 +334,7 @@ static const int32_t filter_length[] = {
 	1,
 };	
 
-uint8_t filter_length_scalar = 100;
+uint8_t filter_length_scalar = 85;
 
 void DMA1_Channel1_IRQHandler(void)
 {	
