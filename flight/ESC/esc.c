@@ -388,6 +388,9 @@ void DMA1_Channel1_IRQHandler(void)
 #else
 	esc_data->current = current_filter_sum / MAX_CURRENT_FILTER - zero_current;
 #endif
+	int32_t current_measurement = raw_buf[0] * 10; // Convert to almost mA
+	esc_data->current += (current_measurement - esc_data->current) / 50; // IIR filter
+	
 
 /*	if (esc_data->current > CURRENT_LIMIT && overcurrent_count > 4)
 		esc_fsm_inject_event(ESC_EVENT_OVERCURRENT, 0);

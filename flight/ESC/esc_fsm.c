@@ -32,9 +32,9 @@
 
 #define PID_SCALE 32178
 struct esc_config config = {
-	.max_dc_change = 0.05 * PIOS_ESC_MAX_DUTYCYCLE,
-	.kp = 0, //0.0005 * PID_SCALE,
-	.ki = 0, //0.00001 * PID_SCALE,
+	.max_dc_change = 0.1 * PIOS_ESC_MAX_DUTYCYCLE,
+	.kp = 5, //0.0005 * PID_SCALE,
+	.ki = 1, //0.0001 * PID_SCALE,
 	.kff = 1.3e-4 * PID_SCALE,
 	.kff2 = -0.05 * PID_SCALE,
 	.ilim = 500,
@@ -377,7 +377,7 @@ static void go_esc_startup_grab(uint16_t time)
 	for(uint8_t i = 0; i < NUM_STORED_SWAP_INTERVALS; i++)
 		esc_data.swap_intervals[i] = 0;
 	esc_data.swap_interval_sum = 0;
-	esc_data.duty_cycle = 0.10 * PIOS_ESC_MAX_DUTYCYCLE;
+	esc_data.duty_cycle = 0.12 * PIOS_ESC_MAX_DUTYCYCLE;
 	PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
 	esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, 50000);  // Grab stator for 50 ms
 }
