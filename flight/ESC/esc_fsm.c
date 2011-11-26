@@ -379,70 +379,48 @@ static void go_esc_startup_grab(uint16_t time)
 	esc_data.swap_interval_sum = 0;
 	esc_data.duty_cycle = 0.10 * PIOS_ESC_MAX_DUTYCYCLE;
 	PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
-	esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, 30000);  // Grab stator for 30 ms
+	esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, 50000);  // Grab stator for 50 ms
 }
 
 /**
  * Called each time we enter the startup wait state or when a commutation occurs after ZCD
  * schedule a commutation.
  */
-uint32_t startup_waits = 0;
 static void go_esc_startup_wait(uint16_t time)
 {
 	commutate();
-	startup_waits ++;
 	esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, RPM_TO_US(esc_data.current_speed));
 }
 
 /**
  * ZCD detected. Hang out here till commutate.
  */
- 
-uint16_t current_time;
-uint16_t prev_time;
-int16_t diff_time;
 static void go_esc_startup_zcd(uint16_t time)
 {
-
-	esc_data.consecutive_detected++;
-	esc_data.consecutive_missed = 0;
-
-	zcd(time);
-
-	// Since we aren't getting ZCD keep accelerating
-	if(esc_data.current_speed < config.final_startup_speed)
-		esc_data.current_speed+=10;
+	if(PIOS_DELAY_DiffuS(esc_data.last_swap_time) > (RPM_TO_US(config.final_startup_speed)/2) &&
+	   PIOS_DELAY_DiffuS(esc_data.last_swap_time) < (RPM_TO_US(config.initial_startup_speed)/2)) {
+		esc_data.consecutive_detected++;
+		esc_data.consecutive_missed = 0;
+		zcd(time);
+	} else {
+		esc_data.consecutive_detected = 0;
+		esc_data.consecutive_missed++;
+	}
 
 	// Schedule next commutation but only if the last ZCD was near where we expected.  Essentially
 	// this is dealing with a startup condition where noise will cause the ZCD to detect early, and
 	// then drive the speed up and make this happen really quickly and trigger a stall.  It can be
 	// neglected entirely but doing this makes it startup faster by phasing itself.
-	if(abs(esc_data.last_zcd_time - RPM_TO_US(esc_data.current_speed)) < 250)
+	if(abs(esc_data.last_zcd_time - RPM_TO_US(esc_data.current_speed) / 2) < 250)
 		esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, RPM_TO_US(esc_data.current_speed) / 2);
 
-	prev_time = TIM4->CCR1;
-	current_time = TIM4->CNT + RPM_TO_US(esc_data.current_speed) / 2;
-	diff_time = prev_time - current_time;
-	
-	if(esc_data.consecutive_detected > 3) {
+	if(esc_data.consecutive_detected > 10) {
 		esc_fsm_inject_event(ESC_EVENT_CLOSED, 0);
 	} else {
-		// Timing adjusted in entry function
-		// This should perform run a current control loop
-
-/*		int32_t current_error = (config.startup_current_target - esc_data.current);
-		current_error *= 0.00001;
-		esc_data.duty_cycle += current_error;
-
-		if(esc_data.duty_cycle < 0.01)
-			esc_data.duty_cycle = 0.01;
-		if(esc_data.duty_cycle > 0.4)
-			esc_data.duty_cycle = 0.4;
-		PIOS_ESC_SetDutyCycle(esc_data.duty_cycle); */
+		// TODO: Bring back current control loop
 	}
 }
 
-uint32_t startup_schedules = 0;
 /**
  * Commutation occured during startup without a ZCD
  */
@@ -458,34 +436,20 @@ static void go_esc_startup_nozcd(uint16_t time)
 
 		// Since we aren't getting ZCD keep accelerating
 		if(esc_data.current_speed < config.final_startup_speed)
-			esc_data.current_speed+=5;
+			esc_data.current_speed+=10;
 
-		startup_schedules++;
-		
 		// Schedule next commutation
 		esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, RPM_TO_US(esc_data.current_speed));
 	} 
-			
-	// Timing adjusted in entry function
-	// This should perform run a current control loop
-	int32_t current_error = (config.startup_current_target - esc_data.current);
-	current_error /= 8;
-	esc_data.duty_cycle += current_error;
-	if(esc_data.duty_cycle > PIOS_ESC_MAX_DUTYCYCLE / 5)
-		esc_data.duty_cycle = PIOS_ESC_MAX_DUTYCYCLE / 5;
-
-	bound_duty_cycle();
-	PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
+	
+	// TODO: bring back current limit
 }
-
-uint32_t starts = 0;
 
 /**
  * Commutation in closed loop
  */
 static void go_esc_cl_start(uint16_t time)
 {
-	starts++;
 	esc_data.consecutive_detected = 0;
 	esc_data.consecutive_missed = 0;
 }
