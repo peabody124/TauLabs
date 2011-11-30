@@ -156,6 +156,10 @@ int main()
 				PIOS_LED_Toggle(0);
 				ms_count = 0;
 			}
+
+			uint16_t send_buffer[4] = {0xff00, esc_data->current_speed, esc_data->speed_setpoint, esc_data->current};
+			PIOS_COM_SendBufferNonBlocking(PIOS_COM_DEBUG, (uint8_t *) send_buffer, sizeof(send_buffer));
+
 		}
 		
 		esc_process_static_fsm_rxn();
