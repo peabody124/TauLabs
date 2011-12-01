@@ -103,6 +103,7 @@ struct esc_fsm_data {
 	enum esc_fsm_state state;
 };
 
+#define PID_SCALE 32178
 struct esc_config {
 	int16_t kp;
 	int16_t ki;
@@ -116,6 +117,7 @@ struct esc_config {
 	uint16_t final_startup_speed;
 	uint16_t startup_current_target;
 	int8_t commutation_phase;
+	int16_t commutation_offset_us;
 	float soft_current_limit;
 	float hard_current_limit;
 	uint32_t magic;
@@ -131,15 +133,21 @@ struct esc_fsm_data * esc_fsm_init();
 void esc_fsm_inject_event(enum esc_event event, uint16_t time);
 void esc_process_static_fsm_rxn();
 
-#define NOTES_F0 349
-#define NOTES_A  440
-#define NOTES_AS 466
-#define NOTES_B  494
-#define NOTES_C  523
-#define NOTES_CS 554
-#define NOTES_D  587
-#define NOTES_DS 622
-#define NOTES_E  659
-#define NOTES_F  698
+
+#define NOTES_F0 361
+#define NOTES_FS 386
+#define NOTES_G  406
+#define NOTES_GS 422
+#define NOTES_A  460
+#define NOTES_AS 490
+#define NOTES_B  520
+#define NOTES_C  555
+#define NOTES_CS 575
+#define NOTES_D  618
+#define NOTES_DS 665
+#define NOTES_E  700
+#define NOTES_F  745
+
+#define ESC_CONFIG_MAGIC 0x763fedc
 
 #endif

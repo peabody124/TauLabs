@@ -29,6 +29,7 @@
 #include "pios.h"
 #include "esc.h"
 #include "esc_fsm.h"
+#include "esc_settings.h"
 #include "fifo_buffer.h"
 #include <pios_stm32.h>
 
@@ -89,7 +90,8 @@ struct esc_fsm_data * esc_data = 0;
 
 uint32_t offs = 0;
 
-
+extern struct esc_config config;
+bool save = false;
 int main()
 {
 	esc_data = 0;
@@ -164,6 +166,11 @@ int main()
 		
 		esc_process_static_fsm_rxn();
 		
+		
+		if(save && esc_data->state == ESC_STATE_IDLE) {
+			save = false;
+			esc_settings_save(&config);
+		}
 	}
 	return 0;
 }

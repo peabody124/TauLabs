@@ -175,11 +175,6 @@ TIM16 |  PWM in   |           |           |
 //-------------------------
 #define PIOS_MASTER_CLOCK			64000000
 #define PIOS_PERIPHERAL_CLOCK			(PIOS_MASTER_CLOCK / 2)
-#if defined(USE_BOOTLOADER)
-#define PIOS_NVIC_VECTTAB_FLASH			(START_OF_USER_CODE)
-#else
-#define PIOS_NVIC_VECTTAB_FLASH			((uint32_t)0x08000000)
-#endif
 
 //-------------------------
 // Interrupt Priorities

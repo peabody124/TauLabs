@@ -11,6 +11,7 @@
 #include "pios.h"
 #include "stdbool.h"
 #include "pios_esc.h"
+#include "esc_settings.h"
 
 // TOOD: Important safety features
 // 1. Disable after a timeout from last control command
@@ -28,26 +29,8 @@
 #define RPM_TO_US(x) (1428571 / x)
 #define US_TO_RPM(x) RPM_TO_US(x)
 #define COMMUTATIONS_PER_ROT (7*6)
-#define ESC_CONFIG_MAGIC 0x763fedc
 
-#define PID_SCALE 32178
-struct esc_config config = {
-	.max_dc_change = 0.1 * PIOS_ESC_MAX_DUTYCYCLE,
-	.kp = 5, //0.0005 * PID_SCALE,
-	.ki = 1, //0.0001 * PID_SCALE,
-	.kff = 1.3e-4 * PID_SCALE,
-	.kff2 = -0.05 * PID_SCALE,
-	.ilim = 500,
-	.min_dc = 0,
-	.max_dc = 0.90 * PIOS_ESC_MAX_DUTYCYCLE,
-	.initial_startup_speed = 100,
-	.final_startup_speed = 400,
-	.startup_current_target = 20,
-	.commutation_phase = 23,
-	.soft_current_limit = 3000, /* 10 mA per unit */
-	.hard_current_limit = 2350,
-	.magic = ESC_CONFIG_MAGIC,
-};
+struct esc_config config;
 
 static void go_esc_nothing(uint16_t time) {};
 // Fault and stopping transitions
@@ -485,7 +468,7 @@ static void go_esc_cl_zcd(uint16_t time)
 
 	zcd(time);
 
-	uint32_t zcd_delay = esc_data.swap_interval_smoothed * (30 - config.commutation_phase) / 60;
+	uint32_t zcd_delay = esc_data.swap_interval_smoothed * (30 - config.commutation_phase) / 60 - config.commutation_offset_us;
 	esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, zcd_delay);
 	
 	zcd1_time = PIOS_DELAY_DiffuS(timeval);
@@ -550,6 +533,11 @@ static void go_esc_cl_nozcd(uint16_t time)
  */
 struct esc_fsm_data * esc_fsm_init()
 {
+
+	if (esc_settings_load(&config) != 0) {
+		esc_settings_defaults(&config);
+	}
+	
 	PIOS_ESC_Off();
 	esc_data.state = ESC_STATE_INIT;
 	esc_data.duty_cycle = 0;
