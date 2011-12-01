@@ -691,7 +691,7 @@ static void zcd(uint16_t time)
 {
 	esc_data.last_zcd_time = PIOS_DELAY_DiffuS(esc_data.last_swap_time);
 	esc_data.detected = true;
-	esc_data.zcd_fraction += ((float) esc_data.last_zcd_time / esc_data.last_swap_interval - esc_data.zcd_fraction) * 0.05;
+	//esc_data.zcd_fraction += ((float) esc_data.last_zcd_time / esc_data.last_swap_interval - esc_data.zcd_fraction) * 0.05;
 	zcds++;
 }
 

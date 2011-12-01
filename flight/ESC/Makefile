@@ -81,6 +81,7 @@ OPUAVSYNTHDIR = $(OUTDIR)/../uavobject-synthetics/flight
 SRC = esc.c
 SRC += esc_fsm.c
 SRC += esc_settings.c
+SRC += esc_serial.c
 SRC += pios_board.c
 SRC += $(FLIGHTLIB)/fifo_buffer.c
 

@@ -30,6 +30,7 @@
 #include "esc.h"
 #include "esc_fsm.h"
 #include "esc_settings.h"
+#include "esc_serial.h"
 #include "fifo_buffer.h"
 #include <pios_stm32.h>
 
@@ -67,6 +68,8 @@ volatile uint8_t high_pin;
 volatile uint8_t undriven_pin;
 volatile bool pos;
 
+uint8_t esc_logging;
+
 const uint8_t dT = 1e6 / PIOS_ADC_RATE; // 6 uS per sample at 160k
 float rate = 0;
 
@@ -92,6 +95,7 @@ uint32_t offs = 0;
 
 extern struct esc_config config;
 bool save = false;
+int32_t chars;
 int main()
 {
 	esc_data = 0;
@@ -127,6 +131,8 @@ int main()
 	
 	PIOS_ESC_Off();
 
+	esc_serial_init();
+	
 	test_esc();
 	
 	// Blink LED briefly once passed	
@@ -159,10 +165,16 @@ int main()
 				ms_count = 0;
 			}
 
-			uint16_t send_buffer[4] = {0xff00, esc_data->current_speed, esc_data->speed_setpoint, esc_data->current};
-			PIOS_COM_SendBufferNonBlocking(PIOS_COM_DEBUG, (uint8_t *) send_buffer, sizeof(send_buffer));
-
+			if (esc_logging) {
+				uint16_t send_buffer[4] = {0xff00, esc_data->current_speed, esc_data->speed_setpoint, esc_data->current};
+				PIOS_COM_SendBufferNonBlocking(PIOS_COM_DEBUG, (uint8_t *) send_buffer, sizeof(send_buffer));
+			}
 		}
+		
+		chars = PIOS_COM_ReceiveBufferUsed(PIOS_COM_DEBUG);
+		uint8_t c;
+		if(PIOS_COM_ReceiveBuffer(PIOS_COM_DEBUG, &c, 1, 0) == 0)
+			esc_serial_parse(c);
 		
 		esc_process_static_fsm_rxn();
 		
