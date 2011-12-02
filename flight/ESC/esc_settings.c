@@ -11,26 +11,30 @@
 #include "esc_fsm.h"
 #include <pios_board_info.h>
 
-const struct esc_config default_config = {
-	.max_dc_change = 0.1 * PIOS_ESC_MAX_DUTYCYCLE,
-	.kp = 5, //0.0005 * PID_SCALE,
-	.ki = 1, //0.0001 * PID_SCALE,
-	.kff = 1.3e-4 * PID_SCALE,
-	.kff2 = -0.05 * PID_SCALE,
-	.ilim = 500,
-	.min_dc = 0,
-	.max_dc = 0.90 * PIOS_ESC_MAX_DUTYCYCLE,
-	.initial_startup_speed = 100,
-	.final_startup_speed = 400,
-	.startup_current_target = 20,
-	.commutation_phase = 23,
-	.soft_current_limit = 3000, /* 10 mA per unit */
-	.hard_current_limit = 2350,
-	.commutation_offset_us = 0,
-	.magic = ESC_CONFIG_MAGIC,
+typedef void *UAVObjHandle;
+
+#include "escsettings.h"
+
+
+const EscSettingsData default_config = {
+	.Kp = 5, //0.0005 * PID_SCALE,
+	.Ki = 1, //0.0001 * PID_SCALE,
+	.Kff = 1.3e-4 * PID_SCALE,
+	.Kff2 = -0.05 * PID_SCALE,
+	.ILim = 500,
+	.MaxDcChange = 0.1 * PIOS_ESC_MAX_DUTYCYCLE,
+	.MinDc = 0,
+	.MaxDc = 0.90 * PIOS_ESC_MAX_DUTYCYCLE,
+	.InitialStartupSpeed = 100,
+	.FinalStartupSpeed = 400,
+	.StartupCurrentTarget = 20,
+	.CommutationPhase = 23,
+	.SoftCurrentLimit = 3000, /* 10 mA per unit */
+	.HardCurrentLimit = 2350,
+	.CommutationPhase = 0,
 };
 
-static int32_t settings_crc(const struct esc_config * settings) 
+static int32_t settings_crc(const EscSettingsData * settings) 
 {
 	uint8_t * p1 = (uint8_t *) settings;
 	
@@ -52,19 +56,17 @@ static int32_t settings_crc(const struct esc_config * settings)
  * @param[out] settings populated with new settings if succeed, untouched if failure
  * @return < 0 for failure or 0 for success
  */
-int32_t esc_settings_load(struct esc_config * settings) 
+int32_t esc_settings_load(EscSettingsData * settings) 
 {
 	if (pios_board_info_blob.magic != PIOS_BOARD_INFO_BLOB_MAGIC)
 		return -1;
 	
 	int32_t eeprom_size = pios_board_info_blob.ee_size;
 	
-	if (eeprom_size < sizeof(struct esc_config))
+	if (eeprom_size < sizeof(EscSettingsData))
 		return -2;
 
-	const struct esc_config * flash_settings = (const struct esc_config *) pios_board_info_blob.ee_base;
-	if(flash_settings->magic != ESC_CONFIG_MAGIC)
-		return -3;
+	const EscSettingsData * flash_settings = (const EscSettingsData *) pios_board_info_blob.ee_base;
 
 	// Align and read the CRC
 	uint32_t crc = settings_crc(flash_settings);
@@ -79,7 +81,7 @@ int32_t esc_settings_load(struct esc_config * settings)
 	return 0;
 }
 
-int32_t esc_settings_defaults(struct esc_config * settings) 
+int32_t esc_settings_defaults(EscSettingsData * settings) 
 {
 	memcpy((uint8_t *) settings, (uint8_t *) &default_config, sizeof(default_config));
 	
@@ -91,7 +93,7 @@ int32_t esc_settings_defaults(struct esc_config * settings)
  * @param[in] settings the settings to save
  * @returns 0 if success, -1 for failure
  */
-int32_t esc_settings_save(struct esc_config * settings)
+int32_t esc_settings_save(EscSettingsData * settings)
 {   // save the settings into EEPROM
 	
     FLASH_Status fs;

@@ -36,7 +36,7 @@ enum esc_serial_command {
 
 //! The size of the data packets
 uint8_t esc_command_data_size[ESC_COMMAND_LAST] = {
-	[ESC_COMMAND_SET_CONFIG] = sizeof(struct esc_config) + 0, // No CRC yet
+	[ESC_COMMAND_SET_CONFIG] = sizeof(EscSettingsData) + 0, // No CRC yet
 	[ESC_COMMAND_GET_CONFIG] = 0,
 	[ESC_COMMAND_SAVE_CONFIG] = 0,
 	[ESC_COMMAND_ENABLE_SERIAL_LOGGING] = 0,
@@ -116,7 +116,7 @@ int32_t esc_serial_parse(int32_t c)
 	return 0;
 }
 
-extern struct esc_config config;
+extern EscSettingsData config;
 extern struct esc_control esc_control;
 
 /**

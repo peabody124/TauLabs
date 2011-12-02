@@ -30,7 +30,7 @@
 #define US_TO_RPM(x) RPM_TO_US(x)
 #define COMMUTATIONS_PER_ROT (7*6)
 
-struct esc_config config;
+EscSettingsData config;
 
 static void go_esc_nothing(uint16_t time) {};
 // Fault and stopping transitions
@@ -272,10 +272,10 @@ void esc_process_static_fsm_rxn() {
 			static uint16_t last_timer;
 			uint16_t cur_timer = PIOS_DELAY_GetuS();
 
-			if(esc_data.current > config.soft_current_limit) {
+			if(esc_data.current > config.SoftCurrentLimit) {
 				esc_data.duty_cycle -= 1;
-				if(esc_data.duty_cycle < config.min_dc)
-					esc_data.duty_cycle = config.min_dc;
+				if(esc_data.duty_cycle < config.MinDc)
+					esc_data.duty_cycle = config.MinDc;
 
 				PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
 			}
@@ -353,7 +353,7 @@ static void go_esc_startup_grab(uint16_t time)
 	// TODO: Set up a timeout for whole startup system
 
 	PIOS_ESC_SetState(0);
-	esc_data.current_speed = config.initial_startup_speed;
+	esc_data.current_speed = config.InitialStartupSpeed;
 	esc_data.consecutive_missed = 0;
 	esc_data.consecutive_detected = 0;
 	
@@ -380,8 +380,8 @@ static void go_esc_startup_wait(uint16_t time)
  */
 static void go_esc_startup_zcd(uint16_t time)
 {
-	if(PIOS_DELAY_DiffuS(esc_data.last_swap_time) > (RPM_TO_US(config.final_startup_speed)/2) &&
-	   PIOS_DELAY_DiffuS(esc_data.last_swap_time) < (RPM_TO_US(config.initial_startup_speed)/2)) {
+	if(PIOS_DELAY_DiffuS(esc_data.last_swap_time) > (RPM_TO_US(config.FinalStartupSpeed)/2) &&
+	   PIOS_DELAY_DiffuS(esc_data.last_swap_time) < (RPM_TO_US(config.InitialStartupSpeed)/2)) {
 		esc_data.consecutive_detected++;
 		esc_data.consecutive_missed = 0;
 		zcd(time);
@@ -418,7 +418,7 @@ static void go_esc_startup_nozcd(uint16_t time)
 		commutate();
 
 		// Since we aren't getting ZCD keep accelerating
-		if(esc_data.current_speed < config.final_startup_speed)
+		if(esc_data.current_speed < config.FinalStartupSpeed)
 			esc_data.current_speed+=10;
 
 		// Schedule next commutation
@@ -468,13 +468,13 @@ static void go_esc_cl_zcd(uint16_t time)
 
 	zcd(time);
 
-	uint32_t zcd_delay = esc_data.swap_interval_smoothed * (30 - config.commutation_phase) / 60 - config.commutation_offset_us;
+	uint32_t zcd_delay = esc_data.swap_interval_smoothed * (30 - config.CommutationPhase) / 60 - config.CommutationOffset;
 	esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, zcd_delay);
 	
 	zcd1_time = PIOS_DELAY_DiffuS(timeval);
 	
-	if(esc_data.current > config.soft_current_limit) {
-		esc_data.duty_cycle -= config.max_dc_change;
+	if(esc_data.current > config.SoftCurrentLimit) {
+		esc_data.duty_cycle -= config.MaxDcChange;
 		bound_duty_cycle();
 		PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
 	} else {
@@ -484,21 +484,21 @@ static void go_esc_cl_zcd(uint16_t time)
 		int32_t error = esc_data.speed_setpoint - esc_data.current_speed;
 
 		esc_data.error_accum += error;
-		if(esc_data.error_accum > config.ilim)
-			esc_data.error_accum = config.ilim;
-		if(esc_data.error_accum < -config.ilim)
-			esc_data.error_accum = -config.ilim;
+		if(esc_data.error_accum > config.ILim)
+			esc_data.error_accum = config.ILim;
+		if(esc_data.error_accum < -config.ILim)
+			esc_data.error_accum = -config.ILim;
 
 		zcd2_time = PIOS_DELAY_DiffuS(timeval);
 
-		new_dc = (esc_data.speed_setpoint * config.kff - config.kff2 +
-		      error * config.kp + esc_data.error_accum * config.ki) * PIOS_ESC_MAX_DUTYCYCLE / PID_SCALE; //* error + esc_data.error_accum;
+		new_dc = (esc_data.speed_setpoint * config.Kff - config.Kff2 +
+		      error * config.Kp + esc_data.error_accum * config.Ki) * PIOS_ESC_MAX_DUTYCYCLE / PID_SCALE; //* error + esc_data.error_accum;
 		
 		// For now keep this calculation as a float and rescale it here
-		if((new_dc - esc_data.duty_cycle) > config.max_dc_change)
-			esc_data.duty_cycle += config.max_dc_change;
-		else if((new_dc - esc_data.duty_cycle) < -config.max_dc_change)
-			esc_data.duty_cycle -= config.max_dc_change;
+		if((new_dc - esc_data.duty_cycle) > config.MaxDcChange)
+			esc_data.duty_cycle += config.MaxDcChange;
+		else if((new_dc - esc_data.duty_cycle) < -config.MaxDcChange)
+			esc_data.duty_cycle -= config.MaxDcChange;
 		else
 			esc_data.duty_cycle = new_dc;
 
@@ -697,9 +697,9 @@ static void zcd(uint16_t time)
 
 static void bound_duty_cycle()
 {
-	if(esc_data.duty_cycle < config.min_dc)
-		esc_data.duty_cycle = config.min_dc;
-	if(esc_data.duty_cycle > config.max_dc)
-		esc_data.duty_cycle = config.max_dc;
+	if(esc_data.duty_cycle < config.MinDc)
+		esc_data.duty_cycle = config.MinDc;
+	if(esc_data.duty_cycle > config.MaxDc)
+		esc_data.duty_cycle = config.MaxDc;
 }
 

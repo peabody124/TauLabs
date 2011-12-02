@@ -9,10 +9,12 @@
 #ifndef OpenPilotOSX_esc_settings_h
 #define OpenPilotOSX_esc_settings_h
 
-#include "esc_fsm.h"
+typedef void *UAVObjHandle;
 
-int32_t esc_settings_load(struct esc_config * settings);
-int32_t esc_settings_defaults(struct esc_config * settings);
-int32_t esc_settings_save(struct esc_config * settings);
+#include "escsettings.h"
+
+int32_t esc_settings_load(EscSettingsData * settings);
+int32_t esc_settings_defaults(EscSettingsData * settings);
+int32_t esc_settings_save(EscSettingsData * settings);
 
 #endif

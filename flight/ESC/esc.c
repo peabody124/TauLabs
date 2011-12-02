@@ -93,7 +93,7 @@ uint32_t offs = 0;
 
 // Major global variables
 struct esc_control esc_control;
-extern struct esc_config config;
+extern EscSettingsData config;
 
 int main()
 {

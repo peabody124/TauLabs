@@ -104,25 +104,6 @@ struct esc_fsm_data {
 };
 
 #define PID_SCALE 32178
-struct esc_config {
-	int16_t kp;
-	int16_t ki;
-	int16_t kff;
-	int16_t kff2;
-	int16_t ilim;
-	int32_t max_dc_change;
-	int32_t min_dc;
-	int32_t max_dc;
-	uint16_t initial_startup_speed;
-	uint16_t final_startup_speed;
-	uint16_t startup_current_target;
-	int8_t commutation_phase;
-	int16_t commutation_offset_us;
-	float soft_current_limit;
-	float hard_current_limit;
-	uint32_t magic;
-};
-
 
 struct esc_transition {
 	void (*entry_fn) (uint16_t time);

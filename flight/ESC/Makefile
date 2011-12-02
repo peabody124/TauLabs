@@ -55,6 +55,8 @@ PIOS = ../PiOS
 PIOSINC = $(PIOS)/inc
 FLIGHTLIB = ../Libraries
 FLIGHTLIBINC = ../Libraries/inc
+OPUAVOBJ = ../UAVObjects
+OPUAVOBJINC = $(OPUAVOBJ)/inc
 PIOSSTM32F10X = $(PIOS)/STM32F10x
 PIOSCOMMON = $(PIOS)/Common
 PIOSBOARDS = $(PIOS)/Boards
@@ -172,6 +174,7 @@ EXTRAINCDIRS  += $(CMSISDIR)
 EXTRAINCDIRS  += $(ESCINC)
 EXTRAINCDIRS  += $(OPUAVSYNTHDIR)
 EXTRAINCDIRS  += $(BOOTINC)
+EXTRAINCDIRS  += $(OPUAVOBJINC)
 
 # List any extra directories to look for library files here.
 # Also add directories where the linker should search for
