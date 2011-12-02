@@ -72,7 +72,6 @@ enum esc_event {
 
 struct esc_fsm_data {
 	int32_t duty_cycle;
-	int16_t current;
 	uint16_t current_speed;
 	int16_t speed_setpoint;
 
@@ -80,6 +79,10 @@ struct esc_fsm_data {
 	uint16_t scheduled_event_time;
 	enum esc_event scheduled_event;
 
+	// Current and battery measurements
+	int16_t current_ma;
+	uint16_t battery_mv;
+	
 	uint32_t last_swap_time;
 	uint32_t last_zcd_time;
 	uint16_t last_swap_interval;
@@ -89,15 +92,13 @@ struct esc_fsm_data {
 	uint8_t swap_intervals_pointer;
 	uint16_t zcd_intervals[NUM_STORED_SWAP_INTERVALS];
 	uint8_t zcd_intervals_pointer;
-	float zcd_fraction;
+	int8_t zcd_fraction;
 	uint16_t consecutive_detected;
 	uint16_t consecutive_missed;
 	uint16_t total_missed;
 	uint16_t faults;
 	uint8_t detected;
 	int32_t error_accum;
-	float Kv;
-	float dT;
 	enum esc_fsm_state pre_fault_state;
 	enum esc_event pre_fault_event;
 	enum esc_fsm_state state;

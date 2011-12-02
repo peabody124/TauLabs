@@ -31,7 +31,8 @@ enum esc_serial_command {
 	ESC_COMMAND_ENABLE_SERIAL_CONTROL = 0x07,
 	ESC_COMMAND_DISABLE_SERIAL_CONTROL = 0x08,
 	ESC_COMMAND_SET_SPEED = 0x09,
-	ESC_COMMAND_LAST = 0x10,
+	ESC_COMMAND_WHOAMI = 0x10,
+	ESC_COMMAND_LAST = 0x11,
 };
 
 //! The size of the data packets
@@ -166,6 +167,15 @@ static int32_t esc_serial_process()
 				retval = 0;
 			} else 
 				retval = -1;
+		}
+			break;
+		case ESC_COMMAND_WHOAMI:
+		{
+			uint8_t retbuf[34];
+			PIOS_SYS_SerialNumberGetBinary(&retbuf[1]);
+			retbuf[0] = 0x73;
+			retbuf[33] = 0x73;
+			PIOS_COM_SendBuffer(PIOS_COM_DEBUG, retbuf, sizeof(retbuf));
 		}
 			break;
 		default:

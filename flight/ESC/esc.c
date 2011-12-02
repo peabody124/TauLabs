@@ -44,6 +44,8 @@
 //TODO: Reenable watchdog and replace all PIOS_DELAY_WaitmS with something safe
 //know the exact time of each sample and the PWM phase
 
+//TODO: Measure battery voltage and normalize the feedforward model to be DC / Voltage
+
 //#define BACKBUFFER_ZCD
 //#define BACKBUFFER_ADC
 //#define BACKBUFFER_DIFF
@@ -164,7 +166,7 @@ int main()
 			}
 
 			if (esc_control.serial_logging_enabled) {
-				uint16_t send_buffer[6] = {0xff00, s_count, ms_count, esc_data->current_speed, esc_data->speed_setpoint, esc_data->current};
+				uint16_t send_buffer[6] = {0xff00, s_count, ms_count, esc_data->current_speed, esc_data->speed_setpoint, esc_data->current_ma};
 				PIOS_COM_SendBufferNonBlocking(PIOS_COM_DEBUG, (uint8_t *) send_buffer, sizeof(send_buffer));
 			}
 		}
@@ -409,12 +411,12 @@ void DMA1_Channel1_IRQHandler(void)
 	if(current_filter_pointer >= MAX_CURRENT_FILTER) 
 		current_filter_pointer = 0;
 #if MAX_CURRENT_FILTER == 16
-	esc_data->current = (current_filter_sum >> 4) - zero_current;
+	esc_data->current_ma = (current_filter_sum >> 4) - zero_current;
 #else
-	esc_data->current = current_filter_sum / MAX_CURRENT_FILTER - zero_current;
+	esc_data->current_ma = current_filter_sum / MAX_CURRENT_FILTER - zero_current;
 #endif
 	int32_t current_measurement = raw_buf[0] * 10; // Convert to almost mA
-	esc_data->current += (current_measurement - esc_data->current) / 50; // IIR filter
+	esc_data->current_ma += (current_measurement - esc_data->current_ma) / 50; // IIR filter
 	
 
 /*	if (esc_data->current > CURRENT_LIMIT && overcurrent_count > 4)

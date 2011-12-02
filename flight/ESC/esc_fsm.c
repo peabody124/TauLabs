@@ -12,6 +12,7 @@
 #include "stdbool.h"
 #include "pios_esc.h"
 #include "esc_settings.h"
+#include "escstatus.h"
 
 // TOOD: Important safety features
 // 1. Disable after a timeout from last control command
@@ -31,6 +32,7 @@
 #define COMMUTATIONS_PER_ROT (7*6)
 
 EscSettingsData config;
+EscStatusData status;
 
 static void go_esc_nothing(uint16_t time) {};
 // Fault and stopping transitions
@@ -272,7 +274,7 @@ void esc_process_static_fsm_rxn() {
 			static uint16_t last_timer;
 			uint16_t cur_timer = PIOS_DELAY_GetuS();
 
-			if(esc_data.current > config.SoftCurrentLimit) {
+			if(esc_data.current_ma > config.SoftCurrentLimit) {
 				esc_data.duty_cycle -= 1;
 				if(esc_data.duty_cycle < config.MinDc)
 					esc_data.duty_cycle = config.MinDc;
@@ -293,6 +295,16 @@ void esc_process_static_fsm_rxn() {
 		default:
 			break;
 	}
+	
+	// Copy some data to UAVO
+	status.SpeedSetpoint = esc_data.speed_setpoint;
+	status.CurrentSpeed = esc_data.current_speed;
+	status.Current = esc_data.current_ma;
+	status.TotalCurrent = 0;
+	status.DutyCycle = esc_data.duty_cycle * 100 / PIOS_ESC_MAX_DUTYCYCLE;
+	status.Battery = esc_data.battery_mv;
+	status.Kv = (uint32_t) status.CurrentSpeed / (status.Battery * esc_data.duty_cycle / PIOS_ESC_MAX_DUTYCYCLE);
+	status.Error = ESCSTATUS_ERROR_NONE;
 }
 
 /**
@@ -473,7 +485,7 @@ static void go_esc_cl_zcd(uint16_t time)
 	
 	zcd1_time = PIOS_DELAY_DiffuS(timeval);
 	
-	if(esc_data.current > config.SoftCurrentLimit) {
+	if(esc_data.current_ma > config.SoftCurrentLimit) {
 		esc_data.duty_cycle -= config.MaxDcChange;
 		bound_duty_cycle();
 		PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
@@ -659,7 +671,6 @@ void PIOS_DELAY_timeout() {
 	}
 }
 
-uint32_t commutations;
 /**
  * Function to commutate the ESC and store any necessary information
  */
@@ -678,21 +689,21 @@ static void commutate()
 	esc_data.current_speed = US_TO_RPM(esc_data.swap_interval_smoothed);
 	
 	esc_data.detected = false;
-	commutations++;
 	
 	PIOS_ESC_NextState();
 }
 
-uint32_t zcds;
 /**
  * Function to handle the book-keeping when a zcd detected
  */
 static void zcd(uint16_t time)
 {
-	esc_data.last_zcd_time = PIOS_DELAY_DiffuS(esc_data.last_swap_time);
 	esc_data.detected = true;
-	//esc_data.zcd_fraction += ((float) esc_data.last_zcd_time / esc_data.last_swap_interval - esc_data.zcd_fraction) * 0.05;
-	zcds++;
+	esc_data.last_zcd_time = PIOS_DELAY_DiffuS(esc_data.last_swap_time);
+	
+	// Compute where the ZCD is relative to the swap interval, 50% nominal
+	uint16_t zcd_fraction = 100 * esc_data.last_zcd_time / esc_data.last_swap_interval;
+	esc_data.zcd_fraction = (zcd_fraction + 3 * esc_data.zcd_fraction) / 4;
 }
 
 static void bound_duty_cycle()
