@@ -84,6 +84,7 @@ SRC = esc.c
 SRC += esc_fsm.c
 SRC += esc_settings.c
 SRC += esc_serial.c
+SRC += esc_logger.c
 SRC += pios_board.c
 SRC += $(FLIGHTLIB)/fifo_buffer.c
 

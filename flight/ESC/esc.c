@@ -28,13 +28,13 @@
 /* OpenPilot Includes */
 #include "pios.h"
 #include "esc.h"
-#include "esc_fsm.h"
-#include "esc_settings.h"
-#include "esc_serial.h"
+
 #include "fifo_buffer.h"
 #include <pios_stm32.h>
 
 #define CURRENT_LIMIT 4600
+
+#define DOWNSAMPLING 1
 
 //TODO: Check the ADC buffer pointer and make sure it isn't dropping swaps
 //TODO: Check the time commutation is being scheduled, make sure it's the future
@@ -46,29 +46,17 @@
 
 //TODO: Measure battery voltage and normalize the feedforward model to be DC / Voltage
 
+#define BACKBUFFER_ADC
 //#define BACKBUFFER_ZCD
-//#define BACKBUFFER_ADC
 //#define BACKBUFFER_DIFF
 
 /* Prototype of PIOS_Board_Init() function */
 extern void PIOS_Board_Init(void);
 
-#define DOWNSAMPLING 1
-
-#if defined(BACKBUFFER_ADC) || defined(BACKBUFFER_ZCD) || defined(BACKBUFFER_DIFF)
-uint16_t back_buf[2024];
-uint16_t back_buf_point = 0;
-#endif
-
 #define LED_GO  LED1
 #define LED_ERR LED2
 
 int16_t zero_current = 0;
-
-volatile uint8_t low_pin;
-volatile uint8_t high_pin;
-volatile uint8_t undriven_pin;
-volatile bool pos;
 
 const uint8_t dT = 1e6 / PIOS_ADC_RATE; // 6 uS per sample at 160k
 float rate = 0;
@@ -102,7 +90,7 @@ int main()
 	esc_data = 0;
 	PIOS_Board_Init();
 
-	PIOS_ADC_Config(DOWNSAMPLING);
+	PIOS_ADC_Config(1);
 
 	// TODO: Move this into a PIOS_DELAY function
 	TIM_OCInitTypeDef tim_oc_init = {
@@ -369,16 +357,17 @@ void DMA1_Channel1_IRQHandler(void)
 //	static uint8_t overcurrent_count = 0;
 	static int16_t * raw_buf;
 	enum pios_esc_state curr_state;
+	
+	static uint8_t undriven_pin;
+	static bool pos;
 
 	if (DMA_GetFlagStatus(pios_adc_devs[0].cfg->full_flag /*DMA1_IT_TC1*/)) {	// whole double buffer filled
 		pios_adc_devs[0].valid_data_buffer = &pios_adc_devs[0].raw_data_buffer[pios_adc_devs[0].dma_half_buffer_size];
 		DMA_ClearFlag(pios_adc_devs[0].cfg->full_flag);
-//		PIOS_GPIO_On(1);		
 	}
 	else if (DMA_GetFlagStatus(pios_adc_devs[0].cfg->half_flag /*DMA1_IT_HT1*/)) {
 		pios_adc_devs[0].valid_data_buffer = &pios_adc_devs[0].raw_data_buffer[0];
 		DMA_ClearFlag(pios_adc_devs[0].cfg->half_flag);
-//		PIOS_GPIO_Off(1); 
 	}
 	else {
 		// This should not happen, probably due to transfer errors
@@ -391,14 +380,11 @@ void DMA1_Channel1_IRQHandler(void)
 
 	curr_state = PIOS_ESC_GetState();
 
-#ifdef BACKBUFFER_ADC
-	// Debugging code - keep a buffer of old ADC values
-	back_buf[back_buf_point++] = raw_buf[0];
-	back_buf[back_buf_point++] = raw_buf[1];
-	back_buf[back_buf_point++] = raw_buf[2];
-	back_buf[back_buf_point++] = raw_buf[3];
-	if(back_buf_point >= (NELEMENTS(back_buf)-3))
-#endif
+	// If requested log data until buffer full
+	if(esc_control.backbuffer_logging_enabled) {
+		if (esc_logger_put((uint8_t *) &raw_buf[1], 6) != 0)
+			esc_control.backbuffer_logging_enabled = false;
+	}
 
 	if( PIOS_DELAY_DiffuS(esc_data->last_swap_time) < DEMAG_BLANKING )
 		return;
@@ -518,20 +504,8 @@ void DMA1_Channel1_IRQHandler(void)
 			esc_data->detected = true;
 			esc_fsm_inject_event(ESC_EVENT_ZCD, TIM4->CNT);
 			calls_to_last_detect = calls_to_detect;
-#ifdef BACKBUFFER_ZCD
-			back_buf[back_buf_point++] = below_time;
-			back_buf[back_buf_point++] = esc_data->speed_setpoint;
-			if(back_buf_point > (sizeof(back_buf) / sizeof(back_buf[0])))
-				back_buf_point = 0;
-#endif /* BACKBUFFER_ZCD */
 			break;
 		}
-#ifdef BACKBUFFER_DIFF
-		// Debugging code - keep a buffer of old ADC values
-		back_buf[back_buf_point++] = diff;
-		if(back_buf_point >= NELEMENTS(back_buf))
-			back_buf_point = 0;
-#endif
 	}	
 }
 
