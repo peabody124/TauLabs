@@ -117,7 +117,7 @@ int32_t esc_serial_parse(int32_t c)
 }
 
 extern struct esc_config config;
-extern uint8_t esc_logging;
+extern struct esc_control esc_control;
 
 /**
  * Process a command once it is parsed
@@ -136,31 +136,33 @@ static int32_t esc_serial_process()
 			retval = -1;
 			break;
 		case ESC_COMMAND_SAVE_CONFIG:
-			esc_settings_save(&config);
+			esc_control.save_requested = true;
 			retval = 0;
 			break;
 		case ESC_COMMAND_ENABLE_SERIAL_LOGGING:
-			esc_logging = 1;
+			esc_control.serial_logging_enabled = true;
 			retval = 0;
 			break;
 		case ESC_COMMAND_DISABLE_SERIAL_LOGGING:
-			esc_logging = 0;
+			esc_control.serial_logging_enabled = false;
 			retval = 0;
 			break;
 		case ESC_COMMAND_REBOOT_BL:
 			retval = -1;
 			break;
 		case ESC_COMMAND_ENABLE_SERIAL_CONTROL:
-			retval = -1;
+			esc_control.control_method = ESC_CONTROL_SERIAL;
+			retval = 0;
 			break;
 		case ESC_COMMAND_DISABLE_SERIAL_CONTROL:
-			retval = -1;
+			esc_control.control_method = ESC_CONTROL_PWM;
+			retval = 0;
 			break;
 		case ESC_COMMAND_SET_SPEED:
 		{
 			int16_t new_speed = esc_serial_state.buffer[0] | (esc_serial_state.buffer[1] << 8);
 			if(new_speed >= 0 || new_speed < 10000) {
-//				esc_data->speed_setpoint = new_speed;
+				esc_control.serial_input = new_speed;
 				retval = 0;
 			} else 
 				retval = -1;

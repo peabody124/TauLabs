@@ -68,8 +68,6 @@ volatile uint8_t high_pin;
 volatile uint8_t undriven_pin;
 volatile bool pos;
 
-uint8_t esc_logging;
-
 const uint8_t dT = 1e6 / PIOS_ADC_RATE; // 6 uS per sample at 160k
 float rate = 0;
 
@@ -93,14 +91,14 @@ struct esc_fsm_data * esc_data = 0;
 
 uint32_t offs = 0;
 
+// Major global variables
+struct esc_control esc_control;
 extern struct esc_config config;
-bool save = false;
-int32_t chars;
+
 int main()
 {
 	esc_data = 0;
 	PIOS_Board_Init();
-
 
 	PIOS_ADC_Config(DOWNSAMPLING);
 
@@ -128,7 +126,6 @@ int main()
 	PIOS_LED_On(LED_GO);
 	PIOS_LED_Off(LED_ERR);
 
-	
 	PIOS_ESC_Off();
 
 	esc_serial_init();
@@ -154,6 +151,7 @@ int main()
 	counter = 0;
 	uint32_t timeval = PIOS_DELAY_GetRaw();
 	uint32_t ms_count = 0;
+	uint32_t s_count = 0;
 	while(1) {
 		counter++;
 		
@@ -165,23 +163,27 @@ int main()
 				ms_count = 0;
 			}
 
-			if (esc_logging) {
-				uint16_t send_buffer[4] = {0xff00, esc_data->current_speed, esc_data->speed_setpoint, esc_data->current};
+			if (esc_control.serial_logging_enabled) {
+				uint16_t send_buffer[6] = {0xff00, s_count, ms_count, esc_data->current_speed, esc_data->speed_setpoint, esc_data->current};
 				PIOS_COM_SendBufferNonBlocking(PIOS_COM_DEBUG, (uint8_t *) send_buffer, sizeof(send_buffer));
 			}
 		}
 		
-		chars = PIOS_COM_ReceiveBufferUsed(PIOS_COM_DEBUG);
+
+		esc_process_static_fsm_rxn();
+
 		uint8_t c;
-		if(PIOS_COM_ReceiveBuffer(PIOS_COM_DEBUG, &c, 1, 0) == 0)
+		if(PIOS_COM_ReceiveBuffer(PIOS_COM_DEBUG, &c, 1, 0) == 1)
 			esc_serial_parse(c);
 		
-		esc_process_static_fsm_rxn();
-		
-		
-		if(save && esc_data->state == ESC_STATE_IDLE) {
-			save = false;
+		if(esc_control.save_requested && esc_data->state == ESC_STATE_IDLE) {
+			esc_control.save_requested = false;
 			esc_settings_save(&config);
+			// TODO: Send serial ack if succeeded or failed
+		}
+		
+		if (esc_control.control_method == ESC_CONTROL_SERIAL) {
+			esc_data->speed_setpoint = esc_control.serial_input;
 		}
 	}
 	return 0;
@@ -732,13 +734,18 @@ static void PIOS_TIM_4_irq_handler (void)
 			capture_value = 0;
 		else {
 			last_input_update = PIOS_DELAY_GetRaw();
-			esc_data->speed_setpoint = (capture_value < 1050) ? 0 : 400 + (capture_value - 1050) * 7;
+			esc_control.pwm_input = last_input_update;
+			if(esc_control.control_method == ESC_CONTROL_PWM) {
+				esc_data->speed_setpoint = (capture_value < 1050) ? 0 : 400 + (capture_value - 1050) * 7;
+			}
 		}
 	} 
 	
 	if (TIM_GetITStatus(TIM4, TIM_IT_Update)) {
-		if (PIOS_DELAY_DiffuS(last_input_update) > 100000)
+		if (PIOS_DELAY_DiffuS(last_input_update) > 100000) {
+			esc_control.pwm_input = -1;
 			esc_data->speed_setpoint = -1;
+		}
 		TIM_ClearITPendingBit(TIM4,TIM_IT_Update);
 	}
 }

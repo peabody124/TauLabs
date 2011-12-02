@@ -29,4 +29,17 @@
 /* PIOS Includes */
 #include <pios.h>
 
+enum esc_control_method {
+	ESC_CONTROL_PWM,
+	ESC_CONTROL_SERIAL
+};
+
+struct esc_control {
+	int16_t pwm_input;
+	int16_t serial_input;
+	enum esc_control_method control_method;
+	bool serial_logging_enabled;
+	bool save_requested;
+};
+
 #endif /* ESC_H */
