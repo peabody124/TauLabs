@@ -378,6 +378,9 @@ void DMA1_Channel1_IRQHandler(void)
 		return;
 	}
 
+	if(!esc_data)
+		return;
+	
 	bad_flips += (raw_buf == pios_adc_devs[0].valid_data_buffer);
 	raw_buf = (int16_t *) pios_adc_devs[0].valid_data_buffer;
 
