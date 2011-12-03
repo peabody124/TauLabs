@@ -18,7 +18,7 @@
 
 #define MAX_SERIAL_BUFFER_SIZE 128
 
-static int32_t esc_serial_process();
+static int32_t esc_serial_command_received();
 
 //! The set of commands the ESC understands
 enum esc_serial_command {
@@ -32,7 +32,9 @@ enum esc_serial_command {
 	ESC_COMMAND_DISABLE_SERIAL_CONTROL = 0x08,
 	ESC_COMMAND_SET_SPEED = 0x09,
 	ESC_COMMAND_WHOAMI = 0x10,
-	ESC_COMMAND_LAST = 0x11,
+	ESC_COMMAND_ENABLE_ADC_LOGGING = 0x11,
+	ESC_COMMAND_GET_ADC_LOG = 0x12,
+	ESC_COMMAND_LAST = 0x13,
 };
 
 //! The size of the data packets
@@ -52,7 +54,9 @@ enum esc_serial_parser_state {
 	ESC_SERIAL_WAIT_SYNC,
 	ESC_SERIAL_WAIT_FOR_COMMAND,
 	ESC_SERIAL_WAIT_FOR_DATA,
-	ESC_SERIAL_WAIT_FOR_PROCESS
+	ESC_SERIAL_WAIT_FOR_PROCESS,
+	ESC_SERIAL_SENDING_LOG,
+	ESC_SERIAL_SENDING_CONFIG,
 };
 
 static struct esc_serial_state {
@@ -61,6 +65,7 @@ static struct esc_serial_state {
 	uint8_t buffer[MAX_SERIAL_BUFFER_SIZE];
 	uint32_t buffer_pointer;
 	int32_t crc;
+	int32_t sending_pointer;
 } esc_serial_state;
 
 /**
@@ -107,7 +112,7 @@ int32_t esc_serial_parse(int32_t c)
 			esc_serial_state.buffer_pointer++;
 			if (esc_serial_state.buffer_pointer >= esc_command_data_size[esc_serial_state.state]) {
 				esc_serial_state.state = ESC_SERIAL_WAIT_FOR_PROCESS;
-				return esc_serial_process();
+				return esc_serial_command_received();
 			}
 			break;
 		default:
@@ -123,7 +128,7 @@ extern struct esc_control esc_control;
 /**
  * Process a command once it is parsed
  */
-static int32_t esc_serial_process()
+static int32_t esc_serial_command_received()
 {
 	int32_t retval = -1;
 	
@@ -178,6 +183,20 @@ static int32_t esc_serial_process()
 			PIOS_COM_SendBuffer(PIOS_COM_DEBUG, retbuf, sizeof(retbuf));
 		}
 			break;
+		case ESC_COMMAND_ENABLE_ADC_LOGGING:
+			// Reset log poitner to zero and enable logging
+			esc_logger_init();
+			esc_control.backbuffer_logging_status = ESC_LOGGING_CAPTURE;
+			break;
+		case ESC_COMMAND_GET_ADC_LOG:
+			if(esc_control.backbuffer_logging_status == ESC_LOGGING_FULL) {
+				esc_serial_state.sending_pointer = 0; // Indicate we have not sent any of the buffer yet
+				esc_serial_state.state = ESC_SERIAL_SENDING_LOG;
+				esc_control.backbuffer_logging_status = ESC_LOGGING_ECHO;
+				retval = 0;
+			} else
+				retval = -1;
+			break;
 		default:
 			PIOS_DEBUG_Assert(0);
 	}
@@ -185,4 +204,39 @@ static int32_t esc_serial_process()
 	esc_serial_init();
 	
 	return retval;
+}
+
+/**
+ * Perform any period tasks like sending back data
+ */
+int32_t esc_serial_process()
+{
+	switch(esc_serial_state.state) {
+		case ESC_SERIAL_SENDING_LOG:
+			// Send next part of ADC log
+			if(esc_control.backbuffer_logging_status == ESC_LOGGING_FULL) {
+				if(PIOS_COM_ReceiveBufferUsed(PIOS_COM_DEBUG) == 0) {
+				
+					uint32_t to_send = esc_logger_getlength() - esc_serial_state.sending_pointer;
+					to_send = (to_send > 2) ? 2 : to_send;
+
+					// Send some samples from the buffer
+					uint8_t * buf = esc_logger_getbuffer();
+					esc_serial_state.sending_pointer =+ PIOS_COM_SendBuffer(PIOS_COM_DEBUG, &buf[esc_serial_state.sending_pointer], to_send);
+					
+					if (esc_serial_state.sending_pointer >= esc_logger_getlength()) {
+						esc_serial_state.state = ESC_SERIAL_WAIT_SYNC;
+						esc_control.backbuffer_logging_status = ESC_LOGGING_NONE;
+						esc_serial_state.sending_pointer = 0;
+					}
+				}
+				
+			}
+			return 0;
+			break;
+		default:
+			return 0;
+	}
+	
+	return -1;
 }

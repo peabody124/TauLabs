@@ -11,5 +11,6 @@
 
 int32_t esc_serial_init();
 int32_t esc_serial_parse(int32_t c);
+int32_t esc_serial_process();
 
 #endif

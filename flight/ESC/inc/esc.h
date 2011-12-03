@@ -38,12 +38,19 @@ enum esc_control_method {
 	ESC_CONTROL_SERIAL
 };
 
+enum esc_logging_status {
+	ESC_LOGGING_NONE,
+	ESC_LOGGING_CAPTURE,
+	ESC_LOGGING_FULL,
+	ESC_LOGGING_ECHO
+};
+
 struct esc_control {
 	int16_t pwm_input;
 	int16_t serial_input;
 	enum esc_control_method control_method;
 	bool serial_logging_enabled;
-	bool backbuffer_logging_enabled;
+	enum esc_logging_status backbuffer_logging_status;
 	bool save_requested;
 };
 

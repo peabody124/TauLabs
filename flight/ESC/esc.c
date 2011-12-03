@@ -162,9 +162,12 @@ int main()
 
 		esc_process_static_fsm_rxn();
 
+		// Serial interface: Process any incoming characters, and then process
+		// any ongoing messages
 		uint8_t c;
 		if(PIOS_COM_ReceiveBuffer(PIOS_COM_DEBUG, &c, 1, 0) == 1)
 			esc_serial_parse(c);
+		esc_serial_process();
 		
 		if(esc_control.save_requested && esc_data->state == ESC_STATE_IDLE) {
 			esc_control.save_requested = false;
@@ -381,9 +384,9 @@ void DMA1_Channel1_IRQHandler(void)
 	curr_state = PIOS_ESC_GetState();
 
 	// If requested log data until buffer full
-	if(esc_control.backbuffer_logging_enabled) {
+	if(esc_control.backbuffer_logging_status == ESC_LOGGING_CAPTURE) {
 		if (esc_logger_put((uint8_t *) &raw_buf[1], 6) != 0)
-			esc_control.backbuffer_logging_enabled = false;
+			esc_control.backbuffer_logging_status = ESC_LOGGING_FULL;
 	}
 
 	if( PIOS_DELAY_DiffuS(esc_data->last_swap_time) < DEMAG_BLANKING )

@@ -1,0 +1,18 @@
+<xml>
+    <object name="EscStatus" singleinstance="false" settings="false">
+        <description>Various information from ESC.</description>
+        <field name="SpeedSetpoint" units="RPM" type="int16" elements="1"/>
+        <field name="CurrentSpeed" units="RPM" type="uint16" elements="1"/>
+        <field name="Current" units="mA" type="uint16" elements="1"/>
+        <field name="TotalCurrent" units="mAh" type="uint16" elements="1"/>
+	<field name="DutyCycle" units="100" type="uint8" elements="1"/>
+	<field name="Kv" units="rpm/V" type="int16" elements="1"/>
+        <field name="Battery" units="mV" type="uint16" elements="1"/>
+        <field name="TotalMissed" units="count" type="uint16" elements="1"/>
+        <field name="Error" units="" type="enum" elements="1" options="None,HIGH_A_FET,LOW_A_FET,HIGH_B_FET,LOW_B_FET,HIGH_C_FET,LOW_C_FET,NO_MOTOR"/>
+        <access gcs="readwrite" flight="readwrite"/>
+        <telemetrygcs acked="false" updatemode="manual" period="0"/>
+        <telemetryflight acked="false" updatemode="periodic" period="1000"/>
+        <logging updatemode="never" period="0"/>
+    </object>
+</xml>
