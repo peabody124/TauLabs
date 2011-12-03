@@ -103,17 +103,19 @@ int32_t esc_serial_parse(int32_t c)
 			esc_serial_state.command = c;
 			if (esc_command_data_size[esc_serial_state.command] == 0) {
 				esc_serial_state.state = ESC_SERIAL_WAIT_FOR_PROCESS;
-				return esc_serial_process();
+				return esc_serial_command_received();
 			}
 			esc_serial_state.state = ESC_SERIAL_WAIT_FOR_DATA;
 			break;
 		case ESC_SERIAL_WAIT_FOR_DATA:
 			esc_serial_state.buffer[esc_serial_state.buffer_pointer] = c;
 			esc_serial_state.buffer_pointer++;
-			if (esc_serial_state.buffer_pointer >= esc_command_data_size[esc_serial_state.state]) {
+			if (esc_serial_state.buffer_pointer >= esc_command_data_size[esc_serial_state.command]) {
 				esc_serial_state.state = ESC_SERIAL_WAIT_FOR_PROCESS;
 				return esc_serial_command_received();
 			}
+			break;
+		case ESC_SERIAL_WAIT_FOR_PROCESS:
 			break;
 		default:
 			PIOS_DEBUG_Assert(0);

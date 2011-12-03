@@ -158,11 +158,10 @@ int main()
 			// Flash LED every 1024 ms
 			if((ms_count & 0x000007ff) == 0x400) {
 				PIOS_LED_Toggle(0);
-				ms_count = 0;
 			}
 
 			if (esc_control.serial_logging_enabled) {
-				uint16_t send_buffer[6] = {0xff00, (ms_count & 0xffff0000) >> 16, (ms_count & 0x0000ffff), esc_data->current_speed, esc_data->speed_setpoint, esc_data->current_ma};
+				uint16_t send_buffer[6] = {0xff00, (ms_count & 0x0000ffff), (ms_count & 0xffff0000) >> 16, esc_data->current_speed, esc_data->speed_setpoint, esc_data->current_ma};
 				PIOS_COM_SendBufferNonBlocking(PIOS_COM_DEBUG, (uint8_t *) send_buffer, sizeof(send_buffer));
 			}
 		}

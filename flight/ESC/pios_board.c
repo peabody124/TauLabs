@@ -219,7 +219,7 @@ uint8_t pios_adc_num_devices = NELEMENTS(pios_adc_devs);
 const struct pios_usart_cfg pios_usart_debug_cfg = {
 	.regs = USART1,
 	.init = {
-		 .USART_BaudRate = 230400,
+		 .USART_BaudRate = 115200, //230400,
 		 .USART_WordLength = USART_WordLength_8b,
 		 .USART_Parity = USART_Parity_No,
 		 .USART_StopBits = USART_StopBits_1,
@@ -229,7 +229,7 @@ const struct pios_usart_cfg pios_usart_debug_cfg = {
 	.irq = {
 		.init = {
 			 .NVIC_IRQChannel = USART1_IRQn,
-			 .NVIC_IRQChannelPreemptionPriority = PIOS_IRQ_PRIO_MID,
+			 .NVIC_IRQChannelPreemptionPriority = PIOS_IRQ_PRIO_HIGHEST,
 			 .NVIC_IRQChannelSubPriority = 0,
 			 .NVIC_IRQChannelCmd = ENABLE,
 			 },
@@ -252,9 +252,9 @@ const struct pios_usart_cfg pios_usart_debug_cfg = {
 	       },
 };
 
-#define UART_DEBUG_TX_LEN 32
+#define UART_DEBUG_TX_LEN 64
 uint8_t uart_debug_tx_buffer[UART_DEBUG_TX_LEN];
-#define UART_DEBUG_RX_LEN 32
+#define UART_DEBUG_RX_LEN 64
 uint8_t uart_debug_rx_buffer[UART_DEBUG_RX_LEN];
 static uint32_t pios_usart_debug_id;
 
