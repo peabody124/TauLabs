@@ -91,6 +91,14 @@ int main()
 	PIOS_Board_Init();
 
 	PIOS_ADC_Config(1);
+	
+	// TODO: Move this into an esc_control section
+	esc_control.control_method = ESC_CONTROL_PWM;
+	esc_control.serial_input = -1;
+	esc_control.pwm_input = -1;
+	esc_control.serial_logging_enabled = false;
+	esc_control.save_requested = false;
+	esc_control.backbuffer_logging_status = false;
 
 	// TODO: Move this into a PIOS_DELAY function
 	TIM_OCInitTypeDef tim_oc_init = {
@@ -141,20 +149,20 @@ int main()
 	counter = 0;
 	uint32_t timeval = PIOS_DELAY_GetRaw();
 	uint32_t ms_count = 0;
-	uint32_t s_count = 0;
 	while(1) {
 		counter++;
 		
 		if(PIOS_DELAY_DiffuS(timeval) > 1000) {
 			ms_count++;
 			timeval = PIOS_DELAY_GetRaw();
-			if(ms_count > 1000) {
+			// Flash LED every 1024 ms
+			if((ms_count & 0x000007ff) == 0x400) {
 				PIOS_LED_Toggle(0);
 				ms_count = 0;
 			}
 
 			if (esc_control.serial_logging_enabled) {
-				uint16_t send_buffer[6] = {0xff00, s_count, ms_count, esc_data->current_speed, esc_data->speed_setpoint, esc_data->current_ma};
+				uint16_t send_buffer[6] = {0xff00, (ms_count & 0xffff0000) >> 16, (ms_count & 0x0000ffff), esc_data->current_speed, esc_data->speed_setpoint, esc_data->current_ma};
 				PIOS_COM_SendBufferNonBlocking(PIOS_COM_DEBUG, (uint8_t *) send_buffer, sizeof(send_buffer));
 			}
 		}

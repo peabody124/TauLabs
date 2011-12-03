@@ -29,16 +29,19 @@ const EscSettingsData default_config = {
 	.FinalStartupSpeed = 400,
 	.StartupCurrentTarget = 20,
 	.CommutationPhase = 23,
+	.CommutationOffset = 0,
 	.SoftCurrentLimit = 3000, /* 10 mA per unit */
 	.HardCurrentLimit = 2350,
-	.CommutationPhase = 0,
 };
 
-static int32_t settings_crc(const EscSettingsData * settings) 
+static uint32_t settings_crc(const EscSettingsData * settings) 
 {
+	uint32_t crc;
 	uint8_t * p1 = (uint8_t *) settings;
 	
+	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_CRC, ENABLE);	
 	CRC_ResetDR();
+	
     for (int32_t i = 0; i < sizeof(*settings); )
     {
         uint32_t value = 0;
@@ -46,9 +49,9 @@ static int32_t settings_crc(const EscSettingsData * settings)
         if (i < sizeof(*settings)) value |= (uint32_t)*p1++ << 8;  else value |= 0x0000ff00; i++;
         if (i < sizeof(*settings)) value |= (uint32_t)*p1++ << 16; else value |= 0x00ff0000; i++;
         if (i < sizeof(*settings)) value |= (uint32_t)*p1++ << 24; else value |= 0xff000000; i++;
-		CRC_CalcCRC(value);
+		crc = CRC_CalcCRC(value);
 	}
-	return CRC_GetCRC();
+	return crc;
 }
 
 /**
