@@ -157,6 +157,13 @@ classdef EscSerial
             end 
         end
         
+        function self = flush(self)
+            % flush old data
+            if get(self.ser, 'BytesAvailable') > 0
+                fread(self.ser, get(self.ser,'BytesAvailable'), 'uint8');
+            end
+        end
+        
         function self = plotLogging(self)
 
             assert(get(self.ser,'BytesAvailable') > 0, 'Logging may not be enabled as no bytes available');
@@ -187,6 +194,26 @@ classdef EscSerial
                 
                 shg
             end
+        end
+        
+        function [self dat] = runAdcLog(self)
+            assert(isOpen(self), 'Open serial port first');
+            assert(~self.logging, 'Do not run this while doing serial logging');
+            fwrite(self.ser, uint8([self.SYNC_BYTE self.ESC_COMMAND_ENABLE_ADC_LOGGING]));
+            flush(self);
+            % TODO: Get/check ack
+            pause(0.5);
+            fwrite(self.ser, uint8([self.SYNC_BYTE self.ESC_COMMAND_GET_ADC_LOG]));
+            for i = 1:40
+                if get(self.ser,'BytesAvailable') == 4044
+                    break;
+                end
+                pause(0.1);
+            end
+            assert(i~=40,'Timed out getting ADC data');
+            dat = uint8(fread(self.ser, get(self.ser,'BytesAvailable'), 'uint8'));
+            dat = typecast(dat,'int16');
+            dat = double(reshape(dat,3,[]));
         end
 
     end

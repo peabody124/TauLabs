@@ -1,21 +1,21 @@
 if ~exist('esc','var')
-    esc = EscSerial
+    esc = EscSerial;
 end
 
 if ~isOpen(esc)
-    esc = openPort(esc,'/dev/tty.usbmodemfa141')
+    esc = openPort(esc,'/dev/tty.usbmodemfa141');
 end
 
-step_size = 300;
+step_size = 1000;
 step_period = 10;
-base_speed = 4000;
+base_speed = 3000;
 
 
 % Tweak configuration
-esc.configuration.RisingKp = 5;
-esc.configuration.FallingKp = 200;
+esc.configuration.RisingKp = 15;
+esc.configuration.FallingKp = 1000;
 esc.configuration.Ki = 5;
-esc.configuration.MaxDcChange = 100;
+esc.configuration.MaxDcChange = 200;
 esc = setConfiguration(esc);
 pause(0.1)
 

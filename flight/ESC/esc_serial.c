@@ -195,7 +195,7 @@ static int32_t esc_serial_command_received()
 				esc_serial_state.sending_pointer = 0; // Indicate we have not sent any of the buffer yet
 				esc_serial_state.state = ESC_SERIAL_SENDING_LOG;
 				esc_control.backbuffer_logging_status = ESC_LOGGING_ECHO;
-				retval = 0;
+				return 0; // Must return here to avoid falling through the esc_serial_init
 			} else
 				retval = -1;
 			break;
@@ -211,20 +211,22 @@ static int32_t esc_serial_command_received()
 /**
  * Perform any period tasks like sending back data
  */
+ 
+uint32_t bytes_sent;
 int32_t esc_serial_process()
 {
 	switch(esc_serial_state.state) {
 		case ESC_SERIAL_SENDING_LOG:
 			// Send next part of ADC log
-			if(esc_control.backbuffer_logging_status == ESC_LOGGING_FULL) {
+			if(esc_control.backbuffer_logging_status == ESC_LOGGING_ECHO) {
 				if(PIOS_COM_ReceiveBufferUsed(PIOS_COM_DEBUG) == 0) {
 				
 					uint32_t to_send = esc_logger_getlength() - esc_serial_state.sending_pointer;
 					to_send = (to_send > 2) ? 2 : to_send;
-
+					bytes_sent+= to_send;
 					// Send some samples from the buffer
 					uint8_t * buf = esc_logger_getbuffer();
-					esc_serial_state.sending_pointer =+ PIOS_COM_SendBuffer(PIOS_COM_DEBUG, &buf[esc_serial_state.sending_pointer], to_send);
+					esc_serial_state.sending_pointer += (PIOS_COM_SendBuffer(PIOS_COM_DEBUG, &buf[esc_serial_state.sending_pointer], to_send) == 0) ? to_send : 0;
 					
 					if (esc_serial_state.sending_pointer >= esc_logger_getlength()) {
 						esc_serial_state.state = ESC_SERIAL_WAIT_SYNC;
