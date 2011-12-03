@@ -1,12 +1,13 @@
 <xml>
     <object name="EscSettings" singleinstance="true" settings="true">
         <description>Configuration settings for OP-ESC</description>
-	<field name="Kp" units="%/rpm" type="int16" elements="1" defaultvalue="80"/>
+	<field name="RisingKp" units="%/rpm" type="int16" elements="1" defaultvalue="40"/>
+	<field name="FallingKp" units="%/rpm" type="int16" elements="1" defaultvalue="80"/>
 	<field name="Ki" units="%/rpm/s" type="int16" elements="1" defaultvalue="5"/>
 	<field name="Kff" units="%/rpm/s" type="int16" elements="1" defaultvalue="3"/>
 	<field name="Kff2" units="%/rpm/s" type="int16" elements="1" defaultvalue="0"/>
 	<field name="ILim" units="%" type="int16" elements="1" defaultvalue="1000"/>
-	<field name="MaxDcChange" units="/32178" type="int16" elements="1" defaultvalue="100"/>
+	<field name="MaxDcChange" units="/32178" type="int16" elements="1" defaultvalue="50"/>
 	<field name="MaxDc" units="/32178" type="int16" elements="1" defaultvalue="32178"/>
 	<field name="MinDc" units="/32178" type="int16" elements="1" defaultvalue="0"/>
 	<field name="InitialStartupSpeed" units="rpm" type="uint16" elements="1" defaultvalue="100"/>

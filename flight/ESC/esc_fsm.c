@@ -503,8 +503,14 @@ static void go_esc_cl_zcd(uint16_t time)
 
 		zcd2_time = PIOS_DELAY_DiffuS(timeval);
 
-		new_dc = (esc_data.speed_setpoint * config.Kff - config.Kff2 +
-		      error * config.Kp + esc_data.error_accum * config.Ki) * PIOS_ESC_MAX_DUTYCYCLE / PID_SCALE; //* error + esc_data.error_accum;
+		if(error >= 0) {  // Accelerating
+			new_dc = (esc_data.speed_setpoint * config.Kff - config.Kff2 +
+		      error * config.RisingKp + esc_data.error_accum * config.Ki) * PIOS_ESC_MAX_DUTYCYCLE / PID_SCALE; //* error + esc_data.error_accum;
+		} else {
+			new_dc = (esc_data.speed_setpoint * config.Kff - config.Kff2 +
+					  error * config.FallingKp + esc_data.error_accum * config.Ki) * PIOS_ESC_MAX_DUTYCYCLE / PID_SCALE; //* error + esc_data.error_accum;
+			
+		}
 		
 		// For now keep this calculation as a float and rescale it here
 		if((new_dc - esc_data.duty_cycle) > config.MaxDcChange)

@@ -17,7 +17,8 @@ typedef void *UAVObjHandle;
 
 
 const EscSettingsData default_config = {
-	.Kp = 5, //0.0005 * PID_SCALE,
+	.RisingKp = 5, //0.0005 * PID_SCALE,
+	.FallingKp = 25, //0.0005 * PID_SCALE,
 	.Ki = 1, //0.0001 * PID_SCALE,
 	.Kff = 1.3e-4 * PID_SCALE,
 	.Kff2 = -0.05 * PID_SCALE,

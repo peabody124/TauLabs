@@ -12,9 +12,10 @@ base_speed = 4000;
 
 
 % Tweak configuration
-esc.configuration.Kp = 40;
+esc.configuration.RisingKp = 5;
+esc.configuration.FallingKp = 200;
 esc.configuration.Ki = 5;
-esc.configuration.MaxDcChange = 15;
+esc.configuration.MaxDcChange = 100;
 esc = setConfiguration(esc);
 pause(0.1)
 
@@ -39,8 +40,8 @@ esc = enableLogging(esc);
 % flush old data
 fread(esc.ser, get(esc.ser,'BytesAvailable'), 'uint8');
 
-subplot(211);
 clf
+subplot(211);
 h(1) = line('XData', (1:1),'YData', sin(1:1), 'Color', 'b');
 h(2) = line('XData', (1:1),'YData', sin(1:1), 'Color', 'g');
 legend('speed [rpm]', 'setpoint [rpm]')
@@ -51,7 +52,7 @@ setpoint = [];
 esc.packet = [];
 
 
-for i = 1:1000
+for i = 1:300
     [self t_ rpm_ setpoint_] = parseLogging(esc);
     t = [t t_];
     rpm = [rpm rpm_];
@@ -76,6 +77,7 @@ for i = 1:1000
 end
 
 esc = setSerialSpeed(esc, 0);
+esc = disableSerialControl(esc);
 
 step_length = 400;
 
