@@ -21,5 +21,5 @@ title('Off period');
 
 subplot(212)
 plot(t(~f3(1,:)),dat(:,~f3(1,:))* scale);
-ylim([0 6]);
+ylim([0 15]);
 title('On period');

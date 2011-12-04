@@ -1,4 +1,4 @@
-function [fall_info rise_info] StepResponse(varargin)
+function [fall_info rise_info] = StepResponse(varargin)
 % Computes the step resposnse of an ESC
 % Optional params
 %  esc - the already existing esc object
@@ -12,9 +12,9 @@ function [fall_info rise_info] StepResponse(varargin)
 
 params.esc = [];
 params.port = '/dev/tty.usbmodemfa141';
-params.step_period_ms = 500;
+params.step_period_ms = 700;
 params.step_size_rpm = 500;
-params.base_speed_rpm = 2500;
+params.base_speed_rpm = 3500;
 params.repetitions = 20;
 params = parseVarArgs(params, varargin{:});
 
@@ -24,6 +24,9 @@ if isempty(params.esc)
     esc = EscSerial;
 end
 
+base_speed_rpm = params.base_speed_rpm;
+step_size_rpm = params.step_size_rpm;
+step_period_ms = params.step_period_ms;
 % Open port if not open
 if ~isOpen(esc)
     esc = openPort(esc,'/dev/tty.usbmodemfa141');
@@ -36,10 +39,10 @@ end
 esc = enableSerialControl(esc);
 pause(0.1)
 esc = setSerialSpeed(esc, 0);
-pause(1.5)
+pause(3.5)
 
 % Start up ESC then ramp it up
-esc = setSerialSpeed(esc, 400)
+esc = setSerialSpeed(esc, 400);
 pause(2);
 for i = 400:5:base_speed_rpm
     esc = setSerialSpeed(esc, i);
@@ -47,7 +50,9 @@ for i = 400:5:base_speed_rpm
 end
 
 % flush old data and enable logging 
-fread(esc.ser, get(esc.ser,'BytesAvailable'), 'uint8');
+if(get(esc.ser,'BytesAvailable') > 0)
+    fread(esc.ser, get(esc.ser,'BytesAvailable'), 'uint8');
+end
 esc = enableLogging(esc);
 esc.packet = [];
 
@@ -65,8 +70,8 @@ low = 0;
 
 tic;
 for rep = 1:(params.repetitions*2)
-    while toc < (i * params.step_period_ms / 1000 / 2)
-        [self t_ rpm_ setpoint_] = parseLogging(esc);
+    while toc < (rep * params.step_period_ms / 1000 / 2)
+        [esc t_ rpm_ setpoint_] = parseLogging(esc);
         t = [t t_];
         rpm = [rpm rpm_];
         if mean(rpm) < 100
@@ -86,7 +91,7 @@ for rep = 1:(params.repetitions*2)
     end
     new_speed = base_speed_rpm + step_size_rpm * (mod(rep,2)==0);
     esc = setSerialSpeed(esc, new_speed);
-    disp(['Setting speed to ' num2str(newspeed) ' after ' num2str(toc) ' seconds']);
+    disp(['Setting speed to ' num2str(new_speed) ' after ' num2str(toc) ' seconds']);
 end
 
 % Shut down controller and resume PWM control.
@@ -98,7 +103,7 @@ if opened
     esc = closePort(esc);
 end
 
-step_length = 400;
+step_length = 300;
 
 rise = find(setpoint(1:end-1-step_length) == base_speed_rpm & setpoint(2:end-step_length) == (base_speed_rpm + step_size_rpm));
 fall = find(setpoint(1:end-1-step_length) == (base_speed_rpm + step_size_rpm) & setpoint(2:end-step_length) == base_speed_rpm);
@@ -106,11 +111,11 @@ fall = find(setpoint(1:end-1-step_length) == (base_speed_rpm + step_size_rpm) & 
 rise_response = mean(rpm(bsxfun(@plus,rise,(1:step_length)')),2);
 fall_response = mean(rpm(bsxfun(@plus,fall,(1:step_length)')),2);
 
-riseinfo = stepinfo(rise_response-base_speed,t(1:step_length));
-fallInfo = stepinfo(fall_response-base_speed-step_size,t(1:step_length));
+rise_info = stepinfo(rise_response-base_speed_rpm,t(1:step_length));
+fall_info = stepinfo(fall_response-base_speed_rpm-step_size_rpm,t(1:step_length));
 
-disp(['Rise time was: ' num2str(riseinfo.RiseTime) ' ms and overshoot was ' num2str(riseinfo.Overshoot / step_size_rpm * 100) '%']);
-disp(['Fall time was: ' num2str(fallInfo.RiseTime) ' ms and overshoot was ' num2str(fallInfo.Overshoot / step_size_rpm * 100) '%']);
+disp(['Rise time was: ' num2str(rise_info.RiseTime) ' ms and overshoot was ' num2str(rise_info.Overshoot / step_size_rpm * 100) '%']);
+disp(['Fall time was: ' num2str(fall_info.RiseTime) ' ms and overshoot was ' num2str(fall_info.Overshoot / step_size_rpm * 100) '%']);
 
 subplot(212);
 plot(t(1:step_length) - t(1), rise_response, t(1:step_length)- t(1), fall_response);

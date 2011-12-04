@@ -372,7 +372,8 @@ static void go_esc_startup_grab(uint16_t time)
 	for(uint8_t i = 0; i < NUM_STORED_SWAP_INTERVALS; i++)
 		esc_data.swap_intervals[i] = 0;
 	esc_data.swap_interval_sum = 0;
-	esc_data.duty_cycle = 0.12 * PIOS_ESC_MAX_DUTYCYCLE;
+	esc_data.duty_cycle = 0.15 * PIOS_ESC_MAX_DUTYCYCLE;
+	PIOS_DELAY_WaitmS(100);
 	PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
 	esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, 50000);  // Grab stator for 50 ms
 }
@@ -383,6 +384,9 @@ static void go_esc_startup_grab(uint16_t time)
  */
 static void go_esc_startup_wait(uint16_t time)
 {
+	esc_data.duty_cycle = 0.10 * PIOS_ESC_MAX_DUTYCYCLE;
+	PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
+
 	commutate();
 	esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, RPM_TO_US(esc_data.current_speed));
 }
@@ -692,7 +696,15 @@ static void commutate()
 		esc_data.swap_intervals_pointer = 0;	
 	
 	esc_data.swap_interval_smoothed = esc_data.swap_interval_sum / NUM_STORED_SWAP_INTERVALS;
-	esc_data.current_speed = US_TO_RPM(esc_data.swap_interval_smoothed);
+	// Only update timing information after startup
+	switch(esc_data.state) {
+		case ESC_STATE_STARTUP_WAIT:
+		case ESC_STATE_STARTUP_ZCD_DETECTED:
+		case ESC_STATE_STARTUP_NOZCD_COMMUTATED:
+			break;
+		default:
+			esc_data.current_speed = US_TO_RPM(esc_data.swap_interval_smoothed);
+	}
 	
 	esc_data.detected = false;
 	
