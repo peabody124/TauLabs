@@ -148,9 +148,16 @@ void PIOS_ESC_Init(const struct pios_esc_cfg * cfg)
 		RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
 		TIM_ARRPreloadConfig(channel.timer, ENABLE);
 		TIM_CtrlPWMOutputs(channel.timer, ENABLE);
-		TIM_Cmd(channel.timer, ENABLE);		
-		
-	}	
+//		TIM_Cmd(channel.timer, ENABLE);		
+	}
+	
+	// We need to send out Tim3_Trg0 as that is what the ADC regular channel
+	// can trigger from
+//	TIM_SelectMasterSlaveMode(TIM3, TIM_MasterSlaveMode_Enable);
+	TIM_SelectOutputTrigger(TIM3, TIM_TRGOSource_Update);
+	TIM_SelectSlaveMode(TIM2, TIM_SlaveMode_Trigger);
+	TIM_SelectInputTrigger(TIM2, TIM_TS_ITR2);
+	TIM_Cmd(TIM3,ENABLE);
 	
 	if(cfg->remap) {
 		/* Warning, I don't think this will work for multiple remaps at once */
