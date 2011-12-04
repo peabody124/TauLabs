@@ -374,10 +374,12 @@ static const int32_t filter_length[] = {
 	1,
 };	
 
-uint8_t filter_length_scalar = 100;
+uint8_t filter_length_scalar = 25;
 
+uint32_t adc_count = 0;
 void DMA1_Channel1_IRQHandler(void)
 {	
+	adc_count++;	
 	static enum pios_esc_state prev_state = ESC_STATE_AB;
 //	static uint8_t overcurrent_count = 0;
 	static int16_t * raw_buf;
@@ -410,7 +412,11 @@ void DMA1_Channel1_IRQHandler(void)
 
 	// If requested log data until buffer full
 	if(esc_control.backbuffer_logging_status == ESC_LOGGING_CAPTURE) {
-		if (esc_logger_put((uint8_t *) &raw_buf[1], 6) != 0)
+		uint16_t flags = 0;
+		flags |= (TIM2->CR1 & TIM_CR1_DIR) ? 0x8000 : 0;
+		flags |= (TIM3->CR1 & TIM_CR1_DIR) ? 0x4000 : 0;
+		int16_t samples[3] = {raw_buf[1] | flags, raw_buf[2] | flags, raw_buf[3] | flags};
+		if (esc_logger_put((uint8_t *) &samples[0], 6) != 0)
 			esc_control.backbuffer_logging_status = ESC_LOGGING_FULL;
 	}
 

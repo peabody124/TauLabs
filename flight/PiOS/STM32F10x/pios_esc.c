@@ -154,6 +154,11 @@ void PIOS_ESC_Init(const struct pios_esc_cfg * cfg)
 	// We need to send out Tim3_Trg0 as that is what the ADC regular channel
 	// can trigger from
 //	TIM_SelectMasterSlaveMode(TIM3, TIM_MasterSlaveMode_Enable);
+
+	TIM2->CR1 |= TIM_CR1_DIR;
+	TIM3->CR1 |= TIM_CR1_DIR;
+	TIM3->CNT = 0;
+	TIM2->CNT = 0;
 	TIM_SelectOutputTrigger(TIM3, TIM_TRGOSource_Update);
 	TIM_SelectSlaveMode(TIM2, TIM_SlaveMode_Trigger);
 	TIM_SelectInputTrigger(TIM2, TIM_TS_ITR2);
