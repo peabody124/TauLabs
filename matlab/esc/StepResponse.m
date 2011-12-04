@@ -6,16 +6,17 @@ if ~isOpen(esc)
     esc = openPort(esc,'/dev/tty.usbmodemfa141');
 end
 
-step_size = 200;
+step_size = 100;
 step_period = 10;
 base_speed = 2500;
 
 
 % Tweak configuration
-esc.configuration.RisingKp = 15;
-esc.configuration.FallingKp = 1000;
-esc.configuration.Ki = 5;
-esc.configuration.MaxDcChange = 200;
+esc.configuration.RisingKp = 8;
+esc.configuration.FallingKp = 100;
+esc.configuration.Ki = 1;
+esc.configuration.MaxDcChange = 100;
+esc.configuration.ILim = 1000;
 esc = setConfiguration(esc);
 pause(0.1)
 
@@ -27,11 +28,11 @@ pause(1.5)
 
 
 esc = setSerialSpeed(esc, 400)
-pause(1);
+pause(2);
 
 for i = 400:20:base_speed
     esc = setSerialSpeed(esc, i);
-    pause(0.005);
+    pause(0.05);
 end
 
 
@@ -67,6 +68,7 @@ for i = 1:300
     
     set(h(1), 'XData', t(max(1,end-4000):end), 'YData', rpm(max(1,end-4000):end))
     set(h(2), 'XData', t(max(1,end-4000):end), 'YData', setpoint(max(1,end-4000):end))
+    ylim([base_speed-200 base_speed+step_size+200]);
     xlim([t(max(1,end-4000+1)) t(end)])
     drawnow;
     

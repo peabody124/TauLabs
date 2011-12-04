@@ -158,7 +158,10 @@ void PIOS_ADC_Config(uint32_t oversampling)
 	NVIC_Init(&pios_adc_devs[0].cfg->dma.irq.init);
 	
 	/* Finally start initial conversion */
-	ADC_SoftwareStartConvCmd(ADC1, ENABLE);
+	/* Super hacky switch - if sampling really quickly dont auto start */
+	/* because it locks up the chip */
+	if(PIOS_ADC_ADCCLK != RCC_PCLK2_Div2 && oversampling <= 2)
+		ADC_SoftwareStartConvCmd(ADC1, ENABLE);
 	
 	/* Use simple averaging filter for now */
 	for (int32_t i = 0; i < pios_adc_devs[0].adc_oversample; i++)

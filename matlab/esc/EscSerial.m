@@ -39,7 +39,8 @@ classdef EscSerial
         ESC_COMMAND_WHOAMI = 9;
         ESC_COMMAND_ENABLE_ADC_LOGGING = 10;
         ESC_COMMAND_GET_ADC_LOG = 11;
-        ESC_COMMAND_LAST = 12;
+        ESC_COMMAND_SET_PWM_FREQ = 12;
+        ESC_COMMAND_LAST = 13;
         
         READ_PACKET_LENGTH = 6*2;
     end
@@ -196,6 +197,12 @@ classdef EscSerial
             end
         end
         
+        function self = setPwmRate(self, freq)
+            assert(isOpen(self), 'Open serial port first');
+            fwrite(self.ser, uint8([self.SYNC_BYTE self.ESC_COMMAND_SET_PWM_FREQ typecast(int16(freq), 'uint8')]));
+            % TODO: Get/check ack
+        end
+        
         function [self dat] = runAdcLog(self)
             assert(isOpen(self), 'Open serial port first');
             assert(~self.logging, 'Do not run this while doing serial logging');
@@ -210,7 +217,7 @@ classdef EscSerial
                 end
                 pause(0.1);
             end
-            assert(i~=40,'Timed out getting ADC data');
+            assert(i~=100,'Timed out getting ADC data');
             dat = uint8(fread(self.ser, get(self.ser,'BytesAvailable'), 'uint8'));
             dat = typecast(dat,'uint16');
             dat = double(reshape(dat,3,[]));

@@ -34,7 +34,8 @@ enum esc_serial_command {
 	ESC_COMMAND_WHOAMI = 9,
 	ESC_COMMAND_ENABLE_ADC_LOGGING = 10,
 	ESC_COMMAND_GET_ADC_LOG = 11,
-	ESC_COMMAND_LAST = 12,
+	ESC_COMMAND_SET_PWM_FREQ = 12,
+	ESC_COMMAND_LAST = 13,
 };
 
 //! The size of the data packets
@@ -47,6 +48,7 @@ uint8_t esc_command_data_size[ESC_COMMAND_LAST] = {
 	[ESC_COMMAND_REBOOT_BL] = 0,
 	[ESC_COMMAND_DISABLE_SERIAL_CONTROL] = 0,
 	[ESC_COMMAND_SET_SPEED] = 2,
+	[ESC_COMMAND_SET_PWM_FREQ] = 2,
 };
 
 //! States for the ESC parsers
@@ -198,6 +200,14 @@ static int32_t esc_serial_command_received()
 				return 0; // Must return here to avoid falling through the esc_serial_init
 			} else
 				retval = -1;
+			break;
+		case ESC_COMMAND_SET_PWM_FREQ:
+		{
+			int16_t new_freq = esc_serial_state.buffer[0] | (esc_serial_state.buffer[1] << 8);
+			uint16_t pwm_base_rate=(72e6 / new_freq) - 1;
+			TIM_SetAutoreload(TIM2, pwm_base_rate);
+			TIM_SetAutoreload(TIM3, pwm_base_rate);
+		}
 			break;
 		default:
 			PIOS_DEBUG_Assert(0);

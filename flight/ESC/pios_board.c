@@ -369,7 +369,7 @@ void PIOS_Board_Init(void) {
 
 	/* Bring up ADC for sensing BEMF */
 	PIOS_ADC_Init();
-	PIOS_ADC_Config(5);
+	PIOS_ADC_Config(1);
 
 	/* Remap AFIO pin */
 //	GPIO_PinRemapConfig( GPIO_Remap_SWJ_NoJTRST, ENABLE);

@@ -412,6 +412,7 @@ void DMA1_Channel1_IRQHandler(void)
 
 	// If requested log data until buffer full
 	if(esc_control.backbuffer_logging_status == ESC_LOGGING_CAPTURE) {
+		// When T3 flag is off then it is sampled when driven
 		uint16_t flags = 0;
 		flags |= (TIM2->CR1 & TIM_CR1_DIR) ? 0x8000 : 0;
 		flags |= (TIM3->CR1 & TIM_CR1_DIR) ? 0x4000 : 0;
