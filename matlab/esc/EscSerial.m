@@ -129,12 +129,29 @@ classdef EscSerial
             fwrite(self.ser, command(16:end));
         end
         
+        function dat = getConfiguration(self)
+            % Get the configuration from the ESC
+            % dat = getConfiguration(self)
+            assert(isOpen(self), 'Open serial port first');
+            aseert(~self.logging, 'Do not do this while serial logging is enabled');
+            flush(self);
+            command = uint8([self.SYNC_BYTE self.ESC_COMMAND_SET_CONFIG]);
+            fwrite(self.ser, commmand);
+            pause(0.1);
+            dat = uint8(fread(self.ser, 33, 'uint8'));
+        end
+        
+        function self = saveConfiguration(self)
+            assert(isOpen(self), 'Open serial port first');
+            fwrite(self.ser, uint8([self.SYNC_BYTE self.ESC_COMMAND_SAVE_CONFIG]));
+        end
+        
         function [self t rpm setpoint current gaps] = parseLogging(self)
             assert(isOpen(self), 'Open serial port first');
             assert(self.logging, 'Enable logging first');
             
             self.packet = [self.packet; ...
-                uint8(fread(self.ser,1000,'uint8'))];
+                uint8(fread(self.ser,500,'uint8'))];
             
             head = find(self.packet(1:end-1) == 0 & self.packet(2:end) == 255, 1, 'first');
             j = 1;
