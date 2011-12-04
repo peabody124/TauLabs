@@ -6,9 +6,9 @@ if ~isOpen(esc)
     esc = openPort(esc,'/dev/tty.usbmodemfa141');
 end
 
-step_size = 1000;
+step_size = 200;
 step_period = 10;
-base_speed = 3000;
+base_speed = 2500;
 
 
 % Tweak configuration

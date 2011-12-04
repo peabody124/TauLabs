@@ -100,6 +100,21 @@ int main()
 	esc_control.save_requested = false;
 	esc_control.backbuffer_logging_status = false;
 
+	ADC_InitTypeDef ADC_InitStructure;
+	ADC_StructInit(&ADC_InitStructure);
+	ADC_InitStructure.ADC_Mode = ADC_Mode_RegSimult;
+	ADC_InitStructure.ADC_ScanConvMode = ENABLE;
+	ADC_InitStructure.ADC_ContinuousConvMode = DISABLE;
+	ADC_InitStructure.ADC_ExternalTrigConv = ADC_ExternalTrigConv_T3_TRGO;
+	ADC_InitStructure.ADC_DataAlign = ADC_DataAlign_Right;
+	ADC_InitStructure.ADC_NbrOfChannel = ((PIOS_ADC_NUM_CHANNELS + 1) >> 1);
+	ADC_Init(ADC1, &ADC_InitStructure);
+	ADC_Init(ADC2, &ADC_InitStructure);
+	ADC_ExternalTrigConvCmd(ADC1, ENABLE);
+	ADC_ExternalTrigConvCmd(ADC2, ENABLE);
+
+	// TODO: Move this into a PIOS_DELAY functi
+
 	// TODO: Move this into a PIOS_DELAY function
 	TIM_OCInitTypeDef tim_oc_init = {
 		.TIM_OCMode = TIM_OCMode_PWM1,
