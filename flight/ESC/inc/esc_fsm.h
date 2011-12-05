@@ -102,6 +102,7 @@ struct esc_fsm_data {
 	enum esc_fsm_state pre_fault_state;
 	enum esc_event pre_fault_event;
 	enum esc_fsm_state state;
+	uint8_t locked;
 };
 
 #define PID_SCALE 32178

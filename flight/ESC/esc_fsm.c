@@ -368,6 +368,7 @@ static void go_esc_startup_grab(uint16_t time)
 	esc_data.current_speed = config.InitialStartupSpeed;
 	esc_data.consecutive_missed = 0;
 	esc_data.consecutive_detected = 0;
+	esc_data.locked = false;
 	
 	for(uint8_t i = 0; i < NUM_STORED_SWAP_INTERVALS; i++)
 		esc_data.swap_intervals[i] = 0;
@@ -414,6 +415,7 @@ static void go_esc_startup_zcd(uint16_t time)
 		esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, RPM_TO_US(esc_data.current_speed) / 2);
 
 	if(esc_data.consecutive_detected > 10) {
+		esc_data.consecutive_detected = 0;
 		esc_fsm_inject_event(ESC_EVENT_CLOSED, 0);
 	} else {
 		// TODO: Bring back current control loop
@@ -494,6 +496,12 @@ static void go_esc_cl_zcd(uint16_t time)
 		bound_duty_cycle();
 		PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
 	} else {
+		// Require two rotations when we start this before engaging control loop
+		if (!esc_data.locked) {
+			if (esc_data.consecutive_detected < 12)
+				return;
+			esc_data.locked = true;
+		}
 #ifdef OPEN_LOOP
 		esc_data.duty_cycle = esc_data.speed_setpoint * PIOS_ESC_MAX_DUTYCYCLE / 8000;
 #else
