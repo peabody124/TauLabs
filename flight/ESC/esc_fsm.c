@@ -513,8 +513,8 @@ static void go_esc_cl_zcd(uint16_t time)
 		else if (esc_data.current_speed < 912)
 			Kp = 1 + (Kp - 1) * (esc_data.current_speed - 400) / 512;
 		
-		// Note that the error accumulator is divided by 8 and the speed setpoint 
-		// for Kff by 16 to give them more precision
+		// Note that the error accumulator is divided by 16 and the speed setpoint 
+		// for Kff by 32 to give them more precision
 		new_dc = (((esc_data.speed_setpoint * config.Kff) >> 5)  - config.Kff2 +
 				  error * Kp + ((esc_data.error_accum * config.Ki) >> 4)) * PIOS_ESC_MAX_DUTYCYCLE / PID_SCALE;
 				  		
