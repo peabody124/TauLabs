@@ -507,15 +507,17 @@ static void go_esc_cl_zcd(uint16_t time)
 
 		zcd2_time = PIOS_DELAY_DiffuS(timeval);
 
-		if(error >= 0) {  // Accelerating
-			new_dc = (esc_data.speed_setpoint * config.Kff - config.Kff2 +
-		      error * config.RisingKp + esc_data.error_accum * config.Ki) * PIOS_ESC_MAX_DUTYCYCLE / PID_SCALE; //* error + esc_data.error_accum;
-		} else {
-			new_dc = (esc_data.speed_setpoint * config.Kff - config.Kff2 +
-					  error * config.FallingKp + esc_data.error_accum * config.Ki) * PIOS_ESC_MAX_DUTYCYCLE / PID_SCALE; //* error + esc_data.error_accum;
-			
-		}
+		int32_t Kp = (error >= 0) ? config.RisingKp: config.FallingKp;
+		if(esc_data.current_speed < 400)
+			Kp = 1;
+		else if (esc_data.current_speed < 912)
+			Kp = 1 + (Kp - 1) * (esc_data.current_speed - 400) / 512;
 		
+		// Note that the error accumulator is divided by 8 and the speed setpoint 
+		// for Kff by 16 to give them more precision
+		new_dc = (((esc_data.speed_setpoint * config.Kff) >> 5)  - config.Kff2 +
+				  error * Kp + ((esc_data.error_accum * config.Ki) >> 4)) * PIOS_ESC_MAX_DUTYCYCLE / PID_SCALE;
+				  		
 		// For now keep this calculation as a float and rescale it here
 		if((new_dc - esc_data.duty_cycle) > config.MaxDcChange)
 			esc_data.duty_cycle += config.MaxDcChange;

@@ -176,7 +176,7 @@ int main()
 			}
 
 			if (esc_control.serial_logging_enabled) {
-				uint16_t send_buffer[6] = {0xff00, (ms_count & 0x0000ffff), (ms_count & 0xffff0000) >> 16, esc_data->current_speed, esc_data->speed_setpoint, esc_data->current_ma};
+				uint16_t send_buffer[8] = {0xff00, (ms_count & 0x0000ffff), (ms_count & 0xffff0000) >> 16, esc_data->current_speed, esc_data->speed_setpoint, esc_data->duty_cycle};
 				PIOS_COM_SendBufferNonBlocking(PIOS_COM_DEBUG, (uint8_t *) send_buffer, sizeof(send_buffer));
 			}
 		}
@@ -747,7 +747,7 @@ static void PIOS_TIM_4_irq_handler (void)
 			last_input_update = PIOS_DELAY_GetRaw();
 			esc_control.pwm_input = last_input_update;
 			if(esc_control.control_method == ESC_CONTROL_PWM) {
-				esc_data->speed_setpoint = (capture_value < 1050) ? 0 : 400 + (capture_value - 1050) * 7;
+				esc_data->speed_setpoint = (capture_value < 1050) ? 0 : 250 + (capture_value - 1050) * 7;
 			}
 		}
 	} 
