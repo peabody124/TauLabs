@@ -133,10 +133,10 @@ classdef EscSerial
             % Get the configuration from the ESC
             % dat = getConfiguration(self)
             assert(isOpen(self), 'Open serial port first');
-            aseert(~self.logging, 'Do not do this while serial logging is enabled');
+            assert(~self.logging, 'Do not do this while serial logging is enabled');
             flush(self);
             command = uint8([self.SYNC_BYTE self.ESC_COMMAND_SET_CONFIG]);
-            fwrite(self.ser, commmand);
+            fwrite(self.ser, command);
             pause(0.1);
             dat = uint8(fread(self.ser, 33, 'uint8'));
         end
@@ -146,15 +146,22 @@ classdef EscSerial
             fwrite(self.ser, uint8([self.SYNC_BYTE self.ESC_COMMAND_SAVE_CONFIG]));
         end
         
-        function [self t rpm setpoint current gaps] = parseLogging(self)
+        function [self t rpm setpoint dutycycle] = parseLogging(self)
             assert(isOpen(self), 'Open serial port first');
             assert(self.logging, 'Enable logging first');
             
-            self.packet = [self.packet; ...
-                uint8(fread(self.ser,500,'uint8'))];
+            count = get(self.ser, 'BytesAvailable');
+            if  count> 0
+                self.packet = [self.packet; uint8(fread(self.ser, count,'uint8'))];
+            end
             
             head = find(self.packet(1:end-1) == 0 & self.packet(2:end) == 255, 1, 'first');
             j = 1;
+            t = [];
+            rpm = [];
+            setpoint = [];
+            dutycycle = [];
+            
             while(~isempty(head) && head < (length(self.packet) - self.READ_PACKET_LENGTH))
                 
            		a = uint8((self.packet(head+2:head+5)));
@@ -167,8 +174,9 @@ classdef EscSerial
                 setpoint(j) = double(typecast(a,'int16'));
 		
                 a = uint8((self.packet(head+10:head+11)));
-                current(j) = double(typecast(a,'int16'));
+                dutycycle(j) = double(typecast(a,'int16'));
                 
+
                 self.packet(1:head+11) = [];
                 head = find(self.packet(1:end-1) == 0 & self.packet(2:end) == 255, 1, 'first');
                 j = j + 1;

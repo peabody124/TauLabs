@@ -12,9 +12,9 @@ function [fall_info rise_info] = StepResponse(varargin)
 
 params.esc = [];
 params.port = '/dev/tty.usbmodemfa141';
-params.step_period_ms = 700;
+params.step_period_ms = 500;
 params.step_size_rpm = 500;
-params.base_speed_rpm = 3500;
+params.base_speed_rpm = 2500;
 params.repetitions = 20;
 params = parseVarArgs(params, varargin{:});
 
@@ -42,9 +42,9 @@ esc = setSerialSpeed(esc, 0);
 pause(3.5)
 
 % Start up ESC then ramp it up
-esc = setSerialSpeed(esc, 400);
-pause(2);
-for i = 400:5:base_speed_rpm
+esc = setSerialSpeed(esc, 450);
+pause(4);
+for i = 550:5:base_speed_rpm
     esc = setSerialSpeed(esc, i);
     pause(0.01);
 end
@@ -103,7 +103,7 @@ if opened
     esc = closePort(esc);
 end
 
-step_length = 300;
+step_length = 100;
 
 rise = find(setpoint(1:end-1-step_length) == base_speed_rpm & setpoint(2:end-step_length) == (base_speed_rpm + step_size_rpm));
 fall = find(setpoint(1:end-1-step_length) == (base_speed_rpm + step_size_rpm) & setpoint(2:end-step_length) == base_speed_rpm);
