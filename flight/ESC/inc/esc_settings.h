@@ -12,6 +12,7 @@
 typedef void *UAVObjHandle;
 
 #include "escsettings.h"
+#include "escstatus.h"
 
 int32_t esc_settings_load(EscSettingsData * settings);
 int32_t esc_settings_defaults(EscSettingsData * settings);

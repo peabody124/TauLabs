@@ -304,6 +304,7 @@ void esc_process_static_fsm_rxn() {
 	status.DutyCycle = esc_data.duty_cycle * 100 / PIOS_ESC_MAX_DUTYCYCLE;
 	status.Battery = esc_data.battery_mv;
 	status.Kv = (uint32_t) status.CurrentSpeed / (status.Battery * esc_data.duty_cycle / PIOS_ESC_MAX_DUTYCYCLE);
+	status.ZcdFraction = esc_data.zcd_fraction;
 	status.Error = ESCSTATUS_ERROR_NONE;
 }
 

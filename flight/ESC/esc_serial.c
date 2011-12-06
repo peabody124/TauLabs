@@ -35,7 +35,8 @@ enum esc_serial_command {
 	ESC_COMMAND_ENABLE_ADC_LOGGING = 10,
 	ESC_COMMAND_GET_ADC_LOG = 11,
 	ESC_COMMAND_SET_PWM_FREQ = 12,
-	ESC_COMMAND_LAST = 13,
+	ESC_COMMAND_GET_STATUS = 13,
+	ESC_COMMAND_LAST = 14,
 };
 
 //! The size of the data packets
@@ -49,6 +50,7 @@ uint8_t esc_command_data_size[ESC_COMMAND_LAST] = {
 	[ESC_COMMAND_DISABLE_SERIAL_CONTROL] = 0,
 	[ESC_COMMAND_SET_SPEED] = 2,
 	[ESC_COMMAND_SET_PWM_FREQ] = 2,
+	[ESC_COMMAND_GET_STATUS] = 0,
 };
 
 //! States for the ESC parsers
@@ -127,6 +129,7 @@ int32_t esc_serial_parse(int32_t c)
 }
 
 extern EscSettingsData config;
+extern EscStatusData status;
 extern struct esc_control esc_control;
 
 /**
@@ -207,6 +210,9 @@ static int32_t esc_serial_command_received()
 			TIM_SetAutoreload(TIM2, pwm_base_rate);
 			TIM_SetAutoreload(TIM3, pwm_base_rate);
 		}
+			break;
+		case ESC_COMMAND_GET_STATUS:
+			retval = PIOS_COM_SendBufferNonBlocking(PIOS_COM_DEBUG, (uint8_t *) &status, sizeof(status));
 			break;
 		default:
 			PIOS_DEBUG_Assert(0);

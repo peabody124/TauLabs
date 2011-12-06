@@ -41,7 +41,8 @@ classdef EscSerial
         ESC_COMMAND_ENABLE_ADC_LOGGING = 10;
         ESC_COMMAND_GET_ADC_LOG = 11;
         ESC_COMMAND_SET_PWM_FREQ = 12;
-        ESC_COMMAND_LAST = 13;
+        ESC_COMMAND_GET_STATUS = 13;
+        ESC_COMMAND_LAST = 14;
         
         READ_PACKET_LENGTH = 6*2;
     end
@@ -164,6 +165,28 @@ classdef EscSerial
         function self = saveConfiguration(self)
             assert(isOpen(self), 'Open serial port first');
             fwrite(self.ser, uint8([self.SYNC_BYTE self.ESC_COMMAND_SAVE_CONFIG]));
+        end
+        
+        function status = getStatus(self)
+            % Get the configuration from the ESC
+            % dat = getConfiguration(self)
+            assert(isOpen(self), 'Open serial port first');
+            assert(~self.logging, 'Do not do this while serial logging is enabled');
+            flush(self);
+            command = uint8([self.SYNC_BYTE self.ESC_COMMAND_GET_STATUS]);
+            fwrite(self.ser, command);
+            pause(0.1);
+            dat = uint8(fread(self.ser, 17, 'uint8'));
+            status.SpeedSetpoint = typecast(dat(1:2),'int16');
+            status.CurrentSpeed = typecast(dat(3:4),'uint16');
+            status.Current = typecast(dat(5:6),'uint16');
+            status.TotalCurrent = typecast(dat(7:8),'uint16')
+            status.Kv = typecast(dat(9:10),'int16');
+            status.Battery = typecast(dat(11:12),'int16');
+            status.TotalMissed = typecast(dat(13:14),'uint16');
+            status.DutyCycle = dat(15);
+            status.ZcdFraction = dat(16);
+            status.Error = dat(17);
         end
         
         function [self t rpm setpoint dutycycle] = parseLogging(self)
