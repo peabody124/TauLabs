@@ -7,8 +7,9 @@
 	<field name="Kff" units="%/rpm/s" type="int16" elements="1" defaultvalue="3"/>
 	<field name="Kff2" units="%/rpm/s" type="int16" elements="1" defaultvalue="0"/>
 	<field name="ILim" units="%" type="int16" elements="1" defaultvalue="1000"/>
+	<field name="MaxError" units="rpm" type="uint16" elements="1" defaultvalue="250"/>
 	<field name="MaxDcChange" units="/32178" type="int16" elements="1" defaultvalue="50"/>
-	<field name="MaxDc" units="/32178" type="int16" elements="1" defaultvalue="32178"/>
+	<field name="MaxDc" units="/32178" type="int16" elements="1" defaultvalue="28000"/>
 	<field name="MinDc" units="/32178" type="int16" elements="1" defaultvalue="0"/>
 	<field name="InitialStartupSpeed" units="rpm" type="uint16" elements="1" defaultvalue="100"/>
 	<field name="FinalStartupSpeed" units="rpm" type="uint16" elements="1" defaultvalue="400"/>

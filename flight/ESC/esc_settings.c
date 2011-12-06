@@ -23,6 +23,7 @@ const EscSettingsData default_config = {
 	.Kff = 1.3e-4 * 32 * PID_SCALE,
 	.Kff2 = -0.05 * PID_SCALE,
 	.ILim = 15000,
+	.MaxError = 250, // RPM
 	.MaxDcChange = 0.1 * PIOS_ESC_MAX_DUTYCYCLE,
 	.MinDc = 0,
 	.MaxDc = 0.90 * PIOS_ESC_MAX_DUTYCYCLE,

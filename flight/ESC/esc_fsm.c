@@ -506,6 +506,12 @@ static void go_esc_cl_zcd(uint16_t time)
 		esc_data.duty_cycle = esc_data.speed_setpoint * PIOS_ESC_MAX_DUTYCYCLE / 8000;
 #else
 		int32_t error = esc_data.speed_setpoint - esc_data.current_speed;
+		
+		// Bound error to limit the acceleration for large changes
+		if(error > config.MaxError)
+			error = config.MaxError;
+		else if (error < -config.MaxError)
+			error = -config.MaxError;
 
 		esc_data.error_accum += error;
 		if(esc_data.error_accum > config.ILim)

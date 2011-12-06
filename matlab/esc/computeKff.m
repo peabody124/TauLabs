@@ -1,11 +1,12 @@
-function [t rpm setpoint] = computeKff(varargin)
+function [esc t rpm setpoint] = computeKff(varargin)
+% Computes the feedforward model for your motor
 
 params.esc = [];
 params.port = '/dev/tty.usbmodemfd131';
 params.dt_ms = 1;
 params.low_speed_rpm = 1000;
-params.high_speed_rpm = 4000;
-params.test_time_s = 30;
+params.high_speed_rpm = 6000;
+params.test_time_s = 15;
 params = parseVarArgs(params,varargin{:});
 
 % If no esc object passed in, create one
@@ -79,21 +80,20 @@ if opened
 end
 
 b = robustfit(rpm', duty_cycle')
-Kff = b(2) * 32176 / 1024
+Kff = b(2) * 32176 / 1024 * 32
 Kff2 = -b(1) * 32176 / 1024
 
-
-esc.configuration.RisingKp = 0; %Kp(i);
-esc.configuration.FallingKp = 0; %Kp(i);
-esc.configuration.Ki = 0;
-esc.configuration.MaxDcChange = 25;
-esc.configuration.ILim = 10000;
-esc.configuration.InitialStartupSpeed = 30;
-esc.configuration.Kff = Kff * 16;
+esc.configuration.Kff = Kff;
 esc.configuration.Kff2 = Kff2;
 esc = setConfiguration(esc);
 pause(0.1)
 
+return;
+% Run the code below here to test the open loop response
+esc.configuration.RisingKp = 0;
+esc.configuration.FallingKp = 0;
+esc.configuration.Ki = 0;
+esc = setConfiguration(esc);
 
 % flush old data and enable logging 
 if get(esc.ser,'BytesAvailable') > 0
@@ -138,28 +138,6 @@ ylim([params.base_speed_rpm-params.sin_amp_rpm*2  params.base_speed_rpm + 4* par
 xlabel('Time (s)')
 ylabel('RPM');
 
-F = 1000/mean(diff(t));
-rpm = medfilt1(rpm,3);
-setpoint = medfilt1(setpoint,3);
-
-for i = 1:floor(length(rpm)/1000)
-    input = fft(setpoint(1+(i-1)*1000:1000+(i-1)*1000)-mean(setpoint(1+(i-1)*1000:1000+(i-1)*1000)));
-    output = fft(rpm(1+(i-1)*1000:1000+(i-1)*1000)-mean(rpm(1+(i-1)*1000:1000+(i-1)*1000)));
-    [~,idx] = max(abs(input));
-    freq(i) = idx; % Because sample length is 1000 and sampling is 1k index is freq
-    phase_shift(i) = angle(output(idx)/input(idx));
-    mag(i) = abs(output(idx) / input(idx));
-end
-
-subplot(223)
-plot(freq,phase_shift*180/pi,'.')
-ylabel('Phase shift (deg)');
-xlabel('Frequency (Hz)');
-subplot(224)
-plot(freq,mag,'.')
-xlabel('Frequency (Hz)');
-ylabel('Magnitude');
-keyboard
 
 function params = parseVarArgs(params,varargin)
 % Parse variable input arguments supplied in name/value format.

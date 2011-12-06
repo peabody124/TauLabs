@@ -16,10 +16,10 @@ t = 1:size(dat,2);
 
 subplot(211)
 plot(t(f3(1,:)),dat(:,f3(1,:)) * scale);
-ylim([0 12]);
+ylim([0 25]);
 title('Off period');
 
 subplot(212)
 plot(t(~f3(1,:)),dat(:,~f3(1,:))* scale);
-ylim([0 15]);
+ylim([0 25]);
 title('On period');
