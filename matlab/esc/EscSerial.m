@@ -131,16 +131,34 @@ classdef EscSerial
             fwrite(self.ser, command(16:end));
         end
         
-        function dat = getConfiguration(self)
+        function config = getConfiguration(self)
             % Get the configuration from the ESC
             % dat = getConfiguration(self)
             assert(isOpen(self), 'Open serial port first');
             assert(~self.logging, 'Do not do this while serial logging is enabled');
             flush(self);
-            command = uint8([self.SYNC_BYTE self.ESC_COMMAND_SET_CONFIG]);
+            command = uint8([self.SYNC_BYTE self.ESC_COMMAND_GET_CONFIG]);
             fwrite(self.ser, command);
             pause(0.1);
-            dat = uint8(fread(self.ser, 33, 'uint8'));
+            dat = uint8(fread(self.ser, 35, 'uint8'));
+            config.RisingKp = typecast(dat(1:2),'int16');
+            config.FallingKp = typecast(dat(3:4),'int16');
+            config.Ki = typecast(dat(5:6),'int16');
+            config.Kff = typecast(dat(7:8),'int16')
+            config.Kff2 = typecast(dat(9:10),'int16');
+            config.ILim = typecast(dat(11:12),'int16');
+            config.MaxError = typecast(dat(13:14),'uint16');
+            config.MaxDcChange = typecast(dat(15:16),'int16');
+            config.MaxDc = typecast(dat(17:18),'int16');
+            config.MinDc = typecast(dat(19:20),'int16');
+            config.InitialStartupSpeed = typecast(dat(21:22),'uint16');
+            config.FinalStartupSpeed = typecast(dat(23:24),'uint16');
+            config.StartupCurrentTarget = typecast(dat(25:26),'uint16');
+            config.SoftCurrentLimit = typecast(dat(27:28),'uint16');
+            config.HardCurrentLimit = typecast(dat(29:30),'uint16');
+            config.CommutationPhase = typecast(dat(31:32),'int16');
+            config.CommutationOffset = typecast(dat(33:34),'int16');
+            config.Direction = typecast(dat(34),'uint8');
         end
         
         function self = saveConfiguration(self)

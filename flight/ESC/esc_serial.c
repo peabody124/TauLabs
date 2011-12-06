@@ -142,8 +142,7 @@ static int32_t esc_serial_command_received()
 			break;
 		case ESC_COMMAND_GET_CONFIG:
 			// TODO: Send esc configuration
-			PIOS_COM_SendBuffer(PIOS_COM_DEBUG, (uint8_t *) &config, sizeof(config));
-			retval = -1;
+			retval = PIOS_COM_SendBufferNonBlocking(PIOS_COM_DEBUG, (uint8_t *) &config, sizeof(config));
 			break;
 		case ESC_COMMAND_SAVE_CONFIG:
 			esc_control.save_requested = true;
