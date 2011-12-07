@@ -67,6 +67,7 @@ USE_GPS ?= YES
 USE_TXPID ?= YES
 USE_I2C ?= NO
 USE_ALTITUDE ?= NO
+USE_ESC ?= NO
 TEST_FAULTS ?= NO
 
 # List of optional modules to include
@@ -89,6 +90,9 @@ OPTMODULES += Altitude
 else
 $(error "Altitude module (USE_ALTITUDE=YES) requires i2c (USE_I2C=YES)")
 endif
+endif
+ifeq ($(USE_ESC), YES)
+OPTMODULES += ESC
 endif
 ifeq ($(TEST_FAULTS), YES)
 OPTMODULES += Fault
@@ -205,6 +209,8 @@ SRC += $(OPUAVSYNTHDIR)/mixerstatus.c
 SRC += $(OPUAVSYNTHDIR)/ratedesired.c
 SRC += $(OPUAVSYNTHDIR)/baroaltitude.c
 SRC += $(OPUAVSYNTHDIR)/txpidsettings.c
+SRC += $(OPUAVSYNTHDIR)/escstatus.c
+SRC += $(OPUAVSYNTHDIR)/escsettings.c
 
 endif
 

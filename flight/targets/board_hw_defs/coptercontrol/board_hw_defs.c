@@ -1068,6 +1068,46 @@ static const struct pios_sbus_cfg pios_sbus_cfg = {
 
 #endif	/* PIOS_INCLUDE_SBUS */
 
+#if defined(PIOS_INCLUDE_ESC_SERIAL)
+
+static const struct pios_usart_cfg pios_usart_esc_main_cfg = {
+        .regs = USART1,
+        .init = {
+                .USART_BaudRate            = 115200,
+                .USART_WordLength          = USART_WordLength_8b,
+                .USART_Parity              = USART_Parity_Even,
+                .USART_StopBits            = USART_StopBits_2,
+                .USART_HardwareFlowControl = USART_HardwareFlowControl_None,
+                .USART_Mode                = USART_Mode_Rx,
+        },
+        .irq = {
+                .init = {
+                        .NVIC_IRQChannel                   = USART1_IRQn,
+                        .NVIC_IRQChannelPreemptionPriority = PIOS_IRQ_PRIO_HIGH,
+                        .NVIC_IRQChannelSubPriority        = 0,
+                        .NVIC_IRQChannelCmd                = ENABLE,
+                },
+        },
+        .rx = {
+                .gpio = GPIOA,
+                .init = {
+                        .GPIO_Pin   = GPIO_Pin_10,
+                        .GPIO_Speed = GPIO_Speed_2MHz,
+                        .GPIO_Mode  = GPIO_Mode_IPU,
+                },
+        },
+        .tx = {
+                .gpio = GPIOA,
+                .init = {
+                        .GPIO_Pin   = GPIO_Pin_9,
+                        .GPIO_Speed = GPIO_Speed_2MHz,
+                        .GPIO_Mode  = GPIO_Mode_IN_FLOATING,
+                },
+        },
+};                                                                                                                                                                                 
+
+#endif /* PIOS_INCLUDE_ESC_SERIAL */
+
 #endif  /* PIOS_INCLUDE_USART */
 
 #if defined(PIOS_INCLUDE_COM)

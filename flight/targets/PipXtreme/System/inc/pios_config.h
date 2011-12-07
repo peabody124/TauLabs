@@ -34,19 +34,32 @@
 #define PIOS_CONFIG_H
 
 /* Enable/Disable PiOS Modules */
+#define PIOS_INCLUDE_ADC
 #define PIOS_INCLUDE_DELAY
+#if defined(USE_I2C)
+#define PIOS_INCLUDE_I2C
+#define PIOS_INCLUDE_I2C_ESC
+#endif
 #define PIOS_INCLUDE_IRQ
 #define PIOS_INCLUDE_LED
 #define PIOS_INCLUDE_IAP
-#define PIOS_INCLUDE_RFM22B
-#define PIOS_INCLUDE_RFM22B_COM
-#define PIOS_INCLUDE_RCVR
 #define PIOS_INCLUDE_TIM
 
+#define PIOS_INCLUDE_RCVR
+
 /* Supported receiver interfaces */
+#define PIOS_INCLUDE_DSM
+#define PIOS_INCLUDE_SBUS
 #define PIOS_INCLUDE_PPM
+#define PIOS_INCLUDE_PWM
+#define PIOS_INCLUDE_GCSRCVR
 
 /* Supported USART-based PIOS modules */
+#define PIOS_INCLUDE_TELEMETRY_RF
+#define PIOS_INCLUDE_GPS
+#define PIOS_GPS_MINIMAL
+
+#define PIOS_INCLUDE_SERVO
 #define PIOS_INCLUDE_SPI
 #define PIOS_INCLUDE_SYS
 #define PIOS_INCLUDE_USART
@@ -61,19 +74,17 @@
 #define PIOS_INCLUDE_RTC
 #define PIOS_INCLUDE_WDG
 #define PIOS_INCLUDE_BL_HELPER
-#define PIOS_INCLUDE_FLASH_EEPROM
-#define PIOS_INCLUDE_RFM22B
-#define PIOS_INCLUDE_PACKET_HANDLER
 
-/* Defaults for Logging */
-#define LOG_FILENAME 			"PIOS.LOG"
-#define STARTUP_LOG_ENABLED		1
+#define PIOS_INCLUDE_ADXL345
+#define PIOS_INCLUDE_FLASH
 
-/* COM Module */
-#define GPS_BAUDRATE			19200
-#define TELEM_BAUDRATE			19200
-#define AUXUART_ENABLED			0
-#define AUXUART_BAUDRATE		19200
+#define PIOS_INCLUDE_BMP085
+
+/* Supported ESC interface */
+#define PIOS_INCLUDE_ESC_SERIAL
+
+/* A really shitty setting saving implementation */
+#define PIOS_INCLUDE_FLASH_SECTOR_SETTINGS
 
 /* Alarm Thresholds */
 #define HEAP_LIMIT_WARNING             220
@@ -98,9 +109,6 @@
 
 /* PIOS Initcall infrastructure */
 #define PIOS_INCLUDE_INITCALL
-
-/* Turn on debugging signals on the telemetry port */
-//#define PIOS_RFM22B_DEBUG_ON_TELEM
 
 #endif /* PIOS_CONFIG_H */
 /**
