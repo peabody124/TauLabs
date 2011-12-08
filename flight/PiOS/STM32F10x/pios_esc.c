@@ -244,7 +244,7 @@ void PIOS_ESC_SetDutyCycle(uint16_t duty_cycle)
 		return;
 	}
 	
-	uint32_t temp = pios_esc_dev.cfg->tim_base_init.TIM_Period * duty_cycle / PIOS_ESC_MAX_DUTYCYCLE;
+	uint32_t temp = pios_esc_dev.cfg->phase_a_minus.timer->ARR * duty_cycle / PIOS_ESC_MAX_DUTYCYCLE;
 	pios_esc_dev.duty_cycle = temp;
 }
 
