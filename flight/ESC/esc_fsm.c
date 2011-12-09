@@ -306,7 +306,6 @@ void esc_process_static_fsm_rxn() {
 	status.Battery = esc_data.battery_mv;
 	status.Kv = (uint32_t) status.CurrentSpeed / (status.Battery * esc_data.duty_cycle / PIOS_ESC_MAX_DUTYCYCLE);
 	status.ZcdFraction = esc_data.zcd_fraction;
-	status.Error = ESCSTATUS_ERROR_NONE;
 }
 
 /**
@@ -316,6 +315,9 @@ static void go_esc_fault(uint16_t time)
 {
 	// Stop ADC quickly for grabbing debug buffer
 //	PIOS_ADC_StopDma();
+	if(status.Error == ESCSTATUS_ERROR_NONE) {
+		status.Error = ESCSTATUS_ERROR_FAULT;
+	}
 	PIOS_ESC_Off();
 	esc_data.faults ++;
 }
@@ -357,6 +359,8 @@ static void go_esc_startup_enable(uint16_t time)
 	PIOS_ESC_SetMode(ESC_MODE_LOW_ON_PWM_HIGH);
 
 	PIOS_ESC_Arm();
+	
+	status.Error = ESCSTATUS_ERROR_NONE;
 }
 
 /**
@@ -434,6 +438,7 @@ static void go_esc_startup_nozcd(uint16_t time)
 
 	if(esc_data.consecutive_missed > 100) {
 		esc_fsm_inject_event(ESC_EVENT_FAULT, time);
+		status.Error = ESCSTATUS_ERROR_STARTUP;
 	} else {
 		commutate();
 
@@ -558,8 +563,10 @@ static void go_esc_cl_nozcd(uint16_t time)
 {
 	esc_data.consecutive_detected = 0;
 	esc_data.consecutive_missed++;
-	if(esc_data.consecutive_missed > 10000)
+	if(esc_data.consecutive_missed > 10000) {
+		status.Error = ESCSTATUS_ERROR_MANYMISSED;
 		esc_fsm_inject_event(ESC_EVENT_FAULT, 0);
+	}
 	else {
 //		PIOS_ESC_SetDutyCycle(esc_data.duty_cycle / 10);
 		esc_fsm_inject_event(ESC_EVENT_COMMUTATED, 0);
@@ -748,5 +755,7 @@ static void bound_duty_cycle()
 		esc_data.duty_cycle = config.MinDc;
 	if(esc_data.duty_cycle > config.MaxDc)
 		esc_data.duty_cycle = config.MaxDc;
+	if(esc_data.duty_cycle > PIOS_ESC_MAX_DUTYCYCLE)
+		esc_data.duty_cycle = PIOS_ESC_MAX_DUTYCYCLE;
 }
 
