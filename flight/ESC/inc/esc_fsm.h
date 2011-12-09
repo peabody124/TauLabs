@@ -28,7 +28,7 @@
 
 #include "stdint.h"
 
-#define NUM_STORED_SWAP_INTERVALS 6
+#define NUM_STORED_SWAP_INTERVALS 3
 
 enum esc_fsm_state {
 	ESC_STATE_FSM_FAULT = 0,               /* Must be zero so undefined transitions land here */

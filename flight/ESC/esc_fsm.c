@@ -235,6 +235,7 @@ void esc_process_static_fsm_rxn() {
 			break;
 		case ESC_STATE_WAIT_FOR_ARM:
 		case ESC_STATE_STOPPED:
+			// To rearm look explicitly for zero which is detected but off
 			if(esc_data.speed_setpoint == 0 && zero_time > 10000) {
 				esc_fsm_inject_event(ESC_EVENT_ARM,0);
 				zero_time = 0;
@@ -257,7 +258,7 @@ void esc_process_static_fsm_rxn() {
 		case ESC_STATE_STARTUP_WAIT:
 		case ESC_STATE_STARTUP_ZCD_DETECTED:
 		case ESC_STATE_STARTUP_NOZCD_COMMUTATED:			
-			if(esc_data.speed_setpoint == 0) {
+			if(esc_data.speed_setpoint <= 0) {
 				esc_fsm_inject_event(ESC_EVENT_STOP,0);
 			}
 			
@@ -283,7 +284,7 @@ void esc_process_static_fsm_rxn() {
 			}
 			last_timer = cur_timer;
 
-			if(esc_data.speed_setpoint == 0 && PIOS_DELAY_DiffuS(stop_time) > 100000) {
+			if(esc_data.speed_setpoint <= 0 && PIOS_DELAY_DiffuS(stop_time) > 100000) {
 				esc_fsm_inject_event(ESC_EVENT_STOP,0);
 			} else if (esc_data.speed_setpoint > 0)
 				stop_time = PIOS_DELAY_GetRaw();

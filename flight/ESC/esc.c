@@ -425,18 +425,7 @@ void DMA1_Channel1_IRQHandler(void)
 		return;
 	
 	// Smooth the estimate of current a bit 	
-	current_filter_sum += raw_buf[0];
-	current_filter_sum -= current_filter[current_filter_pointer];
-	current_filter[current_filter_pointer] = raw_buf[0];
-	current_filter_pointer++;
-	if(current_filter_pointer >= MAX_CURRENT_FILTER) 
-		current_filter_pointer = 0;
-#if MAX_CURRENT_FILTER == 16
-	esc_data->current_ma = (current_filter_sum >> 4) - zero_current;
-#else
-	esc_data->current_ma = current_filter_sum / MAX_CURRENT_FILTER - zero_current;
-#endif
-	int32_t current_measurement = raw_buf[0] * 10; // Convert to almost mA
+	int32_t current_measurement = (raw_buf[0] - zero_current) * 60; // Convert to almost mA
 	esc_data->current_ma += (current_measurement - esc_data->current_ma) / 50; // IIR filter
 	
 
@@ -755,7 +744,9 @@ static void PIOS_TIM_4_irq_handler (void)
 	if (TIM_GetITStatus(TIM4, TIM_IT_Update)) {
 		if (PIOS_DELAY_DiffuS(last_input_update) > 100000) {
 			esc_control.pwm_input = -1;
-			esc_data->speed_setpoint = -1;
+			if(esc_control.control_method == ESC_CONTROL_PWM) {
+				esc_data->speed_setpoint = -1;
+			}
 		}
 		TIM_ClearITPendingBit(TIM4,TIM_IT_Update);
 	}
