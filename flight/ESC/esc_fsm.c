@@ -277,9 +277,7 @@ void esc_process_static_fsm_rxn() {
 
 			if(esc_data.current_ma > config.SoftCurrentLimit) {
 				esc_data.duty_cycle -= 1;
-				if(esc_data.duty_cycle < config.MinDc)
-					esc_data.duty_cycle = config.MinDc;
-
+				bound_duty_cycle();
 				PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
 			}
 			last_timer = cur_timer;
@@ -568,7 +566,6 @@ static void go_esc_cl_nozcd(uint16_t time)
 		esc_fsm_inject_event(ESC_EVENT_FAULT, 0);
 	}
 	else {
-//		PIOS_ESC_SetDutyCycle(esc_data.duty_cycle / 10);
 		esc_fsm_inject_event(ESC_EVENT_COMMUTATED, 0);
 	}
 	esc_data.total_missed++;
