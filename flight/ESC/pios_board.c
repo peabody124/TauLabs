@@ -37,7 +37,7 @@ void PIOS_TIM4_irq_handler() {
 #include "pios_rcvr_priv.h"
 uint32_t pios_rcvr_group_map[1];
 
-#define ESC_DEFAULT_PWM_RATE 45000
+#define ESC_DEFAULT_PWM_RATE 80000
 
 #include "pios_esc_priv.h"
 const struct pios_esc_cfg pios_esc_cfg = {
@@ -47,7 +47,7 @@ const struct pios_esc_cfg pios_esc_cfg = {
 		.TIM_Prescaler = (PIOS_MASTER_CLOCK / 72e6) - 1,
 		.TIM_ClockDivision = TIM_CKD_DIV1,
 		.TIM_CounterMode = TIM_CounterMode_CenterAligned1,
-		.TIM_Period = ((72e6 / ESC_DEFAULT_PWM_RATE) - 1),
+		.TIM_Period = ((PIOS_MASTER_CLOCK / ESC_DEFAULT_PWM_RATE) - 1),
 		.TIM_RepetitionCounter = 0x0000,
 	},
 	.tim_oc_init = {
