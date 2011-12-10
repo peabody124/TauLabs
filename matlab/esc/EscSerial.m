@@ -21,7 +21,8 @@ classdef EscSerial
             'HardCurrentLimit',int16(4000), ...
             'CommutationPhase',int16(23), ...
             'CommutationOffset',int16(0), ...
-            'Direction',int16(0));
+            'Braking',int8(0), ...
+            'Direction',int8(0));
             
         packet = [];
     end
@@ -125,6 +126,7 @@ classdef EscSerial
                 typecast(uint16(self.configuration.HardCurrentLimit),'uint8'), ...
                 typecast(int16(self.configuration.CommutationPhase),'uint8'), ...
                 typecast(int16(self.configuration.CommutationOffset),'uint8'), ...
+                typecast(uint8(self.configuration.Braking),'uint8'), ...
                 typecast(uint8(self.configuration.Direction),'uint8'), ...
                 ];
             % TODO: Receive/Check ack
@@ -146,7 +148,7 @@ classdef EscSerial
             config.RisingKp = typecast(dat(1:2),'int16');
             config.FallingKp = typecast(dat(3:4),'int16');
             config.Ki = typecast(dat(5:6),'int16');
-            config.Kff = typecast(dat(7:8),'int16')
+            config.Kff = typecast(dat(7:8),'int16');
             config.Kff2 = typecast(dat(9:10),'int16');
             config.ILim = typecast(dat(11:12),'int16');
             config.MaxError = typecast(dat(13:14),'uint16');
@@ -160,6 +162,7 @@ classdef EscSerial
             config.HardCurrentLimit = typecast(dat(29:30),'uint16');
             config.CommutationPhase = typecast(dat(31:32),'int16');
             config.CommutationOffset = typecast(dat(33:34),'int16');
+            config.Braking = typecast(dat(35), 'uint8');
             config.Direction = typecast(dat(34),'uint8');
         end
         
@@ -181,7 +184,7 @@ classdef EscSerial
             status.SpeedSetpoint = typecast(dat(1:2),'int16');
             status.CurrentSpeed = typecast(dat(3:4),'uint16');
             status.Current = typecast(dat(5:6),'uint16');
-            status.TotalCurrent = typecast(dat(7:8),'uint16')
+            status.TotalCurrent = typecast(dat(7:8),'uint16');
             status.Kv = typecast(dat(9:10),'int16');
             status.Battery = typecast(dat(11:12),'int16');
             status.TotalMissed = typecast(dat(13:14),'uint16');
@@ -292,6 +295,13 @@ classdef EscSerial
             dat = double(reshape(dat,3,[]));
         end
 
+        function display(esc)
+            if(isOpen(esc))
+                disp('Esc is connected');
+            else
+                disp('Esc is not connected');
+            end
+        end
     end
 end
 

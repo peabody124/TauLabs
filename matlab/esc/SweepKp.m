@@ -11,7 +11,7 @@ for i = 1:length(Kp)
     % Tweak configuration
     esc.configuration.RisingKp = Kp(i);
     esc.configuration.FallingKp = Kp(i);
-    esc.configuration.Ki = 50;
+    esc.configuration.Ki = 0;
     esc.configuration.MaxDcChange = 20;
     esc.configuration.ILim = 1000;
     esc.configuration.InitialStartupSpeed = 30;

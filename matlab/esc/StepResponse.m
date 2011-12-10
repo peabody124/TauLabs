@@ -61,6 +61,7 @@ subplot(211);
 h(1) = line('XData', (1:1),'YData', sin(1:1), 'Color', 'b');
 h(2) = line('XData', (1:1),'YData', sin(1:1), 'Color', 'g');
 legend('speed [rpm]', 'setpoint [rpm]')
+xlabel('Time (ms)');
 
 t = [];
 rpm = [];
@@ -83,11 +84,13 @@ for rep = 1:(params.repetitions*2)
         setpoint = [setpoint setpoint_];
         
         
-        set(h(1), 'XData', t(max(1,end-4000):end), 'YData', rpm(max(1,end-4000):end))
-        set(h(2), 'XData', t(max(1,end-4000):end), 'YData', setpoint(max(1,end-4000):end))
-        ylim([base_speed_rpm - 200 base_speed_rpm + step_size_rpm + 200]);
-        xlim([t(max(1,end-4000+1)) t(end)])
-        drawnow;
+        if ~isempty(t)
+            set(h(1), 'XData', t(max(1,end-4000):end)-t(1), 'YData', rpm(max(1,end-4000):end))
+            set(h(2), 'XData', t(max(1,end-4000):end)-t(1), 'YData', setpoint(max(1,end-4000):end))
+            ylim([base_speed_rpm - 200 base_speed_rpm + step_size_rpm + 200]);
+            xlim([t(max(1,end-4000+1)) t(end)]-t(1))
+            drawnow;
+        end
     end
     new_speed = base_speed_rpm + step_size_rpm * (mod(rep,2)==0);
     esc = setSerialSpeed(esc, new_speed);
@@ -119,7 +122,9 @@ disp(['Fall time was: ' num2str(fall_info.RiseTime) ' ms and overshoot was ' num
 
 subplot(212);
 plot(t(1:step_length) - t(1), rise_response, t(1:step_length)- t(1), fall_response);
-
+xlabel('ms');
+ylabel('rpm');
+title(['Step response to rise and fall. Rise: ' num2str(rise_info.RiseTime) ' and fall ' num2str(fall_info.RiseTime) ' ms']);
 
 function params = parseVarArgs(params,varargin)
 % Parse variable input arguments supplied in name/value format.

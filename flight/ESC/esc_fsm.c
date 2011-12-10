@@ -482,6 +482,9 @@ uint32_t zcd3_time;
 uint32_t zcd4_time;
 uint32_t zcd5_time;
 int32_t new_dc;
+
+int32_t brake_off_thresh = -10;
+int32_t brake_on_thresh = -30;
 static void go_esc_cl_zcd(uint16_t time)
 {
 	uint32_t timeval = PIOS_DELAY_GetRaw();
@@ -519,10 +522,10 @@ static void go_esc_cl_zcd(uint16_t time)
 			error = -config.MaxError;
 
 		esc_data.error_accum += error;
-		if(esc_data.error_accum > config.ILim)
-			esc_data.error_accum = config.ILim;
-		if(esc_data.error_accum < -config.ILim)
-			esc_data.error_accum = -config.ILim;
+		if(esc_data.error_accum > (config.ILim * config.Ki))
+			esc_data.error_accum = (config.ILim * config.Ki);
+		if(esc_data.error_accum < -(config.ILim * config.Ki))
+			esc_data.error_accum = -(config.ILim * config.Ki);
 
 		zcd2_time = PIOS_DELAY_DiffuS(timeval);
 
@@ -532,6 +535,13 @@ static void go_esc_cl_zcd(uint16_t time)
 		else if (esc_data.current_speed < 912)
 			Kp = 1 + (Kp - 1) * (esc_data.current_speed - 400) / 512;
 		
+		if (config.Braking == ESCSETTINGS_BRAKING_ON) {
+			if (error >= brake_off_thresh)
+				PIOS_ESC_SetMode(ESC_MODE_LOW_ON_PWM_HIGH);
+			else if(error < brake_on_thresh)
+				PIOS_ESC_SetMode(ESC_MODE_LOW_ON_PWM_BOTH);
+		}
+
 		// Note that the error accumulator is divided by 16 and the speed setpoint 
 		// for Kff by 32 to give them more precision
 		new_dc = (((esc_data.speed_setpoint * config.Kff) >> 5)  - config.Kff2 +

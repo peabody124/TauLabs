@@ -415,7 +415,7 @@ static void PIOS_ESC_UpdateChannel(const struct pios_gate_channel * gate, uint8_
 			break;
 		case ESC_GATE_MODE_PWM_INVERT:
 			invert = true;
-			duration = pios_esc_dev.duty_cycle + 5;
+			duration = pios_esc_dev.duty_cycle + 25;
 			break;
 		case ESC_GATE_MODE_PWM:
 			duration = pios_esc_dev.duty_cycle;
