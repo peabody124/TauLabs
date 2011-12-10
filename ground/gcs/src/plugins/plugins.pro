@@ -228,6 +228,13 @@ SUBDIRS += plugin_gcscontrol
 #plugin_antennatrack.depends += plugin_uavobjects
 #SUBDIRS += plugin_antennatrack
 
+#ESC gadget
+plugin_esc.subdir = esc
+plugin_esc.depends = plugin_coreplugin
+plugin_esc.depends += plugin_uavobjects
+plugin_esc.depends += plugin_rawhid
+SUBDIRS += plugin_esc
+
 # Scope OpenGL Gadget
 #plugin_scopeogl.subdir = scopeogl
 #plugin_scopeogl.depends = plugin_coreplugin
