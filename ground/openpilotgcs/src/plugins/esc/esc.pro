@@ -28,7 +28,7 @@ SOURCES += escgadget.cpp \
     escplugin.cpp \
 	widgetbar.cpp
 
-OTHER_FILES += esc.pluginspec
+OTHER_FILES += ESC.pluginspec
 
 FORMS += \
     esc.ui \

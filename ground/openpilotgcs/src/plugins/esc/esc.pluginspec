@@ -1,6 +1,6 @@
-<plugin name="PipXtreme" version="1.0.0" compatVersion="1.0.0">
+<plugin name="ESC" version="1.0.0" compatVersion="1.0.0">
     <vendor>The OpenPilot Project</vendor>
-    <copyright>(C) 2011 Cathy Moss A.K.A. Pip</copyright>
+    <copyright>(C) 2011 The OpenPilot Project</copyright>
     <license>The GNU Public License (GPL) Version 3</license>
     <description>A plugin to configure the OpenPilot ESC via either Serial Port or the FlightController</description>
     <url>http://www.openpilot.org</url>

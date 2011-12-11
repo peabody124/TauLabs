@@ -62,7 +62,7 @@ EscGadgetWidget::EscGadgetWidget(QWidget *parent) :
 
     getPorts();
 
-    connect(m_widget->connectButton, SIGNAL(clicked()), this, SLOT(connectDisconnect()));
+//    connect(m_widget->connectButton, SIGNAL(clicked()), this, SLOT(connectDisconnect()));
 //    connect(m_widget->refreshPorts, SIGNAL(clicked()), this, SLOT(getPorts()));
 //    connect(m_widget->pushButton_Save, SIGNAL(clicked()), this, SLOT(saveToFlash()));
 }
@@ -70,7 +70,6 @@ EscGadgetWidget::EscGadgetWidget(QWidget *parent) :
 // destructor .. this never gets called :(
 EscGadgetWidget::~EscGadgetWidget()
 {
-    disconnectPort(false);
 }
 
 void EscGadgetWidget::resizeEvent(QResizeEvent *event)
@@ -79,15 +78,6 @@ void EscGadgetWidget::resizeEvent(QResizeEvent *event)
 
 void EscGadgetWidget::onComboBoxPorts_currentIndexChanged(int index)
 {
-    if (index < 0)
-    {
-        m_widget->comboBox_SerialBaudrate->setEnabled(false);
-        return;
-    }
-
-    int type = m_widget->comboBox_Ports->itemData(index).toInt();
-
-    m_widget->comboBox_SerialBaudrate->setEnabled(type == SERIAL_PORT);
 }
 
 bool sortSerialPorts(const QextPortInfo &s1, const QextPortInfo &s2)

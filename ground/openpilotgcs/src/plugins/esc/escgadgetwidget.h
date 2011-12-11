@@ -84,11 +84,11 @@ private:
 	void disableTelemetry();
 	void enableTelemetry();
 
-	void disconnectPort(bool enable_telemetry, bool lock_stuff = true);
-	void connectPort();
+//	void disconnectPort(bool enable_telemetry, bool lock_stuff = true);
+//	void connectPort();
 
 private slots:
-	void connectDisconnect();
+//	void connectDisconnect();
     void getPorts();
 };
 
