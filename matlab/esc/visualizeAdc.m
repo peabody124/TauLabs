@@ -12,7 +12,8 @@ dat(f3) = dat(f3) - v3;
 
 scale = 3.3 / 1024 * 12.7 / 2.7;
 
-t = 1:size(dat,2);
+pwm_rate = 80000;
+t = (1:size(dat,2)) / pwm_rate * 1000;
 
 subplot(211)
 plot(t(f3(1,:)),dat(:,f3(1,:)) * scale);
@@ -23,3 +24,4 @@ subplot(212)
 plot(t(~f3(1,:)),dat(:,~f3(1,:))* scale);
 ylim([0 25]);
 title('On period');
+xlabel('Time (ms)')
