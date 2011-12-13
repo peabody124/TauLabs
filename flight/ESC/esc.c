@@ -536,7 +536,6 @@ void DMA1_Channel1_IRQHandler(void)
 /* INS functions */
 void panic(int diagnostic_code)
 {
-	PIOS_ESC_Off();
 	// Polarity backwards
 	PIOS_LED_On(LED_ERR);
 	while(1) {
@@ -639,7 +638,6 @@ void test_esc() {
 	voltages[4][1] = PIOS_ADC_PinGet(2);
 	voltages[4][2] = PIOS_ADC_PinGet(3);
 
-	PIOS_ESC_Off();
 	// If the particular phase isn't moving fet is dead
 	if(voltages[0][0] < 1000) {
 		PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 10);
@@ -672,6 +670,9 @@ void test_esc() {
 		panic(6);
 	}
 	// TODO: If other channels don't follow then motor lead bad
+	
+	PIOS_ESC_Off();
+
 }
 
 uint32_t bad_inputs;
