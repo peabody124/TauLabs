@@ -292,7 +292,7 @@ classdef EscSerial
             assert(i~=100,'Timed out getting ADC data');
             dat = uint8(fread(self.ser, get(self.ser,'BytesAvailable'), 'uint8'));
             dat = typecast(dat,'uint16');
-            dat = double(reshape(dat,3,[]));
+            dat = double(reshape(dat,4,[]));
         end
 
         function display(esc)

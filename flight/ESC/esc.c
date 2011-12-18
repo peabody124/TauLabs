@@ -416,8 +416,8 @@ void DMA1_Channel1_IRQHandler(void)
 		uint16_t flags = 0;
 		flags |= (TIM2->CR1 & TIM_CR1_DIR) ? 0x8000 : 0;
 		flags |= (TIM3->CR1 & TIM_CR1_DIR) ? 0x4000 : 0;
-		int16_t samples[3] = {raw_buf[1] | flags, raw_buf[2] | flags, raw_buf[3] | flags};
-		if (esc_logger_put((uint8_t *) &samples[0], 6) != 0)
+		int16_t samples[4] = {raw_buf[0], raw_buf[1] | flags, raw_buf[2] | flags, raw_buf[3] | flags};
+		if (esc_logger_put((uint8_t *) &samples[0], 8) != 0)
 			esc_control.backbuffer_logging_status = ESC_LOGGING_FULL;
 	}
 
@@ -425,7 +425,7 @@ void DMA1_Channel1_IRQHandler(void)
 		return;
 	
 	// Smooth the estimate of current a bit 	
-	int32_t current_measurement = (raw_buf[0] - zero_current) * 60; // Convert to almost mA
+	int32_t current_measurement = raw_buf[0] * 8;// Convert to almost mA
 	esc_data->current_ma += (current_measurement - esc_data->current_ma) / 50; // IIR filter
 	
 
