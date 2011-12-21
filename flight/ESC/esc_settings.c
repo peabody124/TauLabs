@@ -17,23 +17,23 @@ typedef void *UAVObjHandle;
 
 
 const EscSettingsData default_config = {
-	.RisingKp = 5, //0.0005 * PID_SCALE,
-	.FallingKp = 25, //0.0005 * PID_SCALE,
-	.Ki = 1, //0.0001 * PID_SCALE,
-	.Kff = 1.3e-4 * 32 * PID_SCALE,
-	.Kff2 = -0.05 * PID_SCALE,
+	.RisingKp = 2, //0.0005 * PID_SCALE,
+	.FallingKp = 2, //0.0005 * PID_SCALE,
+	.Ki = 0, //0.0001 * PID_SCALE,
+	.Kff = 150,
+	.Kff2 = 400,
 	.ILim = 15000,
 	.MaxError = 250, // RPM
-	.MaxDcChange = 0.1 * PIOS_ESC_MAX_DUTYCYCLE,
+	.MaxDcChange = 0.05 * PIOS_ESC_MAX_DUTYCYCLE,
 	.MinDc = 0,
-	.MaxDc = 0.90 * PIOS_ESC_MAX_DUTYCYCLE,
+	.MaxDc = 0.98 * PIOS_ESC_MAX_DUTYCYCLE,
 	.InitialStartupSpeed = 25,
 	.FinalStartupSpeed = 600,
 	.StartupCurrentTarget = 20,
 	.CommutationPhase = 10,
 	.CommutationOffset = 0,
-	.SoftCurrentLimit = 3000, /* 10 mA per unit */
-	.HardCurrentLimit = 2350,
+	.SoftCurrentLimit = 15000, /* 10 mA per unit */
+	.HardCurrentLimit = 23000,
 };
 
 static uint32_t settings_crc(const EscSettingsData * settings) 

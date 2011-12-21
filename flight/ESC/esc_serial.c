@@ -40,7 +40,7 @@ enum esc_serial_command {
 };
 
 //! The size of the data packets
-uint8_t esc_command_data_size[ESC_COMMAND_LAST] = {
+const uint8_t esc_command_data_size[ESC_COMMAND_LAST] = {
 	[ESC_COMMAND_SET_CONFIG] = sizeof(EscSettingsData) + 0, // No CRC yet
 	[ESC_COMMAND_GET_CONFIG] = 0,
 	[ESC_COMMAND_SAVE_CONFIG] = 0,

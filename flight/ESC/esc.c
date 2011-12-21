@@ -737,7 +737,7 @@ static void PIOS_TIM_4_irq_handler (void)
 			last_input_update = PIOS_DELAY_GetRaw();
 			esc_control.pwm_input = last_input_update;
 			if(esc_control.control_method == ESC_CONTROL_PWM) {
-				esc_data->speed_setpoint = (capture_value < 1050) ? 0 : 250 + (capture_value - 1050) * 9;
+				esc_data->speed_setpoint = (capture_value < 1050) ? 0 : 250 + (capture_value - 1050) * 11;
 			}
 		}
 	} 
