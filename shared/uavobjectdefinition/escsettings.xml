@@ -18,6 +18,10 @@
 	<field name="HardCurrentLimit" units="mA" type="uint16" elements="1" defaultvalue="2000"/>
 	<field name="CommutationPhase" units="deg" type="int16" elements="1" defaultvalue="7"/>
 	<field name="CommutationOffset" units="us" type="int16" elements="1" defaultvalue="50"/>
+	<field name="PwmMin" units="us" type="uint16" elements="1" defaultvalue="1050"/>
+	<field name="PwmMax" units="us" type="uint16" elements="1" defaultvalue="2000"/>
+	<field name="RpmMin" units="us" type="uint16" elements="1" defaultvalue="500"/>
+	<field name="RpmMax" units="us" type="uint16" elements="1" defaultvalue="10000"/>
 	<field name="Braking" units="" type="enum" elements="1"	options="Off,On" defaultvalue="Off"/>
 	<field name="Direction" units="" type="enum" elements="1" options="Forward,Reverse" defaultvalue="Forward"/>
         <access gcs="readwrite" flight="readwrite"/>
