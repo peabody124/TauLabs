@@ -376,6 +376,34 @@ static const int32_t filter_length[] = {
 
 uint8_t filter_length_scalar = 25;
 
+const uint8_t undriven_pin[6] = {
+	[ESC_STATE_AC] = 1,
+	[ESC_STATE_CA] = 1,
+	[ESC_STATE_AB] = 2,
+	[ESC_STATE_BA] = 2,
+	[ESC_STATE_BC] = 0,
+	[ESC_STATE_CB] = 0
+};
+
+// This depends on the driving mode, assuming PWM high
+const uint8_t high_pin[6] = {
+	[ESC_STATE_AC] = 2,
+	[ESC_STATE_CA] = 0,
+	[ESC_STATE_AB] = 1,
+	[ESC_STATE_BA] = 0,
+	[ESC_STATE_BC] = 2,
+	[ESC_STATE_CB] = 1
+};
+
+const bool pos[6] = {
+	[ESC_STATE_AC] = true,
+	[ESC_STATE_CA] = false,
+	[ESC_STATE_AB] = false,
+	[ESC_STATE_BA] = true,
+	[ESC_STATE_BC] = false,
+	[ESC_STATE_CB] = true
+};
+
 uint32_t adc_count = 0;
 void DMA1_Channel1_IRQHandler(void)
 {	
@@ -385,9 +413,6 @@ void DMA1_Channel1_IRQHandler(void)
 	static int16_t * raw_buf;
 	enum pios_esc_state curr_state;
 	
-	static uint8_t undriven_pin;
-	static bool pos;
-
 	if (DMA_GetFlagStatus(pios_adc_devs[0].cfg->full_flag /*DMA1_IT_TC1*/)) {	// whole double buffer filled
 		pios_adc_devs[0].valid_data_buffer = &pios_adc_devs[0].raw_data_buffer[pios_adc_devs[0].dma_half_buffer_size];
 		DMA_ClearFlag(pios_adc_devs[0].cfg->full_flag);
@@ -464,35 +489,7 @@ void DMA1_Channel1_IRQHandler(void)
 		
 		if(running_filter_length >= MAX_RUNNING_FILTER)
 			running_filter_length = MAX_RUNNING_FILTER;
-		
-		switch(curr_state) {
-			case ESC_STATE_AC:
-				undriven_pin = 1;
-				pos = true;
-				break;
-			case ESC_STATE_CA:
-				undriven_pin = 1;
-				pos = false;
-				break;
-			case ESC_STATE_AB:
-				undriven_pin = 2;
-				pos = false;
-				break;
-			case ESC_STATE_BA:
-				undriven_pin = 2;
-				pos = true;
-				break;
-			case ESC_STATE_BC:
-				undriven_pin = 0;
-				pos = false;
-				break;
-			case ESC_STATE_CB:
-				undriven_pin = 0;
-				pos = true;
-				break;
-			default:
-				PIOS_ESC_Off();
-		}
+
 		init_time = PIOS_DELAY_DiffuS(timeval);
 	}
 
@@ -501,35 +498,41 @@ void DMA1_Channel1_IRQHandler(void)
 		return;
 
 	calls_to_detect++;
-	for(uint32_t i = 0; i < DOWNSAMPLING; i++) {
-		int16_t undriven = raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + undriven_pin];
-		int16_t ref = (raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + 0] + 
-					   raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + 1] +
-					   raw_buf[PIOS_ADC_NUM_CHANNELS * i + 1 + 2]) / 3;
-		int32_t diff;
-		
-		if(pos)
-			diff = undriven - ref;
-		else
-			diff = ref - undriven;
-		
-		// Update running sum and history
-		running_filter_sum += diff;
-		// To avoid having to wipe the filter each commutation
-		if(samples_averaged >= running_filter_length)
-			running_filter_sum -= diff_filter[diff_filter_pointer];
-		diff_filter[diff_filter_pointer] = diff;
-		diff_filter_pointer++;
-		if(diff_filter_pointer >= running_filter_length)
-			diff_filter_pointer = 0;
-		samples_averaged++;
-		
-		if(running_filter_sum > 0 && samples_averaged >= running_filter_length) {
-			esc_data->detected = true;
-			esc_fsm_inject_event(ESC_EVENT_ZCD, TIM4->CNT);
-			calls_to_last_detect = calls_to_detect;
-			break;
-		}
+	
+	int16_t undriven = raw_buf[1 + undriven_pin[curr_state]];
+	int16_t high = raw_buf[1 + high_pin[curr_state]];
+	int16_t ref = (raw_buf[1 + 0] + 
+				   raw_buf[1 + 1] +
+				   raw_buf[1 + 2]) / 3;
+	int32_t diff;
+	
+	if(esc_data->duty_cycle > (PIOS_ESC_MAX_DUTYCYCLE * 0.05)) {
+		// 127 / 27 is the 12.7 / 2.7 resistor divider
+		// 3300 / 4096 is the mv / LSB
+		uint32_t battery_mv = (high * PIOS_ESC_MAX_DUTYCYCLE * 127 * 3300) / (esc_data->duty_cycle * 27 * 4096);
+		esc_data->battery_mv = (15 * esc_data->battery_mv + battery_mv) / 16;
+	}
+	
+	if(pos[curr_state])
+		diff = undriven - ref;
+	else
+		diff = ref - undriven;
+	
+	// Update running sum and history
+	running_filter_sum += diff;
+	// To avoid having to wipe the filter each commutation
+	if(samples_averaged >= running_filter_length)
+		running_filter_sum -= diff_filter[diff_filter_pointer];
+	diff_filter[diff_filter_pointer] = diff;
+	diff_filter_pointer++;
+	if(diff_filter_pointer >= running_filter_length)
+		diff_filter_pointer = 0;
+	samples_averaged++;
+	
+	if(running_filter_sum > 0 && samples_averaged >= running_filter_length) {
+		esc_data->detected = true;
+		esc_fsm_inject_event(ESC_EVENT_ZCD, TIM4->CNT);
+		calls_to_last_detect = calls_to_detect;
 	}	
 }
 
