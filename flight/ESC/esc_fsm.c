@@ -516,11 +516,11 @@ static void go_esc_cl_zcd(uint16_t time)
 		int32_t error = esc_data.speed_setpoint - esc_data.current_speed;
 		
 		// Bound error to limit the acceleration for large changes
-		if(error > config.MaxError)
+		if (error > config.MaxError)
 			error = config.MaxError;
-		else if (error < -config.MaxError)
-			error = -config.MaxError;
-
+		/*else if (error < -(int16_t) config.MaxError)
+		 error = - (int16_t) config.MaxError; */
+		 
 		esc_data.error_accum += error;
 		if(esc_data.error_accum > (config.ILim * config.Ki))
 			esc_data.error_accum = (config.ILim * config.Ki);
