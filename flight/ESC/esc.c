@@ -733,14 +733,17 @@ static void PIOS_TIM_4_irq_handler (void)
 			
 		}
 		
-		
-		if(capture_value < config.PwmMin)
-			capture_value = 0;
-		else if (capture_value > config.PwmMax)
-			capture_value = config.PwmMax;
-		else {
+		// Dont process crazy values
+		if(capture_value > config.PwmMin * 0.5 && capture_value < config.PwmMax * 1.1) {
 			last_input_update = PIOS_DELAY_GetRaw();
-			esc_control.pwm_input = last_input_update;
+			
+			// Limit input range
+			if(capture_value < config.PwmMin)
+				capture_value = 0;
+			else if (capture_value > config.PwmMax)
+				capture_value = config.PwmMax;
+			
+			esc_control.pwm_input = capture_value;
 			if(esc_control.control_method == ESC_CONTROL_PWM) {
 				uint32_t scaled_capture = config.RpmMin + (capture_value - config.PwmMin) * (config.RpmMax - config.RpmMin) / (config.PwmMax - config.PwmMin);
 				esc_data->speed_setpoint = (capture_value < config.PwmMin) ? 0 : scaled_capture;

@@ -32,6 +32,10 @@ const EscSettingsData default_config = {
 	.StartupCurrentTarget = 20,
 	.CommutationPhase = 10,
 	.CommutationOffset = 0,
+	.PwmMin = 1050,
+	.PwmMax = 2000,
+	.RpmMin = 600,
+	.RpmMax = 10000,
 	.SoftCurrentLimit = 15000, /* 10 mA per unit */
 	.HardCurrentLimit = 23000,
 };

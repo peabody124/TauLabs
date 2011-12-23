@@ -85,8 +85,9 @@ Kff2 = -b(1) * 32176 / 1024
 
 esc.configuration.Kff = Kff;
 esc.configuration.Kff2 = Kff2;
-esc = setConfiguration(esc);
-pause(0.1)
+esc.configuration.RpmMax = (esc.configuration.MaxDc - b(1)) / b(2);
+a = [min(rpm) max(rpm)];
+plot(rpm,duty_cycle,'.',a,a * b(2) + b(1))
 
 return;
 % Run the code below here to test the open loop response

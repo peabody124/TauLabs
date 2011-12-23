@@ -72,7 +72,7 @@ enum esc_event {
 
 struct esc_fsm_data {
 	int32_t duty_cycle;
-	uint16_t current_speed;
+	int16_t current_speed;
 	int16_t speed_setpoint;
 
 	uint8_t scheduled_event_armed;
