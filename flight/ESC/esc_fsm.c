@@ -543,8 +543,9 @@ static void go_esc_cl_zcd(uint16_t time)
 		}
 
 		// Note that the error accumulator is divided by 16 and the speed setpoint 
-		// for Kff by 32 to give them more precision
-		new_dc = (((esc_data.speed_setpoint * config.Kff) >> 5)  - config.Kff2 +
+		// for Kff by 32 to give them more precision.  The setpoint in the feedforward model
+		// is replaced by the current speed plus the error to limit the max torque
+		new_dc = ((((esc_data.current_speed + error) * config.Kff) >> 5)  - config.Kff2 +
 				  error * Kp + ((esc_data.error_accum * config.Ki) >> 4)) * PIOS_ESC_MAX_DUTYCYCLE / PID_SCALE;
 				  		
 		// For now keep this calculation as a float and rescale it here
