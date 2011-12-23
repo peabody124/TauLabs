@@ -542,12 +542,28 @@ static void go_esc_cl_zcd(uint16_t time)
 				PIOS_ESC_SetMode(ESC_MODE_LOW_ON_PWM_BOTH);
 		}
 
-		// Note that the error accumulator is divided by 16 and the speed setpoint 
-		// for Kff by 32 to give them more precision.  The setpoint in the feedforward model
-		// is replaced by the current speed plus the error to limit the max torque
-		new_dc = ((((esc_data.current_speed + error) * config.Kff) >> 5)  - config.Kff2 +
-				  error * Kp + ((esc_data.error_accum * config.Ki) >> 4)) * PIOS_ESC_MAX_DUTYCYCLE / PID_SCALE;
-				  		
+		if(0) {
+			// Make this depend on the battery type
+			int32_t battery_mv = esc_data.battery_mv;
+			if(battery_mv < 10000)
+				battery_mv = 10000;
+			else if (battery_mv > 15000)
+				battery_mv = 15000;
+			
+			int32_t Kv = 750;
+			int32_t Kff = (PID_SCALE * 1000 << 5) / (Kv * esc_data.battery_mv);
+			
+			// Note that the error accumulator is divided by 16 and the speed setpoint 
+			// for Kff by 32 to give them more precision.  The setpoint in the feedforward model
+			// is replaced by the current speed plus the error to limit the max torque
+			new_dc = ((((esc_data.current_speed + error) * Kff * PIOS_ESC_MAX_DUTYCYCLE) >> 5) - config.Kff2 + 
+					  error * Kp * PIOS_ESC_MAX_DUTYCYCLE +
+					  (((esc_data.error_accum * config.Ki) * PIOS_ESC_MAX_DUTYCYCLE) >> 4)) / PID_SCALE;
+		} else {
+			new_dc = ((((esc_data.current_speed + error) * config.Kff) >> 5)  - config.Kff2 +
+					  error * Kp + ((esc_data.error_accum * config.Ki) >> 4)) * PIOS_ESC_MAX_DUTYCYCLE / PID_SCALE;
+		}
+		
 		// For now keep this calculation as a float and rescale it here
 		if((new_dc - esc_data.duty_cycle) > config.MaxDcChange)
 			esc_data.duty_cycle += config.MaxDcChange;
