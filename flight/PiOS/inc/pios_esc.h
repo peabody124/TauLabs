@@ -66,6 +66,7 @@ void PIOS_ESC_SetState(uint8_t new_state);
 void PIOS_ESC_TestGate(enum pios_esc_phase phase);
 void PIOS_ESC_BeepOn();
 void PIOS_ESC_BeepOff();
+int32_t PIOS_ESC_SetPwmRate(uint32_t rate);
 
 #endif /* PIOS_DELAY_H */
 

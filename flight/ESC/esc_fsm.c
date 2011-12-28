@@ -603,12 +603,7 @@ static void go_esc_cl_nozcd(uint16_t time)
  * Initialize the FSM
  */
 struct esc_fsm_data * esc_fsm_init()
-{
-
-	if (esc_settings_load(&config) != 0) {
-		esc_settings_defaults(&config);
-	}
-	
+{	
 	PIOS_ESC_Off();
 	esc_data.state = ESC_STATE_INIT;
 	esc_data.duty_cycle = 0;

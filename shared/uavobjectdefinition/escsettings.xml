@@ -22,6 +22,7 @@
 	<field name="PwmMax" units="us" type="uint16" elements="1" defaultvalue="2000"/>
 	<field name="RpmMin" units="us" type="uint16" elements="1" defaultvalue="500"/>
 	<field name="RpmMax" units="us" type="uint16" elements="1" defaultvalue="10000"/>
+	<field name="PwmFreq" units="hz" type="uint16" elements="1" defaultvalue="40000"/>
 	<field name="Braking" units="" type="enum" elements="1"	options="Off,On" defaultvalue="Off"/>
 	<field name="Direction" units="" type="enum" elements="1" options="Forward,Reverse" defaultvalue="Forward"/>
         <access gcs="readwrite" flight="readwrite"/>

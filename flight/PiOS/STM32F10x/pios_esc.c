@@ -148,13 +148,10 @@ void PIOS_ESC_Init(const struct pios_esc_cfg * cfg)
 		RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
 		TIM_ARRPreloadConfig(channel.timer, ENABLE);
 		TIM_CtrlPWMOutputs(channel.timer, ENABLE);
-//		TIM_Cmd(channel.timer, ENABLE);		
 	}
 	
 	// We need to send out Tim3_Trg0 as that is what the ADC regular channel
 	// can trigger from
-//	TIM_SelectMasterSlaveMode(TIM3, TIM_MasterSlaveMode_Enable);
-
 	TIM2->CR1 |= TIM_CR1_DIR;
 	TIM3->CR1 |= TIM_CR1_DIR;
 	TIM3->CNT = 0;
@@ -526,4 +523,39 @@ void PIOS_ESC_BeepOff()
 	PIOS_ESC_UpdateOutputs();	
 }
 
+/**
+ * @brief Set the pwm rate, currently only when not armed
+ * @param [in] rate the new rate in Hz
+ * @returns -1 for failure, 0 for success
+ * @note I think it is necessary to stop the timer to avoid a race condition
+ * between the two timers when updating
+ */
+int32_t PIOS_ESC_SetPwmRate(uint32_t rate)
+{
+	if(pios_esc_dev.armed)
+		return -1;
+
+	TIM_Cmd(TIM2, DISABLE);
+	TIM_Cmd(TIM3, DISABLE);
+	
+	// For center aligned PWM need rate twice as fast
+	rate *= 2;
+
+	// Set the new ARR value
+	uint16_t pwm_base_rate=(72e6 / rate) - 1;
+	TIM_SetAutoreload(TIM2, pwm_base_rate);
+	TIM_SetAutoreload(TIM3, pwm_base_rate);
+	
+	// Restart the timers so they stay synchronized
+	TIM2->CR1 |= TIM_CR1_DIR;
+	TIM3->CR1 |= TIM_CR1_DIR;
+	TIM3->CNT = 0;
+	TIM2->CNT = TIM2->ARR;
+	TIM_SelectOutputTrigger(TIM3, TIM_TRGOSource_Update);
+	TIM_SelectSlaveMode(TIM2, TIM_SlaveMode_Trigger);
+	TIM_SelectInputTrigger(TIM2, TIM_TS_ITR2);
+	TIM_Cmd(TIM3,ENABLE);
+	
+	return 0;
+}
 #endif

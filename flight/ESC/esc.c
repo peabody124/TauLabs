@@ -90,7 +90,12 @@ int main()
 	esc_data = 0;
 	PIOS_Board_Init();
 
-	PIOS_ADC_Config(1);
+	// Load the settings
+	if (esc_settings_load(&config) != 0) {
+		esc_settings_defaults(&config);
+	}
+	
+	PIOS_ESC_SetPwmRate(config.PwmFreq);
 	
 	// TODO: Move this into an esc_control section
 	esc_control.control_method = ESC_CONTROL_PWM;
@@ -112,8 +117,6 @@ int main()
 	ADC_Init(ADC2, &ADC_InitStructure);
 	ADC_ExternalTrigConvCmd(ADC1, ENABLE);
 	ADC_ExternalTrigConvCmd(ADC2, ENABLE);
-
-	// TODO: Move this into a PIOS_DELAY functi
 
 	// TODO: Move this into a PIOS_DELAY function
 	TIM_OCInitTypeDef tim_oc_init = {

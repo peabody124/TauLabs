@@ -36,6 +36,7 @@ const EscSettingsData default_config = {
 	.PwmMax = 2000,
 	.RpmMin = 600,
 	.RpmMax = 10000,
+	.PwmFreq = 40000,
 	.SoftCurrentLimit = 15000, /* 10 mA per unit */
 	.HardCurrentLimit = 23000,
 };
