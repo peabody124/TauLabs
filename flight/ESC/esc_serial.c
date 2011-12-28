@@ -205,7 +205,8 @@ static int32_t esc_serial_command_received()
 			break;
 		case ESC_COMMAND_SET_PWM_FREQ:
 		{
-			int16_t new_freq = esc_serial_state.buffer[0] | (esc_serial_state.buffer[1] << 8);
+			uint32_t new_freq = esc_serial_state.buffer[0] | (esc_serial_state.buffer[1] << 8);
+			new_freq *= 2;
 			uint16_t pwm_base_rate=(72e6 / new_freq) - 1;
 			TIM_SetAutoreload(TIM2, pwm_base_rate);
 			TIM_SetAutoreload(TIM3, pwm_base_rate);

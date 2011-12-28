@@ -4,7 +4,7 @@
 	<field name="RisingKp" units="%/rpm" type="int16" elements="1" defaultvalue="40"/>
 	<field name="FallingKp" units="%/rpm" type="int16" elements="1" defaultvalue="80"/>
 	<field name="Ki" units="%/rpm/s" type="int16" elements="1" defaultvalue="5"/>
-	<field name="Kff" units="%/rpm/s" type="int16" elements="1" defaultvalue="3"/>
+	<field name="Kv" units="rpm/V" type="int16" elements="1" defaultvalue="850"/>
 	<field name="Kff2" units="%/rpm/s" type="int16" elements="1" defaultvalue="0"/>
 	<field name="ILim" units="%" type="int16" elements="1" defaultvalue="1000"/>
 	<field name="MaxError" units="rpm" type="uint16" elements="1" defaultvalue="250"/>

@@ -302,7 +302,7 @@ void esc_process_static_fsm_rxn() {
 	status.TotalCurrent = 0;
 	status.DutyCycle = esc_data.duty_cycle * 100 / PIOS_ESC_MAX_DUTYCYCLE;
 	status.Battery = esc_data.battery_mv;
-	status.Kv = (uint32_t) status.CurrentSpeed / (status.Battery * esc_data.duty_cycle / PIOS_ESC_MAX_DUTYCYCLE);
+	status.Kv = (uint32_t) status.CurrentSpeed * 1000 / esc_data.smoothed_high_mv;
 	status.ZcdFraction = esc_data.zcd_fraction;
 }
 
@@ -389,7 +389,9 @@ static void go_esc_startup_grab(uint16_t time)
  */
 static void go_esc_startup_wait(uint16_t time)
 {
-	esc_data.duty_cycle = 0.10 * PIOS_ESC_MAX_DUTYCYCLE;
+	// Get the predicted duty_cycle for 1500 rpm
+	//esc_data.duty_cycle = (PIOS_ESC_MAX_DUTYCYCLE * 1000 * 1500 / config.Kv) / esc_data.battery_mv;
+	esc_data.duty_cycle = 0.15 * PIOS_ESC_MAX_DUTYCYCLE;
 	PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
 
 	commutate();
@@ -530,10 +532,6 @@ static void go_esc_cl_zcd(uint16_t time)
 		zcd2_time = PIOS_DELAY_DiffuS(timeval);
 
 		int32_t Kp = (error >= 0) ? config.RisingKp: config.FallingKp;
-		if(esc_data.current_speed < 400)
-			Kp = 1;
-		else if (esc_data.current_speed < 912)
-			Kp = 1 + (Kp - 1) * (esc_data.current_speed - 400) / 512;
 		
 		if (config.Braking == ESCSETTINGS_BRAKING_ON) {
 			if (error >= brake_off_thresh)
@@ -542,16 +540,15 @@ static void go_esc_cl_zcd(uint16_t time)
 				PIOS_ESC_SetMode(ESC_MODE_LOW_ON_PWM_BOTH);
 		}
 
-		if(0) {
+		if(1) {
 			// Make this depend on the battery type
 			int32_t battery_mv = esc_data.battery_mv;
 			if(battery_mv < 10000)
 				battery_mv = 10000;
 			else if (battery_mv > 15000)
 				battery_mv = 15000;
-			
-			int32_t Kv = 750;
-			int32_t Kff = (PID_SCALE * 1000 << 5) / (Kv * esc_data.battery_mv);
+			battery_mv = 11000;
+			int32_t Kff = (PID_SCALE * 1000 << 5) / (config.Kv * esc_data.battery_mv);
 			
 			// Note that the error accumulator is divided by 16 and the speed setpoint 
 			// for Kff by 32 to give them more precision.  The setpoint in the feedforward model
@@ -560,8 +557,8 @@ static void go_esc_cl_zcd(uint16_t time)
 					  error * Kp * PIOS_ESC_MAX_DUTYCYCLE +
 					  (((esc_data.error_accum * config.Ki) * PIOS_ESC_MAX_DUTYCYCLE) >> 4)) / PID_SCALE;
 		} else {
-			new_dc = ((((esc_data.current_speed + error) * config.Kff) >> 5)  - config.Kff2 +
-					  error * Kp + ((esc_data.error_accum * config.Ki) >> 4)) * PIOS_ESC_MAX_DUTYCYCLE / PID_SCALE;
+//			new_dc = ((((esc_data.current_speed + error) * config.Kff) >> 5)  - config.Kff2 +
+//					  error * Kp + ((esc_data.error_accum * config.Ki) >> 4)) * PIOS_ESC_MAX_DUTYCYCLE / PID_SCALE;
 		}
 		
 		// For now keep this calculation as a float and rescale it here

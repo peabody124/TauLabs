@@ -17,11 +17,11 @@ typedef void *UAVObjHandle;
 
 
 const EscSettingsData default_config = {
-	.RisingKp = 2, //0.0005 * PID_SCALE,
-	.FallingKp = 2, //0.0005 * PID_SCALE,
+	.RisingKp = 20, //0.0005 * PID_SCALE,
+	.FallingKp = 20, //0.0005 * PID_SCALE,
 	.Ki = 0, //0.0001 * PID_SCALE,
-	.Kff = 150,
-	.Kff2 = 400,
+	.Kv = 850,
+	.Kff2 = 0,
 	.ILim = 15000,
 	.MaxError = 250, // RPM
 	.MaxDcChange = 0.05 * PIOS_ESC_MAX_DUTYCYCLE,
@@ -36,7 +36,7 @@ const EscSettingsData default_config = {
 	.PwmMax = 2000,
 	.RpmMin = 600,
 	.RpmMax = 10000,
-	.PwmFreq = 40000,
+	.PwmFreq = 20000,
 	.SoftCurrentLimit = 15000, /* 10 mA per unit */
 	.HardCurrentLimit = 23000,
 };

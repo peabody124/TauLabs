@@ -1,11 +1,11 @@
-function [esc t rpm setpoint] = computeKff(varargin)
+function [esc t rpm setpoint duty_cycle] = computeKff(varargin)
 % Computes the feedforward model for your motor
 
 params.esc = [];
 params.port = '/dev/tty.usbmodemfd131';
 params.dt_ms = 1;
-params.low_speed_rpm = 1000;
-params.high_speed_rpm = 6000;
+params.low_speed_rpm = 500;
+params.high_speed_rpm = 4000;
 params.test_time_s = 15;
 params = parseVarArgs(params,varargin{:});
 

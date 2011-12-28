@@ -80,8 +80,9 @@ struct esc_fsm_data {
 	enum esc_event scheduled_event;
 
 	// Current and battery measurements
-	int16_t current_ma;
-	uint16_t battery_mv;
+	uint32_t current_ma;
+	uint32_t battery_mv;
+	uint32_t smoothed_high_mv;
 	
 	uint32_t last_swap_time;
 	uint32_t last_zcd_time;

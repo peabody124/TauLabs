@@ -95,8 +95,6 @@ int main()
 		esc_settings_defaults(&config);
 	}
 	
-	PIOS_ESC_SetPwmRate(config.PwmFreq);
-	
 	// TODO: Move this into an esc_control section
 	esc_control.control_method = ESC_CONTROL_PWM;
 	esc_control.serial_input = -1;
@@ -146,8 +144,6 @@ int main()
 
 	esc_serial_init();
 	
-	test_esc();
-	
 	// Blink LED briefly once passed	
 	PIOS_LED_Off(0);
 	PIOS_LED_Off(1);
@@ -160,9 +156,14 @@ int main()
 	PIOS_DELAY_WaitmS(250);
 	
 	esc_data = esc_fsm_init();
-	esc_data->speed_setpoint = -1;
+	esc_data->speed_setpoint = -1;	
+	test_esc();
 
 	PIOS_ADC_StartDma();
+	
+	uint16_t pwm_base_rate=(72e6 / (config.PwmFreq * 2)) - 1;
+	TIM_SetAutoreload(TIM2, pwm_base_rate);
+	TIM_SetAutoreload(TIM3, pwm_base_rate);
 	
 	counter = 0;
 	uint32_t timeval = PIOS_DELAY_GetRaw();
@@ -210,11 +211,6 @@ int main()
 #define MAX_RUNNING_FILTER 512
 uint32_t DEMAG_BLANKING = 70;
 
-#define MAX_CURRENT_FILTER 16
-int32_t current_filter[MAX_CURRENT_FILTER];
-int32_t current_filter_sum = 0;
-int32_t current_filter_pointer = 0;
-
 static int16_t diff_filter[MAX_RUNNING_FILTER];
 static int32_t diff_filter_pointer = 0;
 int32_t running_filter_length = 512;
@@ -224,8 +220,6 @@ uint32_t calls_to_detect = 0;
 uint32_t calls_to_last_detect = 0;
 
 uint32_t samples_averaged;
-int32_t threshold = -10;
-int32_t divisor = 40;
 #include "pios_adc_priv.h"
 uint32_t detected;
 uint32_t bad_flips;
@@ -476,14 +470,7 @@ void DMA1_Channel1_IRQHandler(void)
 		diff_filter_pointer = 0;
 		samples_averaged = 0;
 		
-		// Currently can get into a situation at high RPMs that causes filter to get
-		// too short and then trigger lots of false ZCDs when it thinks its running at
-		// 15k rpm
-		uint32_t current_speed = esc_data->current_speed;
-		if (current_speed > 8500)
-			current_speed = 8500;
-			
-		if((current_speed >> 7) > NELEMENTS(filter_length))
+		if((esc_data->current_speed >> 7) > NELEMENTS(filter_length))
 		   running_filter_length = filter_length[NELEMENTS(filter_length)-1];
 		else
 		   running_filter_length = filter_length[esc_data->current_speed >> 7];
@@ -509,11 +496,14 @@ void DMA1_Channel1_IRQHandler(void)
 				   raw_buf[1 + 2]) / 3;
 	int32_t diff;
 	
-	if(esc_data->duty_cycle > (PIOS_ESC_MAX_DUTYCYCLE * 0.05)) {
+	if(esc_data->duty_cycle > (PIOS_ESC_MAX_DUTYCYCLE * 0.02)) {
 		// 127 / 27 is the 12.7 / 2.7 resistor divider
 		// 3300 / 4096 is the mv / LSB
-		uint32_t battery_mv = (high * PIOS_ESC_MAX_DUTYCYCLE * 127 * 3300) / (esc_data->duty_cycle * 27 * 4096);
-		esc_data->battery_mv = (15 * esc_data->battery_mv + battery_mv) / 16;
+		// Subtracting 2% duty cycle seems to make it more accurate
+		// This just barely stays in the uint32 precision
+		uint32_t battery_mv = high * 3881; // ((uint32_t) (PIOS_ESC_MAX_DUTYCYCLE * 127 * 3300) / (27 * 4096));
+		battery_mv /= (esc_data->duty_cycle); // + 0.02 * PIOS_ESC_MAX_DUTYCYCLE);
+		esc_data->battery_mv = (4095 * esc_data->battery_mv + battery_mv) >> 12;
 	}
 	
 	if(pos[curr_state])
@@ -677,6 +667,9 @@ void test_esc() {
 	}
 	// TODO: If other channels don't follow then motor lead bad
 	
+	uint32_t average_high = (voltages[0][0] + voltages[1][1] + voltages[2][2]) / 3;
+	esc_data->battery_mv =  average_high * ((uint32_t) (127 * 3300) / (27 * 4096));
+
 	PIOS_ESC_Off();
 
 }
