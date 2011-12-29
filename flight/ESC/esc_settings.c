@@ -24,7 +24,7 @@ const EscSettingsData default_config = {
 	.Kff2 = 0,
 	.ILim = 15000,
 	.MaxError = 250, // RPM
-	.MaxDcChange = 0.05 * PIOS_ESC_MAX_DUTYCYCLE,
+	.MaxDcChange = 0.1 * PIOS_ESC_MAX_DUTYCYCLE,
 	.MinDc = 0,
 	.MaxDc = 0.98 * PIOS_ESC_MAX_DUTYCYCLE,
 	.InitialStartupSpeed = 25,
@@ -129,6 +129,13 @@ int32_t esc_settings_save(EscSettingsData * settings)
 
 	// Erase page
 	fs = FLASH_ErasePage(pios_board_info_blob.ee_base);
+	if (fs != FLASH_COMPLETE)
+	{   // error
+		FLASH_Lock();
+		return -3;
+	}	
+
+	fs = FLASH_ErasePage(pios_board_info_blob.ee_base + 0x40);
 	if (fs != FLASH_COMPLETE)
 	{   // error
 		FLASH_Lock();
