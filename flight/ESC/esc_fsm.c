@@ -548,7 +548,7 @@ static void go_esc_cl_zcd(uint16_t time)
 			else if (battery_mv > 15000)
 				battery_mv = 15000;
 			battery_mv = 11000;
-			int32_t Kff = (PID_SCALE * 1000 << 5) / (config.Kv * esc_data.battery_mv);
+			int32_t Kff = (PID_SCALE * 1000 << 5) / (config.Kv * battery_mv);
 			
 			// Note that the error accumulator is divided by 16 and the speed setpoint 
 			// for Kff by 32 to give them more precision.  The setpoint in the feedforward model

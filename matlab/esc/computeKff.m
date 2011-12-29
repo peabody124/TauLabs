@@ -80,10 +80,12 @@ if opened
 end
 
 b = robustfit(rpm', duty_cycle')
-Kff = b(2) * 32176 / 1024 * 32
-Kff2 = -b(1) * 32176 / 1024
+Kff = b(2) * 32178 / 1024 * 32
+battery_mv = 11000;
+Kv = 32178 * 1000 * 2^5 / (battery_mv * Kff)
+Kff2 = -b(1) * 32178 / 1024
 
-esc.configuration.Kff = Kff;
+esc.configuration.Kv = Kv;
 esc.configuration.Kff2 = Kff2;
 esc.configuration.RpmMax = (esc.configuration.MaxDc - b(1)) / b(2);
 a = [min(rpm) max(rpm)];
