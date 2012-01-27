@@ -53,9 +53,6 @@
 /* Prototype of PIOS_Board_Init() function */
 extern void PIOS_Board_Init(void);
 
-#define LED_GO  LED1
-#define LED_ERR LED2
-
 int16_t zero_current = 0;
 
 const uint8_t dT = 1e6 / PIOS_ADC_RATE; // 6 uS per sample at 160k
@@ -137,8 +134,8 @@ int main()
 	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
 	NVIC_Init(&NVIC_InitStructure);
 
-	PIOS_LED_On(LED_GO);
-	PIOS_LED_Off(LED_ERR);
+	PIOS_LED_On(PIOS_LED_HEARTBEAT);
+	PIOS_LED_Off(PIOS_LED_ALARM);
 
 	PIOS_ESC_Off();
 
@@ -533,16 +530,16 @@ void DMA1_Channel1_IRQHandler(void)
 void panic(int diagnostic_code)
 {
 	// Polarity backwards
-	PIOS_LED_On(LED_ERR);
+	PIOS_LED_On(PIOS_LED_ALARM);
 	while(1) {
 		for(int i=0; i<diagnostic_code; i++)
 		{
-			PIOS_LED_Toggle(LED_ERR);
+			PIOS_LED_Toggle(PIOS_LED_ALARM);
 			for(int i = 0 ; i < 250; i++) {
 				PIOS_DELAY_WaitmS(1);
 			}
 
-			PIOS_LED_Toggle(LED_ERR);
+			PIOS_LED_Toggle(PIOS_LED_ALARM);
 			for(int i = 0 ; i < 250; i++) {
 				PIOS_DELAY_WaitmS(1);
 			}

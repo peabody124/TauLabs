@@ -73,6 +73,7 @@ OPUAVOBJINC = $(OPUAVOBJ)/inc
 OPSYSINC = $(OPDIR)/System/inc
 BOOT = ../Bootloaders/ESC
 BOOTINC = $(BOOT)/inc
+HWDEFSINC = ../board_hw_defs/$(BOARD_NAME)
 
 OPUAVSYNTHDIR = $(OUTDIR)/../uavobject-synthetics/flight
 
