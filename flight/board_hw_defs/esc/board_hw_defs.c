@@ -26,7 +26,7 @@ static const struct pios_led pios_leds[] = {
 	},
 };
 
-static const struct pios_led_cfg pios_led_cfg = {
+const struct pios_led_cfg pios_led_cfg = {
 	.leds     = pios_leds,
 	.num_leds = NELEMENTS(pios_leds),
 };

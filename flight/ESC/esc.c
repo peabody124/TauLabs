@@ -53,8 +53,8 @@
 /* Prototype of PIOS_Board_Init() function */
 extern void PIOS_Board_Init(void);
 
-#define LED_GO  LED1
-#define LED_ERR LED2
+#define LED_GO  PIOS_LED_HEARTBEAT
+#define LED_ERR PIOS_LED_ALARM
 
 int16_t zero_current = 0;
 
@@ -545,11 +545,13 @@ void panic(int diagnostic_code)
 		for(int i=0; i<diagnostic_code; i++)
 		{
 			PIOS_LED_On(LED_ERR);
+			PIOS_LED_On(PIOS_LED_HEARTBEAT);
 			for(int i = 0 ; i < 250; i++) {
 				PIOS_DELAY_WaitmS(1); //Count 1ms intervals in order to allow for possibility of watchdog
 			}
 
 			PIOS_LED_Off(LED_ERR);
+			PIOS_LED_Off(PIOS_LED_HEARTBEAT);
 			for(int i = 0 ; i < 250; i++) {
 				PIOS_DELAY_WaitmS(1); //Count 1ms intervals in order to allow for possibility of watchdog
 			}

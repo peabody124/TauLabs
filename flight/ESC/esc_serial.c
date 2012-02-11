@@ -233,25 +233,23 @@ int32_t esc_serial_process()
 {
 	switch(esc_serial_state.state) {
 		case ESC_SERIAL_SENDING_LOG:
-			// Send next part of ADC log
-			if(esc_control.backbuffer_logging_status == ESC_LOGGING_ECHO) {
-				if(PIOS_COM_ReceiveBufferUsed(PIOS_COM_DEBUG) == 0) {
-				
-					uint32_t to_send = esc_logger_getlength() - esc_serial_state.sending_pointer;
-					to_send = (to_send > 2) ? 2 : to_send;
-					bytes_sent+= to_send;
-					// Send some samples from the buffer
-					uint8_t * buf = esc_logger_getbuffer();
-					esc_serial_state.sending_pointer += (PIOS_COM_SendBuffer(PIOS_COM_DEBUG, &buf[esc_serial_state.sending_pointer], to_send) == 0) ? to_send : 0;
-					
-					if (esc_serial_state.sending_pointer >= esc_logger_getlength()) {
-						esc_serial_state.state = ESC_SERIAL_WAIT_SYNC;
-						esc_control.backbuffer_logging_status = ESC_LOGGING_NONE;
-						esc_serial_state.sending_pointer = 0;
-					}
-				}
-				
+
+			if(esc_control.backbuffer_logging_status != ESC_LOGGING_ECHO)
+				return 0;
+
+			// Send next byte of ADC log
+			uint8_t * buf = esc_logger_getbuffer();
+			if (PIOS_COM_SendCharNonBlocking(PIOS_COM_DEBUG, buf[esc_serial_state.sending_pointer]) != 0)
+				return 0;
+
+			esc_serial_state.sending_pointer ++;
+
+			if (esc_serial_state.sending_pointer >= esc_logger_getlength()) {
+				esc_serial_state.state = ESC_SERIAL_WAIT_SYNC;
+				esc_control.backbuffer_logging_status = ESC_LOGGING_NONE;
+				esc_serial_state.sending_pointer = 0;
 			}
+
 			return 0;
 			break;
 		default:

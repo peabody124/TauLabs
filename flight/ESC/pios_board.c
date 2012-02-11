@@ -36,13 +36,11 @@ void PIOS_Board_Init(void) {
 	/* Brings up System using CMSIS functions, enables the LEDs. */
 	PIOS_SYS_Init();
 
-	PIOS_LED_Off(LED1);
-	PIOS_LED_Off(LED2);
-	PIOS_LED_Off(LED3);
-
 	/* Delay system */
 	PIOS_DELAY_Init();
-
+	
+	PIOS_LED_Init(&pios_led_cfg);
+	
 	PIOS_GPIO_Init();
 
 	/* Bring up ADC for sensing BEMF */

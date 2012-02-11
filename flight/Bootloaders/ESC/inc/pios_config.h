@@ -40,7 +40,7 @@
 #define PIOS_INCLUDE_USB_HID
 #define PIOS_INCLUDE_COM
 #define PIOS_INCLUDE_GPIO
-#define PIOS_NO_GPS
+#define PIOS_INCLUDE_IAP
 //#define DEBUG_SSP
 
 /* Defaults for Logging */
