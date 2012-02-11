@@ -53,6 +53,9 @@
 /* Prototype of PIOS_Board_Init() function */
 extern void PIOS_Board_Init(void);
 
+#define LED_GO  LED1
+#define LED_ERR LED2
+
 int16_t zero_current = 0;
 
 const uint8_t dT = 1e6 / PIOS_ADC_RATE; // 6 uS per sample at 160k
@@ -87,10 +90,7 @@ int main()
 	esc_data = 0;
 	PIOS_Board_Init();
 
-	// Load the settings
-	if (esc_settings_load(&config) != 0) {
-		esc_settings_defaults(&config);
-	}
+	PIOS_ADC_Config(1);
 	
 	// TODO: Move this into an esc_control section
 	esc_control.control_method = ESC_CONTROL_PWM;
@@ -113,6 +113,8 @@ int main()
 	ADC_ExternalTrigConvCmd(ADC1, ENABLE);
 	ADC_ExternalTrigConvCmd(ADC2, ENABLE);
 
+	// TODO: Move this into a PIOS_DELAY functi
+
 	// TODO: Move this into a PIOS_DELAY function
 	TIM_OCInitTypeDef tim_oc_init = {
 		.TIM_OCMode = TIM_OCMode_PWM1,
@@ -134,12 +136,14 @@ int main()
 	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
 	NVIC_Init(&NVIC_InitStructure);
 
-	PIOS_LED_On(PIOS_LED_HEARTBEAT);
-	PIOS_LED_Off(PIOS_LED_ALARM);
+	PIOS_LED_On(LED_GO);
+	PIOS_LED_Off(LED_ERR);
 
 	PIOS_ESC_Off();
 
 	esc_serial_init();
+	
+	test_esc();
 	
 	// Blink LED briefly once passed	
 	PIOS_LED_Off(0);
@@ -153,14 +157,9 @@ int main()
 	PIOS_DELAY_WaitmS(250);
 	
 	esc_data = esc_fsm_init();
-	esc_data->speed_setpoint = -1;	
-	test_esc();
+	esc_data->speed_setpoint = -1;
 
 	PIOS_ADC_StartDma();
-	
-	uint16_t pwm_base_rate=(72e6 / (config.PwmFreq * 2)) - 1;
-	TIM_SetAutoreload(TIM2, pwm_base_rate);
-	TIM_SetAutoreload(TIM3, pwm_base_rate);
 	
 	counter = 0;
 	uint32_t timeval = PIOS_DELAY_GetRaw();
@@ -208,6 +207,11 @@ int main()
 #define MAX_RUNNING_FILTER 512
 uint32_t DEMAG_BLANKING = 70;
 
+#define MAX_CURRENT_FILTER 16
+int32_t current_filter[MAX_CURRENT_FILTER];
+int32_t current_filter_sum = 0;
+int32_t current_filter_pointer = 0;
+
 static int16_t diff_filter[MAX_RUNNING_FILTER];
 static int32_t diff_filter_pointer = 0;
 int32_t running_filter_length = 512;
@@ -217,6 +221,8 @@ uint32_t calls_to_detect = 0;
 uint32_t calls_to_last_detect = 0;
 
 uint32_t samples_averaged;
+int32_t threshold = -10;
+int32_t divisor = 40;
 #include "pios_adc_priv.h"
 uint32_t detected;
 uint32_t bad_flips;
@@ -467,7 +473,14 @@ void DMA1_Channel1_IRQHandler(void)
 		diff_filter_pointer = 0;
 		samples_averaged = 0;
 		
-		if((esc_data->current_speed >> 7) > NELEMENTS(filter_length))
+		// Currently can get into a situation at high RPMs that causes filter to get
+		// too short and then trigger lots of false ZCDs when it thinks its running at
+		// 15k rpm
+		uint32_t current_speed = esc_data->current_speed;
+		if (current_speed > 8500)
+			current_speed = 8500;
+			
+		if((current_speed >> 7) > NELEMENTS(filter_length))
 		   running_filter_length = filter_length[NELEMENTS(filter_length)-1];
 		else
 		   running_filter_length = filter_length[esc_data->current_speed >> 7];
@@ -493,14 +506,11 @@ void DMA1_Channel1_IRQHandler(void)
 				   raw_buf[1 + 2]) / 3;
 	int32_t diff;
 	
-	if(esc_data->duty_cycle > (PIOS_ESC_MAX_DUTYCYCLE * 0.02)) {
+	if(esc_data->duty_cycle > (PIOS_ESC_MAX_DUTYCYCLE * 0.05)) {
 		// 127 / 27 is the 12.7 / 2.7 resistor divider
 		// 3300 / 4096 is the mv / LSB
-		// Subtracting 2% duty cycle seems to make it more accurate
-		// This just barely stays in the uint32 precision
-		uint32_t battery_mv = high * 3881; // ((uint32_t) (PIOS_ESC_MAX_DUTYCYCLE * 127 * 3300) / (27 * 4096));
-		battery_mv /= (esc_data->duty_cycle); // + 0.02 * PIOS_ESC_MAX_DUTYCYCLE);
-		esc_data->battery_mv = (4095 * esc_data->battery_mv + battery_mv) >> 12;
+		uint32_t battery_mv = (high * PIOS_ESC_MAX_DUTYCYCLE * 127 * 3300) / (esc_data->duty_cycle * 27 * 4096);
+		esc_data->battery_mv = (15 * esc_data->battery_mv + battery_mv) / 16;
 	}
 	
 	if(pos[curr_state])
@@ -529,19 +539,19 @@ void DMA1_Channel1_IRQHandler(void)
 /* INS functions */
 void panic(int diagnostic_code)
 {
-	// Polarity backwards
-	PIOS_LED_On(PIOS_LED_ALARM);
+	// Turn off error LED.
+	PIOS_LED_Off(LED_ERR);
 	while(1) {
 		for(int i=0; i<diagnostic_code; i++)
 		{
-			PIOS_LED_Toggle(PIOS_LED_ALARM);
+			PIOS_LED_On(LED_ERR);
 			for(int i = 0 ; i < 250; i++) {
-				PIOS_DELAY_WaitmS(1);
+				PIOS_DELAY_WaitmS(1); //Count 1ms intervals in order to allow for possibility of watchdog
 			}
 
-			PIOS_LED_Toggle(PIOS_LED_ALARM);
+			PIOS_LED_Off(LED_ERR);
 			for(int i = 0 ; i < 250; i++) {
-				PIOS_DELAY_WaitmS(1);
+				PIOS_DELAY_WaitmS(1); //Count 1ms intervals in order to allow for possibility of watchdog
 			}
 
 		}
@@ -664,9 +674,6 @@ void test_esc() {
 	}
 	// TODO: If other channels don't follow then motor lead bad
 	
-	uint32_t average_high = (voltages[0][0] + voltages[1][1] + voltages[2][2]) / 3;
-	esc_data->battery_mv =  average_high * ((uint32_t) (127 * 3300) / (27 * 4096));
-
 	PIOS_ESC_Off();
 
 }
