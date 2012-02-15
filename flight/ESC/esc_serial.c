@@ -206,7 +206,7 @@ static int32_t esc_serial_command_received()
 		case ESC_COMMAND_SET_PWM_FREQ:
 		{
 			uint16_t new_freq = esc_serial_state.buffer[0] | (esc_serial_state.buffer[1] << 8);
-			uint16_t pwm_base_rate=(72e6 / new_freq) - 1;
+			uint16_t pwm_base_rate=(PIOS_MASTER_CLOCK/2 / new_freq) - 1; //Divide by two in order to actually command PWM frequency, and not Timer frequency
 			TIM_SetAutoreload(TIM2, pwm_base_rate);
 			TIM_SetAutoreload(TIM3, pwm_base_rate);
 		}

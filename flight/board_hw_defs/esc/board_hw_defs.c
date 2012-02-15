@@ -52,8 +52,8 @@ uint32_t pios_rcvr_group_map[1];
 const struct pios_esc_cfg pios_esc_cfg = {
 	.tim_base_init = {
 		// Note not the same prescalar as servo
-		// This is 72e6 or 24e6 / 10e6 to give a 0.1 us resolution
-		.TIM_Prescaler = (PIOS_MASTER_CLOCK / 72e6) - 1,
+		// Fastest clock possible 
+		.TIM_Prescaler = 0,
 		.TIM_ClockDivision = TIM_CKD_DIV1,
 		.TIM_CounterMode = TIM_CounterMode_CenterAligned1,
 		.TIM_Period = ((PIOS_MASTER_CLOCK / ESC_DEFAULT_PWM_RATE) - 1),

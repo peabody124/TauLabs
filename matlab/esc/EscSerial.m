@@ -289,7 +289,7 @@ classdef EscSerial
         
         function self = setPwmRate(self, freq)
             assert(isOpen(self), 'Open serial port first');
-            fwrite(self.ser, uint8([self.SYNC_BYTE self.ESC_COMMAND_SET_PWM_FREQ typecast(int16(freq), 'uint8')]));
+            fwrite(self.ser, uint8([self.SYNC_BYTE self.ESC_COMMAND_SET_PWM_FREQ typecast(uint16(freq), 'uint8')]));
             % TODO: Get/check ack
         end
         
