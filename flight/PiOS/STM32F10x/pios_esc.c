@@ -535,17 +535,19 @@ int32_t PIOS_ESC_SetPwmRate(uint32_t rate)
 	if(pios_esc_dev.armed)
 		return -1;
 
+#ifdef KEEP_TIMER_SYNCED // This doesn't work right now
 	TIM_Cmd(TIM2, DISABLE);
 	TIM_Cmd(TIM3, DISABLE);
 	
 	// For center aligned PWM need rate twice as fast
-	rate *= 2;
+#endif
 
 	// Set the new ARR value
-	uint16_t pwm_base_rate=(72e6 / rate) - 1;
+	uint16_t pwm_base_rate=(PIOS_MASTER_CLOCK / 2 / rate) - 1;
 	TIM_SetAutoreload(TIM2, pwm_base_rate);
 	TIM_SetAutoreload(TIM3, pwm_base_rate);
-	
+
+#ifdef KEEP_TIMER_SYNCED
 	// Restart the timers so they stay synchronized
 	TIM2->CR1 |= TIM_CR1_DIR;
 	TIM3->CR1 |= TIM_CR1_DIR;
@@ -555,7 +557,7 @@ int32_t PIOS_ESC_SetPwmRate(uint32_t rate)
 	TIM_SelectSlaveMode(TIM2, TIM_SlaveMode_Trigger);
 	TIM_SelectInputTrigger(TIM2, TIM_TS_ITR2);
 	TIM_Cmd(TIM3,ENABLE);
-	
+#endif
 	return 0;
 }
 #endif

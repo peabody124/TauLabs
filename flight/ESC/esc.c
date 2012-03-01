@@ -92,6 +92,10 @@ int main()
 
 	PIOS_ADC_Config(1);
 	
+	if (esc_settings_load(&config) != 0)
+		esc_settings_defaults(&config);
+	PIOS_ESC_SetPwmRate(config.PwmFreq);
+
 	// TODO: Move this into an esc_control section
 	esc_control.control_method = ESC_CONTROL_PWM;
 	esc_control.serial_input = -1;
@@ -734,7 +738,11 @@ static void PIOS_TIM_4_irq_handler (void)
 			}
 			
 		}
-		
+
+		// Not initialized yet
+		if (esc_data == NULL)
+			return;
+
 		// Dont process crazy values
 		if(capture_value > config.PwmMin * 0.5 && capture_value < config.PwmMax * 1.1) {
 			last_input_update = PIOS_DELAY_GetRaw();
