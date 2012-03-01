@@ -74,6 +74,7 @@ struct esc_fsm_data {
 	int32_t duty_cycle;
 	int16_t current_speed;
 	int16_t speed_setpoint;
+	int32_t duty_cycle_setpoint;
 
 	uint8_t scheduled_event_armed;
 	uint16_t scheduled_event_time;

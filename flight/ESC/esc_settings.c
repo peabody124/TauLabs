@@ -39,6 +39,9 @@ const EscSettingsData default_config = {
 	.PwmFreq = 20000,
 	.SoftCurrentLimit = 15000, /* 10 mA per unit */
 	.HardCurrentLimit = 23000,
+	.Braking = ESCSETTINGS_BRAKING_OFF,
+	.Direction = ESCSETTINGS_DIRECTION_FORWARD,
+	.Mode = ESCSETTINGS_MODE_CLOSED,
 };
 
 static uint32_t settings_crc(const EscSettingsData * settings) 

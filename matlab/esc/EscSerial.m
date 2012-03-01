@@ -27,7 +27,8 @@ classdef EscSerial
             'RpmMax',uint16(10000), ...
             'PwmFreq',uint16(40000), ...
             'Braking',int8(0), ...
-            'Direction',int8(0));
+            'Direction',int8(0);
+            'Mode',int8(0));
             
         packet = [];
     end
@@ -138,6 +139,7 @@ classdef EscSerial
                 typecast(uint16(self.configuration.PwmFreq),'uint8'), ...
                 typecast(uint8(self.configuration.Braking),'uint8'), ...
                 typecast(uint8(self.configuration.Direction),'uint8'), ...
+                typecast(uint8(self.configuration.Mode),'uint8'), ...
                 ];
             % TODO: Receive/Check ack
             fwrite(self.ser, command(1:15));
@@ -154,7 +156,7 @@ classdef EscSerial
             command = uint8([self.SYNC_BYTE self.ESC_COMMAND_GET_CONFIG]);
             fwrite(self.ser, command);
             pause(0.1);
-            dat = uint8(fread(self.ser, 46, 'uint8'));
+            dat = uint8(fread(self.ser, 47, 'uint8'));
             config.RisingKp = typecast(dat(1:2),'int16');
             config.FallingKp = typecast(dat(3:4),'int16');
             config.Ki = typecast(dat(5:6),'int16');
@@ -179,6 +181,7 @@ classdef EscSerial
             config.PwmFreq = typecast(dat(43:44),'uint16');
             config.Braking = typecast(dat(45), 'uint8');
             config.Direction = typecast(dat(46),'uint8');
+            config.Mode = typecast(dat(47),'uint8');
         end
         
         function self = saveConfiguration(self)

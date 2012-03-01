@@ -236,14 +236,16 @@ void esc_process_static_fsm_rxn() {
 		case ESC_STATE_WAIT_FOR_ARM:
 		case ESC_STATE_STOPPED:
 			// To rearm look explicitly for zero which is detected but off
-			if(esc_data.speed_setpoint == 0 && zero_time > 10000) {
+			if(((config.Mode == ESCSETTINGS_MODE_CLOSED && esc_data.speed_setpoint == 0) || 
+				(config.Mode == ESCSETTINGS_MODE_OPEN && esc_data.duty_cycle_setpoint == 0)) && zero_time > 10000) {
 				esc_fsm_inject_event(ESC_EVENT_ARM,0);
 				zero_time = 0;
 			}
 			else zero_time++;
 			break;
 		case ESC_STATE_IDLE:
-			if(esc_data.speed_setpoint > 0)
+			if((config.Mode == ESCSETTINGS_MODE_CLOSED && esc_data.speed_setpoint > 0) || 
+			   (config.Mode == ESCSETTINGS_MODE_OPEN && esc_data.duty_cycle_setpoint > 0))
 				esc_fsm_inject_event(ESC_EVENT_START,0);
 			break;
 		case ESC_STATE_STOPPING:
@@ -258,7 +260,8 @@ void esc_process_static_fsm_rxn() {
 		case ESC_STATE_STARTUP_WAIT:
 		case ESC_STATE_STARTUP_ZCD_DETECTED:
 		case ESC_STATE_STARTUP_NOZCD_COMMUTATED:			
-			if(esc_data.speed_setpoint <= 0) {
+			if((config.Mode == ESCSETTINGS_MODE_CLOSED && esc_data.speed_setpoint <= 0) || 
+				(config.Mode == ESCSETTINGS_MODE_OPEN && esc_data.duty_cycle_setpoint <= 0)) {
 				esc_fsm_inject_event(ESC_EVENT_STOP,0);
 			}
 			
@@ -282,9 +285,13 @@ void esc_process_static_fsm_rxn() {
 			}
 			last_timer = cur_timer;
 
-			if(esc_data.speed_setpoint <= 0 && PIOS_DELAY_DiffuS(stop_time) > 100000) {
+			// Check off signal AND adequate time to exclude glitch
+			if( ((config.Mode == ESCSETTINGS_MODE_CLOSED && esc_data.speed_setpoint <= 0) || 
+				 (config.Mode == ESCSETTINGS_MODE_OPEN && esc_data.duty_cycle_setpoint <= 0)) &&
+				  PIOS_DELAY_DiffuS(stop_time) > 100000 ) {
 				esc_fsm_inject_event(ESC_EVENT_STOP,0);
-			} else if (esc_data.speed_setpoint > 0)
+			} else if ((config.Mode == ESCSETTINGS_MODE_CLOSED && esc_data.speed_setpoint > 0) || 
+					   (config.Mode == ESCSETTINGS_MODE_OPEN && esc_data.duty_cycle_setpoint > 0))
 				stop_time = PIOS_DELAY_GetRaw();
 	
 		}
@@ -478,19 +485,12 @@ static void go_esc_cl_commutated(uint16_t time)
 /**
  * When a zcd is detected
  */
-uint32_t zcd1_time;
-uint32_t zcd2_time;
-uint32_t zcd3_time;
-uint32_t zcd4_time;
-uint32_t zcd5_time;
 int32_t new_dc;
 
 int32_t brake_off_thresh = -10;
 int32_t brake_on_thresh = -30;
 static void go_esc_cl_zcd(uint16_t time)
 {
-	uint32_t timeval = PIOS_DELAY_GetRaw();
-	
 	esc_data.consecutive_detected++;
 	esc_data.consecutive_missed = 0;
 
@@ -498,9 +498,7 @@ static void go_esc_cl_zcd(uint16_t time)
 
 	uint32_t zcd_delay = esc_data.swap_interval_smoothed * (30 - config.CommutationPhase) / 60 - config.CommutationOffset;
 	esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, zcd_delay);
-	
-	zcd1_time = PIOS_DELAY_DiffuS(timeval);
-	
+		
 	if(esc_data.current_ma > config.SoftCurrentLimit) {
 		esc_data.duty_cycle -= config.MaxDcChange;
 		bound_duty_cycle();
@@ -512,70 +510,69 @@ static void go_esc_cl_zcd(uint16_t time)
 				return;
 			esc_data.locked = true;
 		}
-#ifdef OPEN_LOOP
-		esc_data.duty_cycle = esc_data.speed_setpoint * PIOS_ESC_MAX_DUTYCYCLE / 8000;
-#else
-		int32_t error = esc_data.speed_setpoint - esc_data.current_speed;
-		
-		// Bound error to limit the acceleration for large changes
-		if (error > config.MaxError)
-			error = config.MaxError;
-		/*else if (error < -(int16_t) config.MaxError)
-		 error = - (int16_t) config.MaxError; */
-		 
-		esc_data.error_accum += error;
-		if(esc_data.error_accum > (config.ILim * config.Ki))
-			esc_data.error_accum = (config.ILim * config.Ki);
-		if(esc_data.error_accum < -(config.ILim * config.Ki))
-			esc_data.error_accum = -(config.ILim * config.Ki);
-
-		zcd2_time = PIOS_DELAY_DiffuS(timeval);
-
-		int32_t Kp = (error >= 0) ? config.RisingKp: config.FallingKp;
-		
-		if (config.Braking == ESCSETTINGS_BRAKING_ON) {
-			if (error >= brake_off_thresh)
-				PIOS_ESC_SetMode(ESC_MODE_LOW_ON_PWM_HIGH);
-			else if(error < brake_on_thresh)
-				PIOS_ESC_SetMode(ESC_MODE_LOW_ON_PWM_BOTH);
-		}
-
-		if(1) {
-			// Make this depend on the battery type
-			int32_t battery_mv = esc_data.battery_mv;
-			if(battery_mv < 10000)
-				battery_mv = 10000;
-			else if (battery_mv > 15000)
-				battery_mv = 15000;
-			battery_mv = 11000;
-			int32_t Kff = (PID_SCALE * 1000 << 5) / (config.Kv * battery_mv);
+		if (config.Mode == ESCSETTINGS_MODE_OPEN) {
+			// TODO: Include current limiting here
+			esc_data.duty_cycle = esc_data.duty_cycle_setpoint;
+		} else if (config.Mode == ESCSETTINGS_MODE_CLOSED) {
+			int32_t error = esc_data.speed_setpoint - esc_data.current_speed;
 			
-			// Note that the error accumulator is divided by 16 and the speed setpoint 
-			// for Kff by 32 to give them more precision.  The setpoint in the feedforward model
-			// is replaced by the current speed plus the error to limit the max torque
-			new_dc = ((((esc_data.current_speed + error) * Kff * PIOS_ESC_MAX_DUTYCYCLE) >> 5) - config.Kff2 + 
-					  error * Kp * PIOS_ESC_MAX_DUTYCYCLE +
-					  (((esc_data.error_accum * config.Ki) * PIOS_ESC_MAX_DUTYCYCLE) >> 4)) / PID_SCALE;
+			// Bound error to limit the acceleration for large changes
+			if (error > config.MaxError)
+				error = config.MaxError;
+			/*else if (error < -(int16_t) config.MaxError)
+			 error = - (int16_t) config.MaxError; */
+			
+			esc_data.error_accum += error;
+			if(esc_data.error_accum > (config.ILim * config.Ki))
+				esc_data.error_accum = (config.ILim * config.Ki);
+			if(esc_data.error_accum < -(config.ILim * config.Ki))
+				esc_data.error_accum = -(config.ILim * config.Ki);
+				
+			int32_t Kp = (error >= 0) ? config.RisingKp: config.FallingKp;
+			
+			if (config.Braking == ESCSETTINGS_BRAKING_ON) {
+				if (error >= brake_off_thresh)
+					PIOS_ESC_SetMode(ESC_MODE_LOW_ON_PWM_HIGH);
+				else if(error < brake_on_thresh)
+					PIOS_ESC_SetMode(ESC_MODE_LOW_ON_PWM_BOTH);
+			}
+			
+			if(1) {
+				// Make this depend on the battery type
+				int32_t battery_mv = esc_data.battery_mv;
+				if(battery_mv < 10000)
+					battery_mv = 10000;
+				else if (battery_mv > 15000)
+					battery_mv = 15000;
+				battery_mv = 11000;
+				int32_t Kff = (PID_SCALE * 1000 << 5) / (config.Kv * battery_mv);
+				
+				// Note that the error accumulator is divided by 16 and the speed setpoint 
+				// for Kff by 32 to give them more precision.  The setpoint in the feedforward model
+				// is replaced by the current speed plus the error to limit the max torque
+				new_dc = ((((esc_data.current_speed + error) * Kff * PIOS_ESC_MAX_DUTYCYCLE) >> 5) - config.Kff2 + 
+						  error * Kp * PIOS_ESC_MAX_DUTYCYCLE +
+						  (((esc_data.error_accum * config.Ki) * PIOS_ESC_MAX_DUTYCYCLE) >> 4)) / PID_SCALE;
+			} else {
+				//			new_dc = ((((esc_data.current_speed + error) * config.Kff) >> 5)  - config.Kff2 +
+				//					  error * Kp + ((esc_data.error_accum * config.Ki) >> 4)) * PIOS_ESC_MAX_DUTYCYCLE / PID_SCALE;
+			}
+			
+			// For now keep this calculation as a float and rescale it here
+			if((new_dc - esc_data.duty_cycle) > config.MaxDcChange)
+				esc_data.duty_cycle += config.MaxDcChange;
+			else if((new_dc - esc_data.duty_cycle) < -config.MaxDcChange)
+				esc_data.duty_cycle -= config.MaxDcChange;
+			else
+				esc_data.duty_cycle = new_dc;
 		} else {
-//			new_dc = ((((esc_data.current_speed + error) * config.Kff) >> 5)  - config.Kff2 +
-//					  error * Kp + ((esc_data.error_accum * config.Ki) >> 4)) * PIOS_ESC_MAX_DUTYCYCLE / PID_SCALE;
+			// No valid mode selected
+			esc_fsm_inject_event(ESC_EVENT_FAULT, 0);
 		}
-		
-		// For now keep this calculation as a float and rescale it here
-		if((new_dc - esc_data.duty_cycle) > config.MaxDcChange)
-			esc_data.duty_cycle += config.MaxDcChange;
-		else if((new_dc - esc_data.duty_cycle) < -config.MaxDcChange)
-			esc_data.duty_cycle -= config.MaxDcChange;
-		else
-			esc_data.duty_cycle = new_dc;
 
-		zcd3_time = PIOS_DELAY_DiffuS(timeval);
-
-#endif	
 		bound_duty_cycle();
 		PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
 	}
-	zcd4_time = PIOS_DELAY_DiffuS(timeval);
 }
 
 /**

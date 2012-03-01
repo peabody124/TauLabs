@@ -747,8 +747,19 @@ static void PIOS_TIM_4_irq_handler (void)
 			
 			esc_control.pwm_input = capture_value;
 			if(esc_control.control_method == ESC_CONTROL_PWM) {
-				uint32_t scaled_capture = config.RpmMin + (capture_value - config.PwmMin) * (config.RpmMax - config.RpmMin) / (config.PwmMax - config.PwmMin);
-				esc_data->speed_setpoint = (capture_value < config.PwmMin) ? 0 : scaled_capture;
+				if (config.Mode == ESCSETTINGS_MODE_CLOSED) {
+					uint32_t scaled_capture = config.RpmMin + (capture_value - config.PwmMin) * (config.RpmMax - config.RpmMin) / (config.PwmMax - config.PwmMin);
+					esc_data->speed_setpoint = (capture_value < config.PwmMin) ? 0 : scaled_capture;
+					esc_data->duty_cycle_setpoint = 0;
+				} else if (config.Mode == ESCSETTINGS_MODE_OPEN){
+					uint32_t scaled_capture = (capture_value - config.PwmMin) * PIOS_ESC_MAX_DUTYCYCLE / (config.PwmMax - config.PwmMin);
+					esc_data->duty_cycle_setpoint = (capture_value < config.PwmMin) ? 0 : scaled_capture;
+					esc_data->speed_setpoint = 0;
+				} else {
+					esc_data->duty_cycle_setpoint = 0;
+					esc_data->speed_setpoint = 0;
+
+				}
 			}
 		}
 	} 
