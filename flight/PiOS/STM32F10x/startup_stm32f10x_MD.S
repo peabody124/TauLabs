@@ -60,6 +60,12 @@ defined in linker script */
   .weak  Reset_Handler
   .type  Reset_Handler, %function
 Reset_Handler:
+  ldr        r0, =0x20000FF0
+  ldr        r1, =0xDEADBEEF
+  ldr        r2, [r0, #0]
+  str        r0, [r0, #0] // Invalidate
+  cmp        r2, r1
+  beq        Reboot_Loader
 
 /* Copy the data segment initializers from flash to SRAM */  
   movs  r1, #0
@@ -92,6 +98,12 @@ LoopFillZerobss:
   bl  main
   bx  lr
 .size  Reset_Handler, .-Reset_Handler
+
+Reboot_Loader:
+  ldr   r0, =0x1FFFF000
+  ldr   sp,[r0, #0]
+  ldr   r0,[r0, #4]
+  bx    r0
 
 /**
  * @brief  This is the code that gets called when the processor receives an 

@@ -36,7 +36,8 @@ enum esc_serial_command {
 	ESC_COMMAND_GET_ADC_LOG = 11,
 	ESC_COMMAND_SET_PWM_FREQ = 12,
 	ESC_COMMAND_GET_STATUS = 13,
-	ESC_COMMAND_LAST = 14,
+	ESC_COMMAND_BOOTLOADER = 14,
+	ESC_COMMAND_LAST = 15,
 };
 
 //! The size of the data packets
@@ -51,6 +52,7 @@ const uint8_t esc_command_data_size[ESC_COMMAND_LAST] = {
 	[ESC_COMMAND_SET_SPEED] = 2,
 	[ESC_COMMAND_SET_PWM_FREQ] = 2,
 	[ESC_COMMAND_GET_STATUS] = 0,
+	[ESC_COMMAND_BOOTLOADER] = 2
 };
 
 //! States for the ESC parsers
@@ -214,6 +216,13 @@ static int32_t esc_serial_command_received()
 		case ESC_COMMAND_GET_STATUS:
 			retval = PIOS_COM_SendBufferNonBlocking(PIOS_COM_DEBUG, (uint8_t *) &status, sizeof(status));
 			break;
+		case ESC_COMMAND_BOOTLOADER:
+			// TODO: Check not armed
+			if (esc_serial_state.buffer[0] == 0x73 && esc_serial_state.buffer[1] == 0x37) {
+				PIOS_ESC_Off();
+				*((unsigned long *)0x20000FF0) = 0xDEADBEEF; // 64KB STM32F103
+                PIOS_SYS_Reset();
+			}
 		default:
 			PIOS_DEBUG_Assert(0);
 	}

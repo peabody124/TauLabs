@@ -3,6 +3,7 @@ classdef EscSerial
     properties
         ser = [];
         logging = false;
+        port = '';
         configuration = struct( ...
             'RisingKp',int16(0),...
             'FallingKp',int16(0),...
@@ -49,7 +50,8 @@ classdef EscSerial
         ESC_COMMAND_GET_ADC_LOG = 11;
         ESC_COMMAND_SET_PWM_FREQ = 12;
         ESC_COMMAND_GET_STATUS = 13;
-        ESC_COMMAND_LAST = 14;
+        ESC_COMMAND_BOOTLOADER = 14;
+        ESC_COMMAND_LAST = 15;
         
         READ_PACKET_LENGTH = 6*2;
     end
@@ -62,6 +64,7 @@ classdef EscSerial
             self.ser = serial(serport);
             self.ser.BaudRate=115200; %230400;
             self.ser.InputBufferSize=2*1024*1024;
+            self.port = serport;
             fopen(self.ser);
         end
         
@@ -312,7 +315,17 @@ classdef EscSerial
             dat = typecast(dat,'uint16');
             dat = double(reshape(dat,4,[]));
         end
-
+        
+        function self = reprogram(self)
+            assert(isOpen(self), 'Open serial port first');
+            fwrite(self.ser, uint8([self.SYNC_BYTE self.ESC_COMMAND_BOOTLOADER hex2dec('73') hex2dec('37')]));
+            self = closePort(self);
+            system('make fw_esc');
+            escbin;
+            system(['./tools/stm32flash/stm32flash -w esc.bin -v -g 0x0 -b 115200 ' self.port]);
+            self = openPort(self, self.port);
+        end
+        
         function display(esc)
             if(isOpen(esc))
                 disp('Esc is connected');
