@@ -84,6 +84,10 @@ private:
 	void disableTelemetry();
 	void enableTelemetry();
 
+        void getSettings();
+        void sendSettings();
+
+        UAVObjectManager * getObjectManager();
 //	void disconnectPort(bool enable_telemetry, bool lock_stuff = true);
 //	void connectPort();
 

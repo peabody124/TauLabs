@@ -29,6 +29,7 @@
 #include <QFileInfo>
 #include <QDir>
 #include <QFileDialog>
+#include "escsettings.h"
 #include <stdlib.h>
 
 #include "escgadgetwidget.h"
@@ -134,4 +135,38 @@ void EscGadgetWidget::enableTelemetry()
 {	// Restart the polling thread
 }
 
+void EscGadgetWidget::getSettings()
+{
+    const float PID_SCALE = 32178;
 
+    EscSettings::DataFields escSettings = EscSettings::GetInstance(getObjectManager())->getData();
+
+    // Check the UI elements
+    escSettings.Mode = m_widget->closedLoopCheck->checkState() ? EscSettings::MODE_CLOSED : EscSettings::MODE_OPEN;
+    escSettings.RisingKp = m_widget->spinRisingKp->value();
+    escSettings.FallingKp = m_widget->spinFallingKp->value();
+    escSettings.CommutationPhase = m_widget->spinPhase->value();
+    escSettings.Kv = m_widget->spinKv->value();
+
+    if(escSettings.RisingKp > PID_SCALE)
+        escSettings.RisingKp = PID_SCALE;
+    if(escSettings.FallingKp > PID_SCALE)
+        escSettings.FallingKp = PID_SCALE;
+}
+
+void EscGadgetWidget::sendSettings()
+{
+
+}
+
+
+/**
+  * @brief Return handle to object manager
+  */
+UAVObjectManager * EscGadgetWidget::getObjectManager()
+{
+    ExtensionSystem::PluginManager *pm = ExtensionSystem::PluginManager::instance();
+    UAVObjectManager * objMngr = pm->getObject<UAVObjectManager>();
+    Q_ASSERT(objMngr);
+    return objMngr;
+}

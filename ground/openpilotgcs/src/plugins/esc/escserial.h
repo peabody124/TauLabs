@@ -7,12 +7,11 @@
 class EscSerial
 {
 public:
-    EscSerial(QIODevice qio);
+    EscSerial(QIODevice *qio);
 
     void getStatus();
     void setSettings();
 
-private:
     enum esc_serial_command {
             ESC_COMMAND_SET_CONFIG = 0,
             ESC_COMMAND_GET_CONFIG = 1,
@@ -31,14 +30,18 @@ private:
             ESC_COMMAND_LAST = 14
     };
 
-    const quint8 ESC_SYNC_BYTE = 0x85;
+    static const int esc_command_data_size[ESC_COMMAND_LAST];
 
-    void writeCommand(enum esc_serial_command command, quint8 * data);
-    void readCommand(enum esc_serial_command command, quint8 * data);
+private:
+
+    static const quint8 ESC_SYNC_BYTE = 0x85;
+
+    void writeCommand(enum esc_serial_command command, const char *data);
+    void readCommand(enum esc_serial_command command, char *data);
 
     EscSettings::DataFields escSettings;
     EscStatus::DataFields escStatus;
-    QIODevice qio;
+    QIODevice *qio;
 };
 
 #endif // ESCSERIAL_H
