@@ -512,8 +512,10 @@ void DMA1_Channel1_IRQHandler(void)
 	if(esc_data->duty_cycle > (PIOS_ESC_MAX_DUTYCYCLE * 0.05)) {
 		// 127 / 27 is the 12.7 / 2.7 resistor divider
 		// 3300 / 4096 is the mv / LSB
-		uint32_t battery_mv = (high * PIOS_ESC_MAX_DUTYCYCLE * 127 * 3300) / (esc_data->duty_cycle * 27 * 4096);
-		esc_data->battery_mv = (15 * esc_data->battery_mv + battery_mv) / 16;
+		// (high * PIOS_ESC_MAX_DUTYCYCLE * 127 * 3300) / (esc_data->duty_cycle * 27 * 4096);
+		// Shifted equation around to not run out of precision
+		uint32_t battery_mv = (high * 127 * 3300 / (esc_data->duty_cycle * 27)) / (4096 / PIOS_ESC_MAX_DUTYCYCLE);
+		esc_data->battery_mv = (16383 * esc_data->battery_mv + battery_mv) / 16384;
 	}
 	
 	if(pos[curr_state])

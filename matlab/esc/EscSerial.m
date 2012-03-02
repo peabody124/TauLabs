@@ -320,7 +320,6 @@ classdef EscSerial
             assert(isOpen(self), 'Open serial port first');
             fwrite(self.ser, uint8([self.SYNC_BYTE self.ESC_COMMAND_BOOTLOADER hex2dec('73') hex2dec('37')]));
             self = closePort(self);
-            system('make fw_esc');
             escbin;
             system(['./tools/stm32flash/stm32flash -w esc.bin -v -g 0x0 -b 115200 ' self.port]);
             self = openPort(self, self.port);
