@@ -260,21 +260,49 @@
              </widget>
             </item>
             <item row="1" column="1">
-             <widget class="QLCDNumber" name="lcdNumber_2">
+             <widget class="QLCDNumber" name="setPoint">
               <property name="segmentStyle">
                <enum>QLCDNumber::Flat</enum>
               </property>
              </widget>
             </item>
-            <item row="3" column="0">
+            <item row="2" column="0">
              <widget class="QLabel" name="label_6">
               <property name="text">
                <string>Duty Cycle</string>
               </property>
              </widget>
             </item>
-            <item row="3" column="1">
+            <item row="2" column="1">
              <widget class="QLCDNumber" name="dutyCycle">
+              <property name="segmentStyle">
+               <enum>QLCDNumber::Flat</enum>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="0">
+             <widget class="QLabel" name="label_13">
+              <property name="text">
+               <string>Battery (mV)</string>
+              </property>
+             </widget>
+            </item>
+            <item row="4" column="0">
+             <widget class="QLabel" name="label_14">
+              <property name="text">
+               <string>Current (mA)</string>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="1">
+             <widget class="QLCDNumber" name="battery">
+              <property name="segmentStyle">
+               <enum>QLCDNumber::Flat</enum>
+              </property>
+             </widget>
+            </item>
+            <item row="4" column="1">
+             <widget class="QLCDNumber" name="current">
               <property name="segmentStyle">
                <enum>QLCDNumber::Flat</enum>
               </property>
@@ -426,7 +454,7 @@
       </widget>
      </item>
      <item>
-      <widget class="QPushButton" name="saveTelemetryToRAM">
+      <widget class="QPushButton" name="saveSettingsToRAM">
        <property name="toolTip">
         <string>Send to OpenPilot but don't write in SD.
 Beware of not locking yourself out!</string>
@@ -446,7 +474,7 @@ Beware of not locking yourself out!</string>
       </widget>
      </item>
      <item>
-      <widget class="QPushButton" name="saveTelemetryToSD">
+      <widget class="QPushButton" name="saveSettingsToFlash">
        <property name="toolTip">
         <string>Applies and Saves all settings to SD.
 Beware of not locking yourself out!</string>

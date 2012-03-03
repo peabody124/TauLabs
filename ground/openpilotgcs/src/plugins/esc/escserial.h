@@ -8,9 +8,12 @@ class EscSerial
 {
 public:
     EscSerial(QIODevice *qio);
+    ~EscSerial();
 
-    void getStatus();
-    void setSettings();
+    void saveSettings();
+    EscStatus::DataFields getStatus();
+    EscSettings::DataFields getSettings();
+    void setSettings(EscSettings::DataFields);
 
     enum esc_serial_command {
             ESC_COMMAND_SET_CONFIG = 0,

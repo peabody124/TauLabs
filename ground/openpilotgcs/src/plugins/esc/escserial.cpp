@@ -1,5 +1,6 @@
 #include "escserial.h"
 #include "escsettings.h"
+#include <QDebug>
 
 /* The size of the data packets.  Unfortunately the compiler won't allow */
 /* specified initializers so leaving comments in place to describe */
@@ -26,14 +27,47 @@ EscSerial::EscSerial(QIODevice *qio_in) :
 {
 }
 
-void EscSerial::getStatus()
+EscSerial::~EscSerial()
 {
-
+    qDebug() << "Closing serial port";
+    qio->close();
+    delete qio;
+    qio = NULL;
 }
 
-void EscSerial::setSettings()
+EscStatus::DataFields EscSerial::getStatus()
 {
+    EscStatus::DataFields escStatusData;
+    qint64 bytesRead;
 
+    qio->readAll();
+    writeCommand(ESC_COMMAND_GET_STATUS, NULL);
+    bytesRead = qio->read((char *) &escStatusData, sizeof(escStatusData));
+
+    return escStatusData;
+}
+
+EscSettings::DataFields EscSerial::getSettings()
+{
+    EscSettings::DataFields escSettingsData;
+    qint64 bytesRead;
+
+    qio->readAll();
+    writeCommand(ESC_COMMAND_GET_CONFIG, NULL);
+    bytesRead = qio->read((char *) &escSettingsData, sizeof(escSettingsData));
+
+    return escSettingsData;
+}
+
+void EscSerial::setSettings(EscSettings::DataFields settings)
+{
+    writeCommand(ESC_COMMAND_SET_CONFIG, (char *) &settings);
+}
+
+void EscSerial::saveSettings()
+{
+    qDebug() << "Saving settings";
+    writeCommand(ESC_COMMAND_SAVE_CONFIG, NULL);
 }
 
 void EscSerial::writeCommand(enum esc_serial_command command, const char *data)

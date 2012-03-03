@@ -78,10 +78,10 @@ private:
     Ui_EscWidget	*m_widget;
 
     EscSerial       *escSerial;
-    QIODevice       *m_ioDevice;
-    QMutex           device_mutex;
 
     QString getSerialPortDevice(const QString &friendName);
+
+    QTimer refreshTimer;
 
     void disableTelemetry();
     void enableTelemetry();
@@ -91,13 +91,22 @@ private:
 
     UAVObjectManager * getObjectManager();
 
-    bool connected;
+    bool connectedStatus;
 
 private slots:
     void connectDisconnect();
     void disconnectPort();
     void connectPort();
     void getPorts();
+
+    void saveConfiguration();
+    void applyConfiguration();
+    void sendConfiguration(UAVObject*);
+    void refreshStatus();
+    void refreshConfiguration();
+
+    void connected();
+    void disconnected();
 };
 
 #endif

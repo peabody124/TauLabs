@@ -42,8 +42,8 @@
 EscGadgetWidget::EscGadgetWidget(QWidget *parent) :
     QWidget(parent),
     m_widget(NULL),
-    m_ioDevice(NULL),
-    connected(false)
+    escSerial(NULL),
+    connectedStatus(false)
 {
     m_widget = new Ui_EscWidget();
     m_widget->setupUi(this);
@@ -66,9 +66,12 @@ EscGadgetWidget::EscGadgetWidget(QWidget *parent) :
 
     setEnabled(true);
 
+    m_widget->saveSettingsToFlash->setEnabled(false);
+    m_widget->saveSettingsToRAM->setEnabled(false);
+
     connect(m_widget->connectButton, SIGNAL(clicked()), this, SLOT(connectDisconnect()));
-//    connect(m_widget->refreshPorts, SIGNAL(clicked()), this, SLOT(getPorts()));
-//    connect(m_widget->pushButton_Save, SIGNAL(clicked()), this, SLOT(saveToFlash()));
+    connect(m_widget->saveSettingsToRAM, SIGNAL(clicked()), this, SLOT(applyConfiguration()));
+    connect(m_widget->saveSettingsToFlash, SIGNAL(clicked()), this, SLOT(saveConfiguration()));
 }
 
 // destructor .. this never gets called :(
@@ -187,15 +190,13 @@ QString EscGadgetWidget::getSerialPortDevice(const QString &friendName)
   */
 void EscGadgetWidget::disconnectPort()
 {
-    if (m_ioDevice)
+    if (escSerial)
     {
-        m_ioDevice->close();
-        disconnect(m_ioDevice, 0, 0, 0);
-        delete m_ioDevice;
-        m_ioDevice = NULL;
+        delete escSerial;
+        escSerial = NULL;
     }
 
-    connected = false;
+    connectedStatus = false;
 }
 
 /**
@@ -239,15 +240,15 @@ void EscGadgetWidget::connectPort()
             return;
         }
 
-        m_ioDevice = serial_dev;
+        escSerial = new EscSerial(serial_dev);
 
-        qDebug() << "Connected";
-
+        refreshStatus();
+        refreshConfiguration();
     } else
         return;
 
 
-    connected = true;
+    connectedStatus = true;
 }
 
 /**
@@ -255,17 +256,132 @@ void EscGadgetWidget::connectPort()
   */
 void EscGadgetWidget::connectDisconnect()
 {
-    if (connected) {
-        qDebug() << "Disconnecting";
+    if (connectedStatus) {
         disconnectPort();
     } else {
-        qDebug() << "Connecting";
         connectPort();
     }
 
-    m_widget->connectButton->setText(connected ? "Disconnect" : "Connect");
+    m_widget->connectButton->setText(connectedStatus ? "Disconnect" : "Connect");
+
+    if(connectedStatus) {
+        connected();
+    } else {
+        disconnected();
+    }
 }
 
+/**
+  * @brief When UAVObject is updated send to EscSettings via serial
+  */
+void EscGadgetWidget::sendConfiguration(UAVObject*)
+{
+    Q_ASSERT(escSerial != NULL);
+
+    EscSettings *escSettings = EscSettings::GetInstance(getObjectManager());
+    Q_ASSERT(escSettings != NULL);
+
+    EscSettings::DataFields escSettingsData = escSettings->getData();
+    escSerial->setSettings(escSettingsData);
+}
+
+/**
+  * @brief On connection and peridically get status
+  */
+void EscGadgetWidget::refreshStatus()
+{
+    Q_ASSERT(escSerial != NULL);
+
+    EscStatus::DataFields escStatusData = escSerial->getStatus();
+    EscStatus *escStatus = EscStatus::GetInstance(getObjectManager());
+    escStatus->setData(escStatusData);
+
+    m_widget->dutyCycle->display(escStatusData.DutyCycle);
+    m_widget->rpm->display(escStatusData.CurrentSpeed);
+    m_widget->battery->display(escStatusData.Battery);
+    m_widget->current->display(escStatusData.Current);
+    m_widget->setPoint->display(escStatusData.SpeedSetpoint);
+}
+
+/**
+  * @brief On connection and peridically get configuration
+  */
+void EscGadgetWidget::refreshConfiguration()
+{
+    Q_ASSERT(escSerial != NULL);
+
+    EscSettings::DataFields escSettingsData = escSerial->getSettings();
+    EscSettings *escSettings = EscSettings::GetInstance(getObjectManager());
+    escSettings->setData(escSettingsData);
+
+    m_widget->spinRisingKp->setValue(escSettingsData.RisingKp);
+    m_widget->spinFallingKp->setValue(escSettingsData.FallingKp);
+    m_widget->spinSortCurrentLimit->setValue(escSettingsData.SoftCurrentLimit);
+    m_widget->spinHardCurrentLimit->setValue(escSettingsData.HardCurrentLimit);
+    m_widget->spinKv->setValue(escSettingsData.Kv);
+    m_widget->closedLoopCheck->setChecked(escSettingsData.Mode == EscSettings::MODE_CLOSED);
+    m_widget->spinPhase->setValue(escSettingsData.CommutationPhase);
+}
+
+/**
+  * @brief Tell the ESC to save the settings to the flash
+  */
+void EscGadgetWidget::saveConfiguration()
+{
+    Q_ASSERT(escSerial != NULL);
+
+    applyConfiguration();;
+    escSerial->saveSettings();
+}
+
+/**
+  * @brief Get the settings from the UI and send to the ESC
+  */
+void EscGadgetWidget::applyConfiguration()
+{
+    EscSettings *escSettings = EscSettings::GetInstance(getObjectManager());
+    Q_ASSERT(escSettings != NULL);
+
+    EscSettings::DataFields escSettingsData = escSettings->getData();
+    escSettingsData.RisingKp = m_widget->spinRisingKp->value();
+    escSettingsData.FallingKp = m_widget->spinFallingKp->value();
+    escSettingsData.SoftCurrentLimit = m_widget->spinSortCurrentLimit->value();
+    escSettingsData.HardCurrentLimit = m_widget->spinHardCurrentLimit->value();
+    escSettingsData.Kv = m_widget->spinKv->value();
+    escSettingsData.Mode = m_widget->closedLoopCheck->checkState() ? EscSettings::MODE_CLOSED : EscSettings::MODE_OPEN;
+    escSettings->setData(escSettingsData); // Triggers the update to send
+    escSettingsData.CommutationPhase = m_widget->spinPhase->value();
+}
+
+/**
+  * When connected enable UI
+  */
+void EscGadgetWidget::connected()
+{
+    connect(EscSettings::GetInstance(getObjectManager()),
+            SIGNAL(objectUpdated(UAVObject*)), this,
+            SLOT(sendConfiguration(UAVObject*)));
+    connect(&refreshTimer, SIGNAL(timeout()), this, SLOT(refreshStatus()));
+    refreshTimer.start(1000);
+
+    m_widget->saveSettingsToFlash->setEnabled(true);
+    m_widget->saveSettingsToRAM->setEnabled(true);
+}
+
+/**
+  * When disconnected disable UI and signals
+  */
+void EscGadgetWidget::disconnected()
+{
+    disconnect(EscSettings::GetInstance(getObjectManager()),
+            SIGNAL(objectUpdated(UAVObject*)), this,
+            SLOT(sendConfiguration(UAVObject*)));
+    disconnect(&refreshTimer, SIGNAL(timeout()), this, SLOT(refreshStatus()));
+    refreshTimer.stop();
+
+    m_widget->saveSettingsToFlash->setEnabled(false);
+    m_widget->saveSettingsToRAM->setEnabled(false);
+}
 
 /**
   * @brief Return handle to object manager
