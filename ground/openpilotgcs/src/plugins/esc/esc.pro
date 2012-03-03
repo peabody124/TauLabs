@@ -19,7 +19,8 @@ HEADERS += escgadget.h \
     escgadgetwidget.h \
     escplugin.h \
 	widgetbar.h \
-    escserial.h
+    escserial.h \
+    stm32.h
 
 SOURCES += escgadget.cpp \
     escgadgetconfiguration.cpp \
@@ -28,7 +29,8 @@ SOURCES += escgadget.cpp \
     escgadgetwidget.cpp \
     escplugin.cpp \
 	widgetbar.cpp \
-    escserial.cpp
+    escserial.cpp \
+    stm32.cpp
 
 OTHER_FILES += ESC.pluginspec
 
@@ -38,5 +40,7 @@ FORMS += \
 
 RESOURCES += \
     esc.qrc
+
+
 
 
