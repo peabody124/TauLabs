@@ -53,6 +53,7 @@
 #include <QMutex>
 #include <QMutexLocker>
 #include "widgetbar.h"
+#include "escserial.h"
 
 class EscGadgetWidget : public QWidget
 {
@@ -60,7 +61,7 @@ class EscGadgetWidget : public QWidget
 
 public:
     EscGadgetWidget(QWidget *parent = 0);
-   ~EscGadgetWidget();
+    ~EscGadgetWidget();
 
 public slots:
     void onTelemetryStart();
@@ -74,25 +75,28 @@ protected:
     void resizeEvent(QResizeEvent *event);
 
 private:
-        Ui_EscWidget	*m_widget;
+    Ui_EscWidget	*m_widget;
 
-	QIODevice			*m_ioDevice;
-	QMutex				device_mutex;
+    EscSerial       *escSerial;
+    QIODevice       *m_ioDevice;
+    QMutex           device_mutex;
 
-        QString getSerialPortDevice(const QString &friendName);
+    QString getSerialPortDevice(const QString &friendName);
 
-	void disableTelemetry();
-	void enableTelemetry();
+    void disableTelemetry();
+    void enableTelemetry();
 
-        void getSettings();
-        void sendSettings();
+    void getSettings();
+    void sendSettings();
 
-        UAVObjectManager * getObjectManager();
-//	void disconnectPort(bool enable_telemetry, bool lock_stuff = true);
-//	void connectPort();
+    UAVObjectManager * getObjectManager();
+
+    bool connected;
 
 private slots:
-//	void connectDisconnect();
+    void connectDisconnect();
+    void disconnectPort();
+    void connectPort();
     void getPorts();
 };
 

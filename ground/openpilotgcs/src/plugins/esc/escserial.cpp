@@ -14,6 +14,7 @@ const int EscSerial::esc_command_data_size[ESC_COMMAND_LAST] = {
         /*[EscSerial::ESC_COMMAND_SET_SPEED] = */ 2,
         /*[EscSerial::ESC_COMMAND_SET_PWM_FREQ] = */ 2,
         /*[EscSerial::ESC_COMMAND_GET_STATUS] = */ 0,
+        /*[EscSerial::ESC_COMMAND_BOOTLOADER] = */ 2,
 };
 
 /**

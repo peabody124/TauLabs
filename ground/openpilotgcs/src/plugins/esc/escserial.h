@@ -27,11 +27,13 @@ public:
             ESC_COMMAND_GET_ADC_LOG = 11,
             ESC_COMMAND_SET_PWM_FREQ = 12,
             ESC_COMMAND_GET_STATUS = 13,
-            ESC_COMMAND_LAST = 14
+            ESC_COMMAND_BOOTLOADER = 14,
+            ESC_COMMAND_LAST = 15
     };
 
     static const int esc_command_data_size[ESC_COMMAND_LAST];
-
+    static const quint8 REBOOT_1 = 0x73;
+    static const quint8 REBOOT_2 = 0x37;
 private:
 
     static const quint8 ESC_SYNC_BYTE = 0x85;
