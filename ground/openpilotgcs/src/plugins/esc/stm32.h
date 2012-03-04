@@ -60,6 +60,10 @@ public:
     char stm32_erase_memory  (uint8_t spage, uint8_t pages);
     char stm32_go            (uint32_t address);
     char stm32_reset_device  ();
+
+    int32_t uploadCode(QByteArray data);
+
+    void print_device();
 private:
     // Private variables
     QIODevice   *qio;

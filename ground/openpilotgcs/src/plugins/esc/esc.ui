@@ -53,7 +53,7 @@
    <item>
     <widget class="QTabWidget" name="tabWidget">
      <property name="currentIndex">
-      <number>0</number>
+      <number>1</number>
      </property>
      <widget class="QWidget" name="tab">
       <attribute name="title">
@@ -332,17 +332,17 @@
       <attribute name="title">
        <string>Firmware</string>
       </attribute>
-      <widget class="QPushButton" name="pushButton">
+      <widget class="QPushButton" name="buttonUpload">
        <property name="geometry">
         <rect>
          <x>10</x>
-         <y>150</y>
-         <width>539</width>
+         <y>60</y>
+         <width>111</width>
          <height>32</height>
         </rect>
        </property>
        <property name="text">
-        <string>Open</string>
+        <string>Upload</string>
        </property>
       </widget>
       <widget class="QWidget" name="horizontalLayoutWidget_3">
@@ -383,6 +383,19 @@
          </spacer>
         </item>
        </layout>
+      </widget>
+      <widget class="QPushButton" name="buttonQuery">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>90</y>
+         <width>111</width>
+         <height>32</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Query</string>
+       </property>
       </widget>
      </widget>
     </widget>

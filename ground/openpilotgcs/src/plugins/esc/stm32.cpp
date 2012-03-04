@@ -85,6 +85,21 @@ const unsigned char stmreset_binary[] = {
 0xce,0xf2,0x00,0x03,0xdb,0x68,0x03,0xf4,0xe0,0x61,0x40,0xf2,0x04,0x03,0xc0,0xf2,
 0xfa,0x53,0x41,0xea,0x03,0x03,0xd3,0x60,0xfe,0xe7,0x00,0xbf};
 
+/* detect CPU endian */
+char cpu_le() {
+        const uint32_t cpu_le_test = 0x12345678;
+        return ((unsigned char*)&cpu_le_test)[0] == 0x78;
+}
+
+uint32_t be_u32(const uint32_t v) {
+        if (cpu_le())
+                return  ((v & 0xFF000000) >> 24) |
+                        ((v & 0x00FF0000) >>  8) |
+                        ((v & 0x0000FF00) <<  8) |
+                        ((v & 0x000000FF) << 24);
+        return v;
+}
+
 uint8_t Stm32Bl::stm32_gen_cs(const uint32_t v) {
     return  ((v & 0xFF000000) >> 24) ^
             ((v & 0x00FF0000) >> 16) ^
@@ -107,16 +122,19 @@ void Stm32Bl::stm32_send_byte(uint8_t byte) {
     Q_UNUSED(stm);
 
     qint64 bytes = qio->write((const char *) &byte,1);
-    Q_ASSERT(bytes == 1);
+    if (bytes != 1)
+        qDebug() << "Failed to write";
+    //qDebug() << QString("Sent %1").arg(byte);
 }
 
 uint8_t Stm32Bl::stm32_read_byte() {
     uint8_t byte;
     qint64 bytes;
     bytes = qio->read((char *) &byte,1);
-
-    Q_ASSERT(bytes == 1);
-
+    if (bytes != 1)
+        qDebug() << "Failed to read";
+    //else
+    //    qDebug() << QString("Read %1").arg(byte);
     return byte;
 }
 
@@ -132,10 +150,9 @@ char Stm32Bl::stm32_send_command(const uint8_t cmd) {
 
 stm32_t* Stm32Bl::stm32_init(const char init) {
     uint8_t len;
-    stm32_t *stm;
 
-    stm      = (stm32_t *) malloc(sizeof(stm32_t));
-    stm->cmd = (stm32_cmd_t *) malloc(sizeof(stm32_cmd_t));
+    stm      = new stm32_t;
+    stm->cmd = new stm32_cmd_t;
 
     if (init) {
         stm32_send_byte(STM32_CMD_INIT);
@@ -214,10 +231,23 @@ stm32_t* Stm32Bl::stm32_init(const char init) {
     return stm;
 }
 
-void Stm32Bl::stm32_close() {
+void Stm32Bl::stm32_close()
+{
     if (stm) free(stm->cmd);
     free(stm);
     stm = NULL;
+}
+
+void Stm32Bl::print_device()
+{
+    printf("Version      : 0x%02x\n", stm->bl_version);
+    printf("Option 1     : 0x%02x\n", stm->option1);
+    printf("Option 2     : 0x%02x\n", stm->option2);
+    printf("Device ID    : 0x%04x (%s)\n", stm->pid, stm->dev->name);
+    printf("RAM          : %dKiB  (%db reserved by bootloader)\n", (stm->dev->ram_end - 0x20000000) / 1024, stm->dev->ram_start - 0x20000000);
+    printf("Flash        : %dKiB (sector size: %dx%d)\n", (stm->dev->fl_end - stm->dev->fl_start ) / 1024, stm->dev->fl_pps, stm->dev->fl_ps);
+    printf("Option RAM   : %db\n", stm->dev->opt_end - stm->dev->opt_start);
+    printf("System RAM   : %dKiB\n", (stm->dev->mem_end - stm->dev->mem_start) / 1024);
 }
 
 char Stm32Bl::stm32_read_memory(uint32_t address, uint8_t data[], unsigned int len) {
@@ -229,7 +259,7 @@ char Stm32Bl::stm32_read_memory(uint32_t address, uint8_t data[], unsigned int l
     /* must be 32bit aligned */
     Q_ASSERT(address % 4 == 0);
 
-    address = qToBigEndian(address);
+    address = be_u32(address);
     cs      = stm32_gen_cs(address);
 
     if (!stm32_send_command(stm->cmd->rm)) return 0;
@@ -244,7 +274,10 @@ char Stm32Bl::stm32_read_memory(uint32_t address, uint8_t data[], unsigned int l
     if (stm32_read_byte() != STM32_ACK) return 0;
 
     bytes = qio->read((char *) data, len);
-    Q_ASSERT(bytes == len);
+    if (bytes != len) {
+        qDebug() << "Failed to read memory";
+        return 0;
+    }
 
     return 1;
 }
@@ -259,12 +292,13 @@ char Stm32Bl::stm32_write_memory(uint32_t address, uint8_t data[], unsigned int 
     /* must be 32bit aligned */
     Q_ASSERT(address % 4 == 0);
 
-    address = qToBigEndian(address);
+    address = be_u32(address);
     cs      = stm32_gen_cs(address);
 
     /* send the address and checksum */
     if (!stm32_send_command(stm->cmd->wm)) return 0;
-    qio->write((const char* )address, 4);
+    qio->write((const char* ) &address, 4);
+    qDebug() << QString().sprintf("Writing to 0x%08x",address);
     stm32_send_byte(cs);
     if (stm32_read_byte() != STM32_ACK) return 0;
 
@@ -365,8 +399,15 @@ char Stm32Bl::stm32_erase_memory(uint8_t spage, uint8_t pages) {
     }
 }
 
+/**
+  * Jump to specified address or to flash start if zero
+  * @param[in] address address to jump to
+  */
 char Stm32Bl::stm32_go(uint32_t address) {
     uint8_t cs;
+
+    if(address == 0)
+        address = stm->dev->fl_start;
 
     address = qToBigEndian(address);
     cs      = stm32_gen_cs(address);
@@ -401,3 +442,55 @@ char Stm32Bl::stm32_reset_device() {
     return stm32_go(stm->dev->ram_start);
 }
 
+/**
+  * Upload new code to the ESC
+  * @param[in] data code to upload
+  * @return -1 for fail, 0 for success
+  */
+int32_t Stm32Bl::uploadCode(QByteArray data)
+{
+    off_t   offset = 0;
+    ssize_t r;
+    int spage = 0;
+    int npages = 0xff;
+    int len;
+    quint32 addr;
+    unsigned int size = data.length();
+
+    if (size > stm->dev->fl_end - stm->dev->fl_start) {
+        qDebug() << "File provided larger then available flash space.";
+        return -1;
+    }
+
+    qDebug() << "Erasing memory";
+    if (!stm32_erase_memory(spage, npages)) {
+        qDebug() << "Failed to erase memory";
+        return -1;
+    }
+    qDebug() << "Erasing memory done";
+
+    uint8_t *buffer = (uint8_t *) data.data();
+
+    int idx = 0;
+
+    addr = stm->dev->fl_start + (spage * stm->dev->fl_ps);
+
+    while(addr < stm->dev->fl_end && offset < size) {
+        quint32 left   = stm->dev->fl_end - addr;
+        len             = 256 > left ? left : 256;
+        len             = len > size - offset ? size - offset : len;
+
+        qDebug() << "Write memory";
+        if (!stm32_write_memory(addr, buffer, len)) {
+            qDebug() << QString().sprintf("Failed to write memory at address 0x%08x",addr);
+            return -1;
+        }
+        qDebug() << "Write memory done";
+
+        addr    += len;
+        offset  += len;
+        buffer  += len;
+
+        qDebug() << QString().sprintf("Wrote address 0x%08x",addr);
+    }
+}

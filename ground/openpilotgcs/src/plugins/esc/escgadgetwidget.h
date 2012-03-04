@@ -64,11 +64,6 @@ public:
     ~EscGadgetWidget();
 
 public slots:
-    void onTelemetryStart();
-    void onTelemetryStop();
-    void onTelemetryConnect();
-    void onTelemetryDisconnect();
-
     void onComboBoxPorts_currentIndexChanged(int index);
 
 protected:
@@ -82,9 +77,6 @@ private:
     QString getSerialPortDevice(const QString &friendName);
 
     QTimer refreshTimer;
-
-    void disableTelemetry();
-    void enableTelemetry();
 
     void getSettings();
     void sendSettings();
@@ -107,6 +99,9 @@ private slots:
 
     void connected();
     void disconnected();
+
+    void queryDfuDevice();
+    void updateCode();
 };
 
 #endif

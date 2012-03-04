@@ -24,19 +24,20 @@
  */
 
 #include <QDebug>
-#include <QtOpenGL/QGLWidget>
 #include <QSettings>
 #include <QFileInfo>
 #include <QDir>
 #include <QFileDialog>
+
+#include "escstatus.h"
 #include "escsettings.h"
-#include <stdlib.h>
 
 #include "escgadgetwidget.h"
+#include "escserial.h"
+#include "stm32.h"
 
 #define NO_PORT         0
 #define SERIAL_PORT     1
-#define USB_PORT        2
 
 // constructor
 EscGadgetWidget::EscGadgetWidget(QWidget *parent) :
@@ -48,20 +49,6 @@ EscGadgetWidget::EscGadgetWidget(QWidget *parent) :
     m_widget = new Ui_EscWidget();
     m_widget->setupUi(this);
 
-    // Listen to telemetry connection events
-    ExtensionSystem::PluginManager *pluginManager = ExtensionSystem::PluginManager::instance();
-    if (pluginManager)
-    {
-        TelemetryManager *telemetryManager = pluginManager->getObject<TelemetryManager>();
-        if (telemetryManager)
-        {
-            connect(telemetryManager, SIGNAL(myStart()), this, SLOT(onTelemetryStart()));
-            connect(telemetryManager, SIGNAL(myStop()), this, SLOT(onTelemetryStop()));
-            connect(telemetryManager, SIGNAL(connected()), this, SLOT(onTelemetryConnect()));
-            connect(telemetryManager, SIGNAL(disconnected()), this, SLOT(onTelemetryDisconnect()));
-        }
-    }
-
     getPorts();
 
     setEnabled(true);
@@ -72,6 +59,9 @@ EscGadgetWidget::EscGadgetWidget(QWidget *parent) :
     connect(m_widget->connectButton, SIGNAL(clicked()), this, SLOT(connectDisconnect()));
     connect(m_widget->saveSettingsToRAM, SIGNAL(clicked()), this, SLOT(applyConfiguration()));
     connect(m_widget->saveSettingsToFlash, SIGNAL(clicked()), this, SLOT(saveConfiguration()));
+
+    connect(m_widget->buttonQuery, SIGNAL(clicked()), this, SLOT(queryDfuDevice()));
+    connect(m_widget->buttonUpload, SIGNAL(clicked()), this, SLOT(updateCode()));
 }
 
 // destructor .. this never gets called :(
@@ -114,33 +104,6 @@ void EscGadgetWidget::getPorts()
 
     onComboBoxPorts_currentIndexChanged(m_widget->comboBox_Ports->currentIndex());
 
-}
-
-void EscGadgetWidget::onTelemetryStart()
-{
-
-}
-
-void EscGadgetWidget::onTelemetryStop()
-{
-
-}
-
-void EscGadgetWidget::onTelemetryConnect()
-{
-}
-
-void EscGadgetWidget::onTelemetryDisconnect()
-{
-}
-
-void EscGadgetWidget::disableTelemetry()
-{
-    // Suspend telemetry & polling
-}
-
-void EscGadgetWidget::enableTelemetry()
-{	// Restart the polling thread
 }
 
 void EscGadgetWidget::getSettings()
@@ -392,4 +355,121 @@ UAVObjectManager * EscGadgetWidget::getObjectManager()
     UAVObjectManager * objMngr = pm->getObject<UAVObjectManager>();
     Q_ASSERT(objMngr);
     return objMngr;
+}
+
+/**
+  * @brief Query the device
+  */
+void EscGadgetWidget::queryDfuDevice()
+{
+    int device_idx = m_widget->comboBox_Ports->currentIndex();
+    if (device_idx < 0)
+        return;
+
+    QString device_str = m_widget->comboBox_Ports->currentText().trimmed();
+    Q_ASSERT(!device_str.isEmpty());
+
+    int type = NO_PORT;
+    if (device_str.toLower().startsWith("com: "))
+    {
+        type = SERIAL_PORT;
+        device_str.remove(0, 5);
+        device_str = device_str.trimmed();
+
+        QString str = getSerialPortDevice(device_str);
+        if (str.isEmpty())
+            return;
+
+        PortSettings settings;
+        settings.BaudRate = BAUD57600;
+        settings.DataBits = DATA_8;
+        settings.Parity = PAR_EVEN;
+        settings.StopBits = STOP_1;
+        settings.FlowControl = FLOW_OFF;
+        settings.Timeout_Millisec = 10000;
+
+        QextSerialPort *serial_dev = new QextSerialPort(str, settings);
+        if (!serial_dev)
+            return;
+
+        if (!serial_dev->open(QIODevice::ReadWrite))
+        {
+            delete serial_dev;
+            return;
+        }
+
+        Stm32Bl *bl = new Stm32Bl(serial_dev);
+        bl->print_device();
+        bl->stm32_go(0x0);
+        bl->stm32_close();
+        delete bl;
+    } else
+        return;
+}
+
+/**
+  * @brief Update the code on the ESC
+  */
+void EscGadgetWidget::updateCode()
+{
+    int device_idx = m_widget->comboBox_Ports->currentIndex();
+    if (device_idx < 0)
+        return;
+
+    QString device_str = m_widget->comboBox_Ports->currentText().trimmed();
+    Q_ASSERT(!device_str.isEmpty());
+
+    int type = NO_PORT;
+    if (device_str.toLower().startsWith("com: "))
+    {
+        type = SERIAL_PORT;
+        device_str.remove(0, 5);
+        device_str = device_str.trimmed();
+
+        QString str = getSerialPortDevice(device_str);
+        if (str.isEmpty())
+            return;
+
+        PortSettings settings;
+        settings.BaudRate = BAUD57600;
+        settings.DataBits = DATA_8;
+        settings.Parity = PAR_EVEN;
+        settings.StopBits = STOP_1;
+        settings.FlowControl = FLOW_OFF;
+        settings.Timeout_Millisec = 10000;
+
+        QextSerialPort *serial_dev = new QextSerialPort(str, settings);
+        if (!serial_dev)
+            return;
+
+        if (!serial_dev->open(QIODevice::ReadWrite))
+        {
+            delete serial_dev;
+            return;
+        }
+
+        QFileDialog::Options options;
+        QString selectedFilter;
+        QString fileName = QFileDialog::getOpenFileName(this,
+                                                        tr("Select firmware file"),
+                                                        "",
+                                                        tr("Firmware Files (*.bin)"),
+                                                        &selectedFilter,
+                                                        options);
+
+        QFile file(fileName);
+        if (!file.open(QIODevice::ReadOnly)) {
+            qDebug() << "Can't open file";
+            return;
+        }
+
+        QByteArray loadedFW = file.readAll();
+
+        Stm32Bl *bl = new Stm32Bl(serial_dev);
+        bl->uploadCode(loadedFW);
+        bl->stm32_go(0x0);
+        bl->stm32_close();
+        delete bl;
+    } else
+        return;
 }
