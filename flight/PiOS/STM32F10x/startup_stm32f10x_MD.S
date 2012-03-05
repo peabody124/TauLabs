@@ -100,6 +100,9 @@ LoopFillZerobss:
 .size  Reset_Handler, .-Reset_Handler
 
 Reboot_Loader:
+  ldr        r0, =0x20000FF0
+  ldr        r1, =0x0
+  str        r1, [r0]
   ldr   r0, =0x1FFFF000
   ldr   sp,[r0, #0]
   ldr   r0,[r0, #4]

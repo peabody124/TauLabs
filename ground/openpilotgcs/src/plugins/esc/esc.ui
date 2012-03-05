@@ -53,7 +53,7 @@
    <item>
     <widget class="QTabWidget" name="tabWidget">
      <property name="currentIndex">
-      <number>1</number>
+      <number>0</number>
      </property>
      <widget class="QWidget" name="tab">
       <attribute name="title">
@@ -332,17 +332,17 @@
       <attribute name="title">
        <string>Firmware</string>
       </attribute>
-      <widget class="QPushButton" name="buttonUpload">
+      <widget class="QPushButton" name="buttonRescue">
        <property name="geometry">
         <rect>
          <x>10</x>
-         <y>60</y>
+         <y>90</y>
          <width>111</width>
          <height>32</height>
         </rect>
        </property>
        <property name="text">
-        <string>Upload</string>
+        <string>Rescue</string>
        </property>
       </widget>
       <widget class="QWidget" name="horizontalLayoutWidget_3">
@@ -388,13 +388,39 @@
        <property name="geometry">
         <rect>
          <x>10</x>
-         <y>90</y>
+         <y>120</y>
          <width>111</width>
          <height>32</height>
         </rect>
        </property>
        <property name="text">
         <string>Query</string>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="buttonUpgrade">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>60</y>
+         <width>114</width>
+         <height>32</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Upgrade</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="label_15">
+       <property name="geometry">
+        <rect>
+         <x>130</x>
+         <y>60</y>
+         <width>361</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>To use rescue mode short the SBL pad before powering</string>
        </property>
       </widget>
      </widget>

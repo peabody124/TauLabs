@@ -15,6 +15,8 @@ public:
     EscSettings::DataFields getSettings();
     void setSettings(EscSettings::DataFields);
 
+    void bootloader();
+
     enum esc_serial_command {
             ESC_COMMAND_SET_CONFIG = 0,
             ESC_COMMAND_GET_CONFIG = 1,

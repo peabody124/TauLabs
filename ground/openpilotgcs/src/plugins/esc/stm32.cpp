@@ -20,6 +20,7 @@
 
 #include <QtEndian>
 #include <QDebug>
+#include <qextserialport.h>
 
 #include "stm32.h"
 
@@ -107,15 +108,55 @@ uint8_t Stm32Bl::stm32_gen_cs(const uint32_t v) {
             ((v & 0x000000FF) >>  0);
 }
 
-Stm32Bl::Stm32Bl(QIODevice *qio_in) : qio(qio_in)
+Stm32Bl::Stm32Bl() : qio(NULL), stm(NULL), uploaded(0)
 {
-    Q_ASSERT(qio);
-    stm = stm32_init(1);
 }
+
+
 
 Stm32Bl::~Stm32Bl()
 {
     stm32_close();
+}
+
+/**
+  * @brief Open the serial port and initialize bootloader
+  */
+int Stm32Bl::openDevice(QString dev)
+{
+
+    PortSettings settings;
+    settings.BaudRate = BAUD57600;
+    settings.DataBits = DATA_8;
+    settings.Parity = PAR_EVEN;
+    settings.StopBits = STOP_1;
+    settings.FlowControl = FLOW_OFF;
+    settings.Timeout_Millisec = 1000;
+
+    QextSerialPort *serial_dev = new QextSerialPort(dev, settings);
+    if (!serial_dev) {
+        qDebug() << "Failed to initial serial port";
+        return -1;
+    }
+
+    if (!serial_dev->open(QIODevice::ReadWrite))
+    {
+        qDebug() << "Failed to open serial port";
+        delete serial_dev;
+        return -1;
+    }
+
+
+    qio = serial_dev;
+    stm = stm32_init(1);
+
+    if(stm==NULL) {
+        qDebug() << "Failed to initialize bootloader";
+        serial_dev->close();
+        return -1;
+    }
+
+    return 0;
 }
 
 void Stm32Bl::stm32_send_byte(uint8_t byte) {
@@ -151,6 +192,7 @@ char Stm32Bl::stm32_send_command(const uint8_t cmd) {
 stm32_t* Stm32Bl::stm32_init(const char init) {
     uint8_t len;
 
+    qDebug() << "Initializing bootloader";
     stm      = new stm32_t;
     stm->cmd = new stm32_cmd_t;
 
@@ -158,7 +200,7 @@ stm32_t* Stm32Bl::stm32_init(const char init) {
         stm32_send_byte(STM32_CMD_INIT);
         if (stm32_read_byte() != STM32_ACK) {
             stm32_close();
-            qDebug() << "Failed to get init ACK from device\n";
+            qDebug() << "Failed to get init ACK from device";
             return NULL;
         }
     }
@@ -209,7 +251,7 @@ stm32_t* Stm32Bl::stm32_init(const char init) {
     len = stm32_read_byte() + 1;
     if (len != 2) {
         stm32_close();
-        qDebug() << "More then two bytes sent in the PID, unknown/unsupported device\n";
+        qDebug() << "More then two bytes sent in the PID, unknown/unsupported device";
         return NULL;
     }
     stm->pid = (stm32_read_byte() << 8) | stm32_read_byte();
@@ -223,7 +265,7 @@ stm32_t* Stm32Bl::stm32_init(const char init) {
         ++stm->dev;
 
     if (!stm->dev->id) {
-        qDebug() << QString("Unknown/unsupported device (Device ID: 0x%03x)\n").arg(stm->pid);
+        qDebug() << QString("Unknown/unsupported device (Device ID: 0x%03x)").arg(stm->pid);
         stm32_close();
         return NULL;
     }
@@ -491,6 +533,8 @@ int32_t Stm32Bl::uploadCode(QByteArray data)
         offset  += len;
         buffer  += len;
 
-        qDebug() << QString().sprintf("Wrote address 0x%08x",addr);
+        uploaded = offset / (stm->dev->fl_end - stm->dev->fl_start);
+
+        qDebug() << QString().sprintf("Wrote address 0x%08x, completed %f",addr, uploaded);
     }
 }

@@ -55,13 +55,16 @@ EscGadgetWidget::EscGadgetWidget(QWidget *parent) :
 
     m_widget->saveSettingsToFlash->setEnabled(false);
     m_widget->saveSettingsToRAM->setEnabled(false);
+    m_widget->buttonRescue->setEnabled(true);
+    m_widget->buttonUpgrade->setEnabled(false);
 
     connect(m_widget->connectButton, SIGNAL(clicked()), this, SLOT(connectDisconnect()));
     connect(m_widget->saveSettingsToRAM, SIGNAL(clicked()), this, SLOT(applyConfiguration()));
     connect(m_widget->saveSettingsToFlash, SIGNAL(clicked()), this, SLOT(saveConfiguration()));
 
     connect(m_widget->buttonQuery, SIGNAL(clicked()), this, SLOT(queryDfuDevice()));
-    connect(m_widget->buttonUpload, SIGNAL(clicked()), this, SLOT(updateCode()));
+    connect(m_widget->buttonRescue, SIGNAL(clicked()), this, SLOT(rescueCode()));
+    connect(m_widget->buttonUpgrade, SIGNAL(clicked()), this, SLOT(updateCode()));
 }
 
 // destructor .. this never gets called :(
@@ -329,6 +332,9 @@ void EscGadgetWidget::connected()
 
     m_widget->saveSettingsToFlash->setEnabled(true);
     m_widget->saveSettingsToRAM->setEnabled(true);
+
+    m_widget->buttonRescue->setEnabled(false);
+    m_widget->buttonUpgrade->setEnabled(true);
 }
 
 /**
@@ -344,6 +350,9 @@ void EscGadgetWidget::disconnected()
 
     m_widget->saveSettingsToFlash->setEnabled(false);
     m_widget->saveSettingsToRAM->setEnabled(false);
+
+    m_widget->buttonRescue->setEnabled(true);
+    m_widget->buttonUpgrade->setEnabled(false);
 }
 
 /**
@@ -380,29 +389,14 @@ void EscGadgetWidget::queryDfuDevice()
         if (str.isEmpty())
             return;
 
-        PortSettings settings;
-        settings.BaudRate = BAUD57600;
-        settings.DataBits = DATA_8;
-        settings.Parity = PAR_EVEN;
-        settings.StopBits = STOP_1;
-        settings.FlowControl = FLOW_OFF;
-        settings.Timeout_Millisec = 10000;
-
-        QextSerialPort *serial_dev = new QextSerialPort(str, settings);
-        if (!serial_dev)
-            return;
-
-        if (!serial_dev->open(QIODevice::ReadWrite))
-        {
-            delete serial_dev;
+        Stm32Bl bl;
+        if (bl.openDevice(str) != 0) {
+            qDebug() << "Could not connect to BL";
             return;
         }
-
-        Stm32Bl *bl = new Stm32Bl(serial_dev);
-        bl->print_device();
-        bl->stm32_go(0x0);
-        bl->stm32_close();
-        delete bl;
+        bl.print_device();
+        bl.stm32_go(0x0);
+        bl.stm32_close();
     } else
         return;
 }
@@ -410,7 +404,7 @@ void EscGadgetWidget::queryDfuDevice()
 /**
   * @brief Update the code on the ESC
   */
-void EscGadgetWidget::updateCode()
+void EscGadgetWidget::rescueCode()
 {
     int device_idx = m_widget->comboBox_Ports->currentIndex();
     if (device_idx < 0)
@@ -430,21 +424,9 @@ void EscGadgetWidget::updateCode()
         if (str.isEmpty())
             return;
 
-        PortSettings settings;
-        settings.BaudRate = BAUD57600;
-        settings.DataBits = DATA_8;
-        settings.Parity = PAR_EVEN;
-        settings.StopBits = STOP_1;
-        settings.FlowControl = FLOW_OFF;
-        settings.Timeout_Millisec = 10000;
-
-        QextSerialPort *serial_dev = new QextSerialPort(str, settings);
-        if (!serial_dev)
-            return;
-
-        if (!serial_dev->open(QIODevice::ReadWrite))
-        {
-            delete serial_dev;
+        Stm32Bl bl;
+        if (bl.openDevice(str) != 0) {
+            qDebug() << "Failed to init BL";
             return;
         }
 
@@ -465,11 +447,23 @@ void EscGadgetWidget::updateCode()
 
         QByteArray loadedFW = file.readAll();
 
-        Stm32Bl *bl = new Stm32Bl(serial_dev);
-        bl->uploadCode(loadedFW);
-        bl->stm32_go(0x0);
-        bl->stm32_close();
-        delete bl;
+        bl.uploadCode(loadedFW);
+        bl.stm32_go(0x0);
+        bl.stm32_close();
     } else
         return;
+}
+
+void EscGadgetWidget::updateCode()
+{
+    // Disconnct port and then update UI and signals
+    disconnected();
+    escSerial->bootloader();
+    disconnectPort();
+
+    usleep(550000);
+    rescueCode();
+
+    connectPort();
+    connected();
 }

@@ -101,6 +101,7 @@ private slots:
     void disconnected();
 
     void queryDfuDevice();
+    void rescueCode();
     void updateCode();
 };
 

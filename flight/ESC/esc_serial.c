@@ -220,7 +220,10 @@ static int32_t esc_serial_command_received()
 			// TODO: Check not armed
 			if (esc_serial_state.buffer[0] == 0x73 && esc_serial_state.buffer[1] == 0x37) {
 				PIOS_ESC_Off();
+				PIOS_LED_Toggle(0);
+				PIOS_LED_Toggle(1);
 				*((unsigned long *)0x20000FF0) = 0xDEADBEEF; // 64KB STM32F103
+				PIOS_DELAY_WaitmS(20);
                 PIOS_SYS_Reset();
 			}
 		default:

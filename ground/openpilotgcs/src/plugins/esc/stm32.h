@@ -49,7 +49,7 @@ struct stm32_dev {
 
 class Stm32Bl {
 public:
-    Stm32Bl(QIODevice *qio_in);
+    Stm32Bl();
     ~Stm32Bl();
 
     stm32_t* stm32_init      (const char init);
@@ -62,12 +62,13 @@ public:
     char stm32_reset_device  ();
 
     int32_t uploadCode(QByteArray data);
-
+    int32_t openDevice(QString serialPort);
     void print_device();
 private:
     // Private variables
     QIODevice   *qio;
     stm32_t     *stm;
+    double       uploaded;
 
 
     uint8_t stm32_gen_cs(const uint32_t v);
