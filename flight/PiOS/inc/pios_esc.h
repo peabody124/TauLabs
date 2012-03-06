@@ -54,6 +54,8 @@ enum pios_esc_phase {ESC_A_HIGH = 0,
 	ESC_C_HIGH,
 	ESC_C_LOW};
 
+enum pios_esc_direction {ESC_FORWARD = 0, ESC_BACKWARD = 1};
+
 //TODO: Add ID to support multiple ESC outputs
 void PIOS_ESC_Off();
 void PIOS_ESC_Arm();
@@ -62,6 +64,8 @@ enum pios_esc_state PIOS_ESC_GetState();
 void PIOS_ESC_SetMode(enum pios_esc_mode mode);
 enum pios_esc_mode PIOS_ESC_GetMode();
 void PIOS_ESC_SetDutyCycle(uint16_t duty_cycle);
+void PIOS_ESC_SetDirection(enum pios_esc_direction direction);
+enum pios_esc_direction PIOS_ESC_GetDirection();
 void PIOS_ESC_SetState(uint8_t new_state);
 void PIOS_ESC_TestGate(enum pios_esc_phase phase);
 void PIOS_ESC_BeepOn();

@@ -54,6 +54,7 @@ void PIOS_ESC_Init(const struct pios_esc_cfg * cfg)
 {
 	pios_esc_dev.cfg = cfg;
 	PIOS_ESC_Off();
+	PIOS_ESC_SetDirection(ESC_FORWARD);
 	PIOS_ESC_SetMode(ESC_MODE_LOW_ON_PWM_HIGH);
 	
 	
@@ -264,6 +265,24 @@ void PIOS_ESC_SetMode(enum pios_esc_mode mode)
 enum pios_esc_mode PIOS_ESC_GetMode() 
 {
 	return pios_esc_dev.mode;
+}
+
+/**
+ * @brief Set the rotation direction
+ */
+void PIOS_ESC_SetDirection(enum pios_esc_direction direction)
+{
+	if (direction == ESC_FORWARD || direction == ESC_BACKWARD)
+		pios_esc_dev.direction = direction;
+}
+
+/**
+ * @brief Get the rotation direction
+ * @returns ESC_FORWARD or ESC_BACKWARD
+ */
+enum pios_esc_direction PIOS_ESC_GetDirection()
+{
+	return pios_esc_dev.direction;
 }
 
 /**

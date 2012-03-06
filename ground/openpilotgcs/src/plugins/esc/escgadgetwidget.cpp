@@ -296,6 +296,7 @@ void EscGadgetWidget::refreshConfiguration()
     m_widget->spinKv->setValue(escSettingsData.Kv);
     m_widget->closedLoopCheck->setChecked(escSettingsData.Mode == EscSettings::MODE_CLOSED);
     m_widget->spinPhase->setValue(escSettingsData.CommutationPhase);
+    m_widget->reverseCheck->setChecked(escSettingsData.Direction == EscSettings::DIRECTION_REVERSE);
 }
 
 /**
@@ -324,8 +325,9 @@ void EscGadgetWidget::applyConfiguration()
     escSettingsData.HardCurrentLimit = m_widget->spinHardCurrentLimit->value();
     escSettingsData.Kv = m_widget->spinKv->value();
     escSettingsData.Mode = m_widget->closedLoopCheck->checkState() ? EscSettings::MODE_CLOSED : EscSettings::MODE_OPEN;
-    escSettings->setData(escSettingsData); // Triggers the update to send
     escSettingsData.CommutationPhase = m_widget->spinPhase->value();
+    escSettingsData.Direction = m_widget->reverseCheck->checkState() ? EscSettings::DIRECTION_REVERSE : EscSettings::DIRECTION_FORWARD;
+    escSettings->setData(escSettingsData); // Triggers the update to send
 }
 
 /**

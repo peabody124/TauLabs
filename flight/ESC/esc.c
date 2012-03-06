@@ -144,6 +144,7 @@ int main()
 	PIOS_LED_Off(LED_ERR);
 
 	PIOS_ESC_Off();
+	PIOS_ESC_SetDirection(config.Direction == ESCSETTINGS_DIRECTION_FORWARD ? ESC_FORWARD : ESC_BACKWARD);
 
 	esc_serial_init();
 	
@@ -399,13 +400,22 @@ const uint8_t high_pin[6] = {
 	[ESC_STATE_CB] = 1
 };
 
-const bool pos[6] = {
+const bool positive_forward[6] = {
 	[ESC_STATE_AC] = true,
 	[ESC_STATE_CA] = false,
 	[ESC_STATE_AB] = false,
 	[ESC_STATE_BA] = true,
 	[ESC_STATE_BC] = false,
 	[ESC_STATE_CB] = true
+};
+
+const bool positive_backwards[6] = {
+	[ESC_STATE_AC] = false,
+	[ESC_STATE_CA] = true,
+	[ESC_STATE_AB] = true,
+	[ESC_STATE_BA] = false,
+	[ESC_STATE_BC] = true,
+	[ESC_STATE_CB] = false
 };
 
 uint32_t adc_count = 0;
@@ -518,6 +528,7 @@ void DMA1_Channel1_IRQHandler(void)
 		esc_data->battery_mv = (16383 * esc_data->battery_mv + battery_mv) / 16384;
 	}
 	
+	const bool *pos = (PIOS_ESC_GetDirection() == ESC_FORWARD) ? positive_forward : positive_backwards;
 	if(pos[curr_state])
 		diff = undriven - ref;
 	else

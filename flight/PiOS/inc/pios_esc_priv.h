@@ -67,6 +67,7 @@ struct pios_esc_dev {
 	const struct pios_esc_cfg * cfg;	
 	enum pios_esc_state state;
 	enum pios_esc_mode mode;
+	enum pios_esc_direction direction;
 	volatile uint8_t armed;
 	volatile uint16_t duty_cycle;
 	volatile enum pios_esc_gate_mode phase_a_minus;
