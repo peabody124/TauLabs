@@ -156,6 +156,19 @@ out_fail:
 
 static void PIOS_TIM_generic_irq_handler(TIM_TypeDef * timer)
 {
+	/* Check for an overflow event on this timer */
+	bool overflow_event;
+	uint16_t overflow_count;
+	if (TIM_GetITStatus(timer, TIM_IT_Update) == SET) {
+		TIM_ClearITPendingBit(timer, TIM_IT_Update);
+		
+		overflow_count = timer->ARR;
+		overflow_event = true;
+	} else {
+		overflow_count = 0;
+		overflow_event = false;
+	}
+
 	/* Iterate over all registered clients of the TIM layer to find channels on this timer */
 	for (uint8_t i = 0; i < pios_tim_num_devs; i++) {
 		const struct pios_tim_dev * tim_dev = &pios_tim_devs[i];
@@ -165,17 +178,6 @@ static void PIOS_TIM_generic_irq_handler(TIM_TypeDef * timer)
 			continue;
 		}
 
-		/* Check for an overflow event on this timer */
-		bool overflow_event;
-		uint16_t overflow_count;
-		if (TIM_GetITStatus(timer, TIM_IT_Update) == SET) {
-			TIM_ClearITPendingBit(timer, TIM_IT_Update);
-			overflow_count = timer->ARR;
-			overflow_event = true;
-		} else {
-			overflow_count = 0;
-			overflow_event = false;
-		}
 
 		for (uint8_t j = 0; j < tim_dev->num_channels; j++) {
 			const struct pios_tim_channel * chan = &tim_dev->channels[j];
