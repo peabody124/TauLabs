@@ -66,6 +66,7 @@ uint32_t pios_com_vcp_id;
 uint32_t pios_com_gps_id;
 uint32_t pios_com_bridge_id;
 uint32_t pios_com_esc_id;
+uint32_t pios_com_softusart_id;
 
 /**
  * PIOS_Board_Init()
@@ -567,6 +568,25 @@ void PIOS_Board_Init(void) {
 #endif	/* PIOS_INCLUDE_PPM */
 		break;
 	}
+
+#if defined(PIOS_INCLUDE_SOFTUSART)
+	uint32_t pios_softusart_id;
+	if (PIOS_SOFTUSART_Init(&pios_softusart_id, &pios_softusart_cfg)) {
+		PIOS_Assert(0);
+	}
+	
+	const uint32_t softusart_bufsize = 64;
+	uint8_t * rx_buffer = (uint8_t *) pvPortMalloc(softusart_bufsize);
+	uint8_t * tx_buffer = (uint8_t *) pvPortMalloc(softusart_bufsize);
+	PIOS_Assert(rx_buffer);
+	PIOS_Assert(tx_buffer);
+	if (PIOS_COM_Init(&pios_com_softusart_id, &pios_softusart_com_driver, pios_softusart_id,
+					  rx_buffer, softusart_bufsize,
+					  tx_buffer, softusart_bufsize)) {
+		PIOS_Assert(0);
+	};
+
+#endif
 
 #if defined(PIOS_INCLUDE_GCSRCVR)
 	GCSReceiverInitialize();

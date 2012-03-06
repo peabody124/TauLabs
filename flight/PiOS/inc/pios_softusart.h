@@ -1,10 +1,14 @@
 /**
  ******************************************************************************
+ * @addtogroup PIOS PIOS Core hardware abstraction layer
+ * @{
+ * @addtogroup   PIOS_USART USART Functions
+ * @brief PIOS interface for USART port
+ * @{
  *
- * @file       pios_config.h  
+ * @file       pios_usart.h  
  * @author     The OpenPilot Team, http://www.openpilot.org Copyright (C) 2010.
- * @brief      PiOS configuration header. 
- *                 - Central compile time config for the project.
+ * @brief      USART functions header.
  * @see        The GNU Public License (GPL) Version 3
  *
  *****************************************************************************/
@@ -24,28 +28,17 @@
  * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-#ifndef PIOS_CONFIG_H
-#define PIOS_CONFIG_H
+#ifndef PIOS_SOFTUSART_H
+#define PIOS_SOFTUSART_H
 
-/* Enable/Disable PiOS Modules */
-#define PIOS_INCLUDE_ADC
-#define PIOS_INCLUDE_COM
-#define PIOS_INCLUDE_DELAY
-#define PIOS_INCLUDE_ESC
-#define PIOS_INCLUDE_EXTI
-#define PIOS_INCLUDE_GPIO
-//#define PIOS_INCLUDE_I2C
-#define PIOS_INCLUDE_IRQ
-#define PIOS_INCLUDE_LED
-#define PIOS_INCLUDE_PWM
-#define PIOS_INCLUDE_SOFTUSART
-#define PIOS_INCLUDE_SYS
-#define PIOS_INCLUDE_USART
-#define PIOS_INCLUDE_RCVR
-#define PIOS_INCLUDE_IAP
-//#define PIOS_INCLUDE_WDG
+#include <pios_stm32.h>
 
-// So that we can handle the hardware timing
-#define PIOS_TIM_EXCLUDE4
+/* Global Types */
+/* Public Functions */
 
-#endif /* PIOS_CONFIG_H */
+#endif /* PIOS_SOFTUSART_H */
+
+/**
+  * @}
+  * @}
+  */

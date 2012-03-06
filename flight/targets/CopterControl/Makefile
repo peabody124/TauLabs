@@ -234,6 +234,7 @@ SRC += $(PIOSSTM32F10X)/pios_exti.c
 SRC += $(PIOSSTM32F10X)/pios_rtc.c
 SRC += $(PIOSSTM32F10X)/pios_wdg.c
 SRC += $(PIOSSTM32F10X)/pios_tim.c
+SRC += $(PIOSSTM32F10X)/pios_softusart.c
 
 
 # PIOS USB related files (separated to make code maintenance more easy)
