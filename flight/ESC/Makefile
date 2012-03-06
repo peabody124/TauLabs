@@ -105,6 +105,7 @@ SRC += $(PIOSSTM32F10X)/pios_exti.c
 SRC += $(PIOSSTM32F10X)/pios_pwm.c
 SRC += $(PIOSSTM32F10X)/pios_tim.c
 SRC += $(PIOSSTM32F10X)/pios_wdg.c
+SRC += $(PIOSSTM32F10X)/pios_softusart.c
 
 ## PIOS Hardware (Common)
 SRC += $(PIOSCOMMON)/pios_com.c
