@@ -168,7 +168,12 @@ static void PIOS_TIM_generic_irq_handler(TIM_TypeDef * timer)
 		overflow_count = 0;
 		overflow_event = false;
 	}
-
+	
+	bool tim1 = TIM_GetITStatus(timer, TIM_IT_CC1) == SET;
+	bool tim2 = TIM_GetITStatus(timer, TIM_IT_CC2) == SET;
+	bool tim3 = TIM_GetITStatus(timer, TIM_IT_CC3) == SET;
+	bool tim4 = TIM_GetITStatus(timer, TIM_IT_CC4) == SET;
+	
 	/* Iterate over all registered clients of the TIM layer to find channels on this timer */
 	for (uint8_t i = 0; i < pios_tim_num_devs; i++) {
 		const struct pios_tim_dev * tim_dev = &pios_tim_devs[i];
@@ -189,18 +194,23 @@ static void PIOS_TIM_generic_irq_handler(TIM_TypeDef * timer)
 
 			/* Figure out which interrupt bit we should be looking at */
 			uint16_t timer_it;
+			bool cc_flag;
 			switch (chan->timer_chan) {
 			case TIM_Channel_1:
 				timer_it = TIM_IT_CC1;
+				cc_flag = tim1;
 				break;
 			case TIM_Channel_2:
 				timer_it = TIM_IT_CC2;
+				cc_flag = tim2;
 				break;
 			case TIM_Channel_3:
 				timer_it = TIM_IT_CC3;
+				cc_flag = tim3;
 				break;
 			case TIM_Channel_4:
 				timer_it = TIM_IT_CC4;
+				cc_flag = tim4;
 				break;
 			default:
 				PIOS_Assert(0);
@@ -209,7 +219,7 @@ static void PIOS_TIM_generic_irq_handler(TIM_TypeDef * timer)
 
 			bool edge_event;
 			uint16_t edge_count;
-			if (TIM_GetITStatus(chan->timer, timer_it) == SET) {
+			if (cc_flag) {
 				TIM_ClearITPendingBit(chan->timer, timer_it);
 
 				/* Read the current counter */
