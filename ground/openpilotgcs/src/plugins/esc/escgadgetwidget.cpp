@@ -148,13 +148,13 @@ QString EscGadgetWidget::getSerialPortDevice(const QString &friendName)
 
         foreach (QextPortInfo port, ports)
         {
-                #ifdef Q_OS_WIN
-                        if (port.friendName == friendName)
-                                return port.portName;
-                #else
-                        if (port.friendName == friendName)
-                                return port.physName;
-                #endif
+#ifdef Q_OS_WIN
+            if (port.friendName == friendName)
+                return port.portName;
+#else
+            if (port.friendName.trimmed() == friendName)
+                return port.physName;
+#endif
         }
 
         return "";
