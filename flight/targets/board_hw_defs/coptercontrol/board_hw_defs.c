@@ -390,6 +390,7 @@ static const struct pios_tim_channel pios_tim_servoport_all_pins[] = {
 		},
 		.remap = GPIO_PartialRemap_TIM3,
 	},  	
+#if !defined(PIOS_INCLUDE_SOFTUSART)
 	{
 		.timer = TIM2,
 		.timer_chan = TIM_Channel_3,
@@ -402,6 +403,7 @@ static const struct pios_tim_channel pios_tim_servoport_all_pins[] = {
 			},
 		},
 	},
+#endif
 };
 
 
@@ -467,6 +469,8 @@ static const struct pios_tim_channel pios_tim_servoport_rcvrport_pins[] = {
 		},
 		.remap = GPIO_PartialRemap_TIM3,
 	},
+#if !defined(PIOS_INCLUDE_SOFTUSART)
+	// For now keep things simple by either using PWM or SOFTUSART
 	{
 		.timer = TIM2,
 		.timer_chan = TIM_Channel_3,
@@ -518,8 +522,6 @@ static const struct pios_tim_channel pios_tim_servoport_rcvrport_pins[] = {
 			},
 		},
 	},
-#if !defined(PIOS_INCLUDE_SOFTUSART)
-// For now keep things simple by either using PWM or SOFTUSART
 	{
 		.timer = TIM2,
 		.timer_chan = TIM_Channel_2,
@@ -551,27 +553,27 @@ static const struct pios_softusart_cfg pios_softusart_cfg = {
 	},
 	.rx = {
 		.timer = TIM2,
-		.timer_chan = TIM_Channel_2,
+		.timer_chan = TIM_Channel_3,
 		.pin = {
 			.gpio = GPIOA,
 			.init = {
-				.GPIO_Pin   = GPIO_Pin_1,
-				.GPIO_Mode  = GPIO_Mode_AF_PP,
+				.GPIO_Pin   = GPIO_Pin_2,
+				.GPIO_Mode  = GPIO_Mode_Out_PP,
 				.GPIO_Speed = GPIO_Speed_2MHz,
 			},
-		},		
+		},
 	},
 	.tx = {
 		.timer = TIM2,
-		.timer_chan = TIM_Channel_2,
+		.timer_chan = TIM_Channel_3,
 		.pin = {
 			.gpio = GPIOA,
 			.init = {
-				.GPIO_Pin   = GPIO_Pin_1,
-				.GPIO_Mode  = GPIO_Mode_AF_PP,
+				.GPIO_Pin   = GPIO_Pin_2,
+				.GPIO_Mode  = GPIO_Mode_Out_PP,
 				.GPIO_Speed = GPIO_Speed_2MHz,
 			},
-		},		
+		},
 	}
 };
 

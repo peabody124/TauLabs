@@ -262,11 +262,20 @@ static void PIOS_SOFTUSART_ChangeBaud(uint32_t usart_id, uint32_t baud)
 	struct pios_softusart_dev *softusart_dev = (struct pios_softusart_dev *) usart_id;
 	bool valid = PIOS_SOFTUSART_validate(softusart_dev);
 	PIOS_Assert(valid);
+
+	uint32_t clock_rate;
+	uint32_t newdivisor;
 	
-	uint32_t newdivisor = PIOS_MASTER_CLOCK / baud / 2;
-	TIM_ARRPreloadConfig(softusart_dev->cfg->rx.timer, newdivisor);
+	// Need to account for prescalar on timer to get the right period
+	clock_rate = (PIOS_MASTER_CLOCK / (softusart_dev->cfg->rx.timer->PSC + 1));
+	newdivisor = clock_rate / baud / 2;
+
+	TIM_SetAutoreload(softusart_dev->cfg->rx.timer, newdivisor);
 	if (!softusart_dev->cfg->half_duplex) { // Only need to update second if not half duplex
-		TIM_ARRPreloadConfig(softusart_dev->cfg->tx.timer, newdivisor);
+		clock_rate = (PIOS_MASTER_CLOCK / (softusart_dev->cfg->tx.timer->PSC + 1));
+		newdivisor = clock_rate / baud / 2;
+
+		TIM_SetAutoreload(softusart_dev->cfg->tx.timer, newdivisor);
 	}
 }
 
@@ -371,9 +380,11 @@ static void PIOS_SOFTUSART_tim_overflow_cb (uint32_t tim_id, uint32_t context, u
 	
 	if(softusart_dev->tx_phase) {
 		if(PIOS_SOFTUSART_TestStatus(softusart_dev, TRANSMIT_IN_PROGRESS)) { // edge of current bit (no service for middle)
+
 			switch(softusart_dev->tx_bit) {     // begin of bit transmition
 				case 0:
-					softusart_dev->tx_bit9 = 0; //start bit transmition
+					CLR_TX; //start bit transmition
+					softusart_dev->tx_bit9 = 0;
 #ifdef PARITY
 					softusart_dev->tx_parity = 0;
 #endif
@@ -415,40 +426,39 @@ static void PIOS_SOFTUSART_tim_overflow_cb (uint32_t tim_id, uint32_t context, u
 						SET_TX; //  data bits
 					else
 						CLR_TX; // transmition
+
 #endif
 			};
 			if(softusart_dev->tx_bit >= DATA_LENGTH + STOP_BITS) {
 			    // end of current transmited bit
-				if(PIOS_SOFTUSART_TestStatus(softusart_dev, TRANSMIT_DATA_REG_EMPTY)) {	// end of transmition
-					uint8_t b;
-					uint16_t bytes_to_send;
+
+				softusart_dev->tx_phase = 0;
+				softusart_dev->tx_bit = 0;
+
+				// This should have been set with stop bit.  If this is hit then there is a race condition with
+				// TxStart being called
+				PIOS_Assert(PIOS_SOFTUSART_TestStatus(softusart_dev, TRANSMIT_DATA_REG_EMPTY));
+				uint8_t b;
+				uint16_t bytes_to_send;
+				
+				bytes_to_send = (softusart_dev->tx_out_cb)(softusart_dev->tx_out_context, &b, 1, NULL, &yield);
+				
+				if (bytes_to_send > 0) {
+					/* Send the byte we've been given */
+					softusart_dev->tx_data = b;
 					
-					bytes_to_send = (softusart_dev->tx_out_cb)(softusart_dev->tx_out_context, &b, 1, NULL, &yield);
+					// Clear the empty flag
+					PIOS_SOFTUSART_ClrStatus(softusart_dev, TRANSMIT_DATA_REG_EMPTY);
 					
-					if (bytes_to_send > 0) {
-						/* Send the byte we've been given */
-						softusart_dev->tx_data = b;
-						
-						// Clear the empty flag
-						PIOS_SOFTUSART_ClrStatus(softusart_dev, TRANSMIT_DATA_REG_EMPTY);
-						
-						// If nothing in progress mark it started
-						if(!PIOS_SOFTUSART_TestStatus(softusart_dev, TRANSMIT_IN_PROGRESS)) {
-							softusart_dev->tx_phase = 0;
-							softusart_dev->tx_bit = 0;
-							PIOS_SOFTUSART_SetStatus(softusart_dev, TRANSMIT_IN_PROGRESS);
-						};
-					} else
-						PIOS_SOFTUSART_ClrStatus(softusart_dev, TRANSMIT_IN_PROGRESS);
-				}
-				else
-					softusart_dev->tx_bit= 0;     // next byte is buffered - continue
-			}                                     // with transmition
+					PIOS_SOFTUSART_SetStatus(softusart_dev, TRANSMIT_IN_PROGRESS);
+				} else
+					PIOS_SOFTUSART_ClrStatus(softusart_dev, TRANSMIT_IN_PROGRESS);
+			}
 			else
-				++softusart_dev->tx_bit;          // next bit to transmit			
+				++softusart_dev->tx_bit;
 		};
 	};
-	softusart_dev->tx_phase = ~softusart_dev->tx_phase;
+	softusart_dev->tx_phase = !softusart_dev->tx_phase;
 #if defined(PIOS_INCLUDE_FREERTOS)
 	if (yield) {
 		vPortYieldFromISR();

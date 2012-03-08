@@ -46,7 +46,7 @@ extern int32_t PIOS_SOFTUSART_Init(uint32_t * softusart_id, const struct pios_so
 extern const struct pios_softusart_cfg * PIOS_SOFTUSART_GetConfig(uint32_t softusart_id);
 
 #define	DATA_LENGTH		8		// number of data bits in protocol
-#define	STOP_BITS		1		// number of stop bits in protocol
+#define	STOP_BITS		2		// number of stop bits in protocol
 //#define  PARITY
 // if PARITY flag si defined the most significant data
 // 			bit is considered to be parity bit
