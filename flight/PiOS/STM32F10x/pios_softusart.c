@@ -105,6 +105,8 @@ const static struct pios_tim_callbacks softusart_tim_callbacks = {
 static bool PIOS_SOFTUSART_TestStatus(struct pios_softusart_dev *dev, uint16_t flag);
 static void PIOS_SOFTUSART_SetStatus(struct pios_softusart_dev *dev, uint16_t flag);
 static void PIOS_SOFTUSART_SetStatus(struct pios_softusart_dev *dev, uint16_t flag);
+static void PIOS_SOFTUSART_EnableCaptureMode(struct pios_softusart_dev *softusart_dev);
+static void PIOS_SOFTUSART_EnableCompareMode(struct pios_softusart_dev *softusart_dev);
 
 static bool PIOS_SOFTUSART_validate(struct pios_softusart_dev * pwm_dev)
 {
@@ -220,8 +222,9 @@ int32_t PIOS_SOFTUSART_Init(uint32_t *softusart_id, const struct pios_softusart_
 	TIM_ITConfig(chan->timer, TIM_IT_Update, ENABLE);
 	
 	// Set default baud rate
-	PIOS_SOFTUSART_ChangeBaud((uint32_t)softusart_dev, 57600);
+	PIOS_SOFTUSART_ChangeBaud((uint32_t)softusart_dev, 9600);
 	
+	PIOS_SOFTUSART_EnableCaptureMode(softusart_dev);
 	*softusart_id = (uint32_t)softusart_dev;
 	
 	return (0);
@@ -322,7 +325,9 @@ static void PIOS_SOFTUSART_TxStart(uint32_t usart_id, uint16_t tx_bytes_avail)
 {
 	// TODO: Enable or disable the interrupt here?
 	struct pios_softusart_dev *softusart_dev = (struct pios_softusart_dev *) usart_id;
-	
+	bool valid = PIOS_SOFTUSART_validate(softusart_dev);
+	PIOS_Assert(valid);
+
 	if(!PIOS_SOFTUSART_TestStatus(softusart_dev, TRANSMIT_IN_PROGRESS) ||
 	   PIOS_SOFTUSART_TestStatus(softusart_dev, TRANSMIT_DATA_REG_EMPTY)) {
 		//YES - initiate sending procedure
@@ -354,6 +359,10 @@ static void PIOS_SOFTUSART_TxStart(uint32_t usart_id, uint16_t tx_bytes_avail)
 
 static void PIOS_SOFTUSART_RxStart(uint32_t usart_id, uint16_t rx_bytes_avail)
 {
+	struct pios_softusart_dev *softusart_dev = (struct pios_softusart_dev *) usart_id;
+	bool valid = PIOS_SOFTUSART_validate(softusart_dev);
+	PIOS_Assert(valid);
+	PIOS_SOFTUSART_EnableCaptureMode(softusart_dev);
 }
 
 #define SET_TX GPIO_SetBits(softusart_dev->cfg->tx.pin.gpio,softusart_dev->cfg->tx.pin.init.GPIO_Pin)
@@ -470,7 +479,7 @@ static void PIOS_SOFTUSART_tim_overflow_cb (uint32_t tim_id, uint32_t context, u
 /**
  * @brief Enable or disable the capture compare interrupt for the rx channel
  */
-void PIOS_SOFTUSART_SetIrqCC(struct pios_softusart_dev *softusart_dev, bool enable)
+static void PIOS_SOFTUSART_SetIrqCC(struct pios_softusart_dev *softusart_dev, bool enable)
 {
 	TIM_ITConfig(softusart_dev->cfg->rx.timer, softusart_dev->tim_it, enable ? ENABLE : DISABLE);
 }
@@ -478,7 +487,7 @@ void PIOS_SOFTUSART_SetIrqCC(struct pios_softusart_dev *softusart_dev, bool enab
 /**
  * @brief Enable or disable the capture compare interrupt for the rx channel
  */
-void PIOS_SOFTUSART_SetCCE(struct pios_softusart_dev *softusart_dev, bool enable)
+static void PIOS_SOFTUSART_SetCCE(struct pios_softusart_dev *softusart_dev, bool enable)
 {
 	if (enable)
 		softusart_dev->cfg->rx.timer->CCER |= softusart_dev->cce;
@@ -490,24 +499,42 @@ void PIOS_SOFTUSART_SetCCE(struct pios_softusart_dev *softusart_dev, bool enable
  * @brief Disable output capture and enable compare mode
  * Now the interrupt should occurr periodically at 2x baud rate for sampling line
  */
-void PIOS_SOFTUSART_EnableCompareMode(struct pios_softusart_dev *softusart_dev)
+static void PIOS_SOFTUSART_EnableCompareMode(struct pios_softusart_dev *softusart_dev)
 {
 	//disable_IC_system;			    // IC interrupt - begin of start bit detected
 	PIOS_SOFTUSART_SetIrqCC(softusart_dev, false);
 	PIOS_SOFTUSART_SetCCE(softusart_dev, false);
 	
+	TIM_OCInitTypeDef tim_oc_init = {
+		.TIM_OCMode = TIM_OCMode_PWM1,
+		.TIM_OutputState = TIM_OutputState_Enable,
+		.TIM_OutputNState = TIM_OutputNState_Disable,
+		.TIM_Pulse = 0,
+		.TIM_OCPolarity = TIM_OCPolarity_High,
+		.TIM_OCNPolarity = TIM_OCPolarity_High,
+		.TIM_OCIdleState = TIM_OCIdleState_Reset,
+		.TIM_OCNIdleState = TIM_OCNIdleState_Reset,
+	};
 	switch(softusart_dev->cfg->rx.timer_chan) {
 		case TIM_Channel_1:
 			softusart_dev->cfg->rx.timer->CCMR1 &= ~0x00ff;
+			TIM_OC1Init(softusart_dev->cfg->rx.timer, &tim_oc_init);
+			TIM_SetCompare1(softusart_dev->cfg->rx.timer, softusart_dev->cfg->rx.timer->CNT);
 			break;
 		case TIM_Channel_2:
 			softusart_dev->cfg->rx.timer->CCMR1 &= ~0xff00;
+			TIM_OC2Init(softusart_dev->cfg->rx.timer, &tim_oc_init);
+			TIM_SetCompare2(softusart_dev->cfg->rx.timer, softusart_dev->cfg->rx.timer->CNT);
 			break;
 		case TIM_Channel_3:
 			softusart_dev->cfg->rx.timer->CCMR2 &= ~0x00ff;
+			TIM_OC3Init(softusart_dev->cfg->rx.timer, &tim_oc_init);
+			TIM_SetCompare3(softusart_dev->cfg->rx.timer, softusart_dev->cfg->rx.timer->CNT);
 			break;
 		case TIM_Channel_4:
 			softusart_dev->cfg->rx.timer->CCMR2 &= ~0xff00;
+			TIM_OC4Init(softusart_dev->cfg->rx.timer, &tim_oc_init);
+			TIM_SetCompare4(softusart_dev->cfg->rx.timer, softusart_dev->cfg->rx.timer->CNT);
 			break;	
 	}
 	
@@ -519,11 +546,12 @@ void PIOS_SOFTUSART_EnableCompareMode(struct pios_softusart_dev *softusart_dev)
 /**
  * @brief Disable output compare and enable capture mode
  */
-void PIOS_SOFTUSART_EnableCaptureMode(struct pios_softusart_dev *softusart_dev)
+static void PIOS_SOFTUSART_EnableCaptureMode(struct pios_softusart_dev *softusart_dev)
 {
 	//disable_OC_system;
 	PIOS_SOFTUSART_SetIrqCC(softusart_dev, false);
 	PIOS_SOFTUSART_SetCCE(softusart_dev, false);
+	
 	
 	//Enable_IC_system.  Use a digital input filter.
 	switch(softusart_dev->cfg->rx.timer_chan) {
@@ -542,9 +570,17 @@ void PIOS_SOFTUSART_EnableCaptureMode(struct pios_softusart_dev *softusart_dev)
 		case TIM_Channel_4:
 			softusart_dev->cfg->rx.timer->CCMR2 &= ~0xff00;
 			softusart_dev->cfg->rx.timer->CCMR2 |=  0x1100;
-			break;	
+			break;  
 	}
 	softusart_dev->cfg->rx.timer->CCER |= softusart_dev->ccp;
+	TIM_ICInitTypeDef tim_ic_init = {
+		.TIM_Channel = softusart_dev->cfg->rx.timer_chan,
+		.TIM_ICPolarity = TIM_ICPolarity_Falling,
+		.TIM_ICSelection = TIM_ICSelection_DirectTI,
+		.TIM_ICPrescaler = TIM_ICPSC_DIV1,
+		.TIM_ICFilter = 0x4,
+	};
+	TIM_ICInit(softusart_dev->cfg->rx.timer, &tim_ic_init);
 	
 	//Reenable interrupt
 	PIOS_SOFTUSART_SetCCE(softusart_dev, true);
@@ -572,26 +608,30 @@ static void PIOS_SOFTUSART_tim_edge_cb (uint32_t tim_id, uint32_t context, uint8
 		return;
 	}
 	
-	bool yield;
+	bool yield = false;
 	
 	if(PIOS_SOFTUSART_TestStatus(softusart_dev, RECEIVE_IN_PROGRESS)) {
-		if(!softusart_dev->rx_phase) {      // receive is in progres now
-			softusart_dev->rx_samp= 0;      // middle of current bit, checking samples
+
+		if(!softusart_dev->rx_phase) {
+		    // Only process every other interrupt to get out of phase measurement
 			
-			if(RX_TEST)	++softusart_dev->rx_samp; // sampling in the middle of current bit
-			if(RX_TEST)	++softusart_dev->rx_samp;
-			if(RX_TEST)	++softusart_dev->rx_samp;
+			softusart_dev->rx_samp= 0;            // middle of current bit, checking samples			
+			if(RX_TEST)	softusart_dev->rx_samp++; // sampling in the middle of current bit
+			if(RX_TEST)	softusart_dev->rx_samp++;
+			if(RX_TEST) softusart_dev->rx_samp++;
 			
 			if(softusart_dev->rx_bit == 0) {
 				if(softusart_dev->rx_samp == 0) {  // start bit!
 					softusart_dev->rx_bit = 1;     // correctly received, continue
 					softusart_dev->rx_buff = 0;
+
 				} else {					// noise in start bit, find next one
 					PIOS_SOFTUSART_ClrStatus(softusart_dev, RECEIVE_IN_PROGRESS);
 					PIOS_SOFTUSART_EnableCaptureMode(softusart_dev);
 				};
 			}
 			else {
+				
 				switch(softusart_dev->rx_samp) {		// any other bit, results?
 					case 1:	
 						PIOS_SOFTUSART_SetStatus(softusart_dev, RECEIVE_NOISE_ERROR);
@@ -599,6 +639,7 @@ static void PIOS_SOFTUSART_tim_edge_cb (uint32_t tim_id, uint32_t context, uint8
 					case 2: 	
 						PIOS_SOFTUSART_SetStatus(softusart_dev, RECEIVE_NOISE_ERROR);
 						// noise in middle samples, "1" received
+						break;
 #ifdef PARITY
 					case 3:	
 						if(softusart_dev->rx_bit < DATA_LENGTH)
@@ -635,10 +676,12 @@ static void PIOS_SOFTUSART_tim_edge_cb (uint32_t tim_id, uint32_t context, uint8
 						uint16_t rc;
 						rc = (softusart_dev->rx_in_cb)(softusart_dev->rx_in_context, &softusart_dev->rx_buff, 1, NULL, &yield);
 						if (rc < 1) {
-							/* Lost bytes on rx */
+							// Lost bytes on rx
 							softusart_dev->rx_dropped += 1;
 							PIOS_SOFTUSART_SetStatus(softusart_dev,RECEIVE_BUFFER_OVERFLOW);
 						}
+
+						yield = false;
 #ifdef BIT9
 						if(softusart_dev->rx_bit9)
 							PIOS_SOFTUSART_SetStatus(softusart_dev,RECEIVED_9TH_DATA_BIT);
@@ -649,15 +692,15 @@ static void PIOS_SOFTUSART_tim_edge_cb (uint32_t tim_id, uint32_t context, uint8
 						PIOS_SOFTUSART_EnableCaptureMode(softusart_dev);
 					}
 					else
-						++softusart_dev->rx_bit;
+						softusart_dev->rx_bit++;
 					
 				}
 				else
-					++softusart_dev->rx_bit;
+					softusart_dev->rx_bit++;
 			}
-		} 
-		softusart_dev->rx_phase = ~softusart_dev->rx_phase;
-	} else {								
+		}
+		softusart_dev->rx_phase = !softusart_dev->rx_phase;
+	} else {
 		// receive is not in progres yet
 		PIOS_SOFTUSART_EnableCompareMode(softusart_dev);
 		PIOS_SOFTUSART_SetStatus(softusart_dev,RECEIVE_IN_PROGRESS);	// receive byte initialization
@@ -669,14 +712,14 @@ static void PIOS_SOFTUSART_tim_edge_cb (uint32_t tim_id, uint32_t context, uint8
 #ifdef BIT9
 		softusart_dev->rx_bit9 = 0;
 #endif
-#endif
-		
-#if defined(PIOS_INCLUDE_FREERTOS)
-		if (yield) {
-			vPortYieldFromISR();
-		}
-#endif	/* PIOS_INCLUDE_FREERTOS */
+#endif		
 	};
+
+#if defined(PIOS_INCLUDE_FREERTOS)
+	if (yield) {
+		vPortYieldFromISR();
+	}
+#endif	/* PIOS_INCLUDE_FREERTOS */
 }
 
 #endif
