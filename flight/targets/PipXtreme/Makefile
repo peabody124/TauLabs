@@ -23,48 +23,65 @@
  #####
 
 WHEREAMI := $(dir $(lastword $(MAKEFILE_LIST)))
-TOP      := $(realpath $(WHEREAMI)/../../../)
+TOP      := $(realpath $(WHEREAMI)/../../)
 include $(TOP)/make/firmware-defs.mk
 include $(TOP)/make/boards/$(BOARD_NAME)/board-info.mk
 
+# Target file name (without extension).
+TARGET := fw_$(BOARD_NAME)
+
+# Directory for output files (lst, obj, dep, elf, sym, map, hex, bin etc.)
+OUTDIR := $(TOP)/build/$(TARGET)
+
 # Set developer code and compile options
 # Set to YES to compile for debugging
-DEBUG ?= NO
+DEBUG ?= YES
 
 # Include objects that are just nice information to show
-STACK_DIAGNOSTICS ?= NO
-MIXERSTATUS_DIAGNOSTICS ?= NO
-RATEDESIRED_DIAGNOSTICS ?= NO
-I2C_WDG_STATS_DIAGNOSTICS ?= NO
-DIAG_TASKS ?= NO
+DIAGNOSTICS ?= YES
+DIAG_TASKS ?= YES
 
-#Or just turn on all the above diagnostics. WARNING: This consumes massive amounts of memory.
-ALL_DIGNOSTICS ?=NO
-
-# Set to YES to build a FW version that will erase all flash memory
-ERASE_FLASH ?= NO
 # Set to YES to use the Servo output pins for debugging via scope or logic analyser
 ENABLE_DEBUG_PINS ?= NO
 
 # Set to Yes to enable the AUX UART which is mapped on the S1 (Tx) and S2 (Rx) servo outputs
 ENABLE_AUX_UART ?= NO
 
-USE_GPS ?= NO
+# Set to YES when using Code Sourcery toolchain
+CODE_SOURCERY ?= YES
 
-USE_I2C ?= YES
+# Remove command is different for Code Sourcery on Windows
+ifeq ($(CODE_SOURCERY), YES)
+REMOVE_CMD = cs-rm
+else
+REMOVE_CMD = rm
+endif
+
+FLASH_TOOL = OPENOCD
+
 
 # List of modules to include
-OPTMODULES = 
-MODULES = RadioComBridge
+OPTMODULES = CameraStab GPS
+MODULES = Actuator ManualControl Altitude AHRSComms Stabilization Guidance FirmwareIAP
+PYMODULES = FlightPlan
+#MODULES = Telemetry Example
+#MODULES = Telemetry MK/MKSerial
+#MODULES = Telemetry
+#MODULES += Osd/OsdEtStd
+MODULES += Telemetry
 
 # Paths
 OPSYSTEM = ./System
 OPSYSTEMINC = $(OPSYSTEM)/inc
+OPUAVTALK = ../UAVTalk
 OPUAVTALKINC = $(OPUAVTALK)/inc
+OPUAVOBJ = ../UAVObjects
 OPUAVOBJINC = $(OPUAVOBJ)/inc
 OPTESTS  = ./Tests
+OPMODULEDIR = ../Modules
+FLIGHTLIB = ../Libraries
 FLIGHTLIBINC = $(FLIGHTLIB)/inc
-RSCODEINC = $(FLIGHTLIB)/rscode
+PIOS = ../PiOS
 PIOSINC = $(PIOS)/inc
 PIOSSTM32F10X = $(PIOS)/STM32F10x
 PIOSCOMMON = $(PIOS)/Common
@@ -80,10 +97,12 @@ STMUSBINCDIR = $(STMUSBDIR)/inc
 CMSISDIR  = $(STMLIBDIR)/CMSIS/Core/CM3
 DOSFSDIR  = $(APPLIBDIR)/dosfs
 MSDDIR  = $(APPLIBDIR)/msd
-RTOSDIR = $(PIOSCOMMON)/Libraries/FreeRTOS
+RTOSDIR = $(APPLIBDIR)/FreeRTOS
 RTOSSRCDIR = $(RTOSDIR)/Source
 RTOSINCDIR = $(RTOSSRCDIR)/include
-RTOSPORTDIR = $(APPLIBDIR)/FreeRTOS/Source
+DOXYGENDIR = ../Doc/Doxygen
+AHRSBOOTLOADER = ../Bootloaders/AHRS/
+AHRSBOOTLOADERINC = $(AHRSBOOTLOADER)/inc
 PYMITE = $(FLIGHTLIB)/PyMite
 PYMITELIB = $(PYMITE)/lib
 PYMITEPLAT = $(PYMITE)/platform/openpilot
@@ -94,17 +113,33 @@ PYMITEINC += $(PYMITEPLAT)
 PYMITEINC += $(OUTDIR)
 FLIGHTPLANLIB = $(OPMODULEDIR)/FlightPlan/lib
 FLIGHTPLANS = $(OPMODULEDIR)/FlightPlan/flightplans
+HWDEFSINC = ../board_hw_defs/$(BOARD_NAME)
+
+UAVOBJSYNTHDIR = $(OUTDIR)/../uavobject-synthetics/flight
 
 # List C source files here. (C dependencies are automatically generated.)
 # use file-extension c for "c-only"-files
 
 ifndef TESTAPP
+
+## PyMite files and modules
+SRC += $(OUTDIR)/pmlib_img.c
+SRC += $(OUTDIR)/pmlib_nat.c
+SRC += $(OUTDIR)/pmlibusr_img.c
+SRC += $(OUTDIR)/pmlibusr_nat.c
+PYSRC += $(wildcard ${PYMITEVM}/*.c)
+PYSRC += $(wildcard ${PYMITEPLAT}/*.c)
+PYSRC += ${foreach MOD, ${PYMODULES}, ${wildcard ${OPMODULEDIR}/${MOD}/*.c}}
+SRC += $(PYSRC)
+
 ## MODULES
+SRC += ${foreach MOD, ${OPTMODULES}, ${wildcard ${OPMODULEDIR}/${MOD}/*.c}}
 SRC += ${foreach MOD, ${MODULES}, ${wildcard ${OPMODULEDIR}/${MOD}/*.c}}
 ## OPENPILOT CORE:
-SRC += ${OPMODULEDIR}/PipXtreme/pipxtrememod.c
-SRC += $(OPSYSTEM)/pipxtreme.c
+SRC += ${OPMODULEDIR}/System/systemmod.c
+SRC += $(OPSYSTEM)/openpilot.c
 SRC += $(OPSYSTEM)/pios_board.c
+SRC += $(OPSYSTEM)/alarms.c
 SRC += $(OPUAVTALK)/uavtalk.c
 SRC += $(OPUAVOBJ)/uavobjectmanager.c
 SRC += $(OPUAVOBJ)/eventdispatcher.c
@@ -114,13 +149,13 @@ SRC += $(OPTESTS)/test_common.c
 SRC += $(OPTESTS)/$(TESTAPP).c
 endif
 
+
+
 ## UAVOBJECTS
 ifndef TESTAPP
-SRC += $(OPUAVSYNTHDIR)/gcsreceiver.c
-SRC += $(OPUAVSYNTHDIR)/oplinkstatus.c
-SRC += $(OPUAVSYNTHDIR)/oplinksettings.c
-SRC += $(OPUAVSYNTHDIR)/objectpersistence.c
-
+#include $(UAVOBJSYNTHDIR)/Makefile.inc
+include ./UAVObjects.inc
+SRC += $(UAVOBJSRC)
 endif
 
 ## PIOS Hardware (STM32F10x)
@@ -129,17 +164,21 @@ SRC += $(PIOSSTM32F10X)/pios_led.c
 SRC += $(PIOSSTM32F10X)/pios_delay.c
 SRC += $(PIOSSTM32F10X)/pios_usart.c
 SRC += $(PIOSSTM32F10X)/pios_irq.c
+SRC += $(PIOSSTM32F10X)/pios_adc.c
+SRC += $(PIOSSTM32F10X)/pios_servo.c
+SRC += $(PIOSSTM32F10X)/pios_i2c.c
 SRC += $(PIOSSTM32F10X)/pios_spi.c
 SRC += $(PIOSSTM32F10X)/pios_ppm.c
+SRC += $(PIOSSTM32F10X)/pios_pwm.c
+SRC += $(PIOSSTM32F10X)/pios_dsm.c
+SRC += $(PIOSSTM32F10X)/pios_sbus.c
+SRC += $(PIOSSTM32F10X)/pios_tim.c
 SRC += $(PIOSSTM32F10X)/pios_debug.c
 SRC += $(PIOSSTM32F10X)/pios_gpio.c
 SRC += $(PIOSSTM32F10X)/pios_exti.c
 SRC += $(PIOSSTM32F10X)/pios_rtc.c
 SRC += $(PIOSSTM32F10X)/pios_wdg.c
-SRC += $(PIOSSTM32F10X)/pios_tim.c
-SRC += $(PIOSSTM32F10X)/pios_pwm.c
-SRC += $(PIOSSTM32F10X)/pios_eeprom.c
-SRC += $(PIOSSTM32F10X)/pios_bl_helper.c
+
 
 # PIOS USB related files (seperated to make code maintenance more easy)
 SRC += $(PIOSSTM32F10X)/pios_usb.c
@@ -151,31 +190,32 @@ SRC += $(PIOSSTM32F10X)/pios_usb_hid_pwr.c
 SRC += $(OPSYSTEM)/pios_usb_board_data.c
 SRC += $(PIOSCOMMON)/pios_usb_desc_hid_cdc.c
 SRC += $(PIOSCOMMON)/pios_usb_desc_hid_only.c
-SRC += $(PIOSCOMMON)/pios_usb_util.c
 
 ## PIOS Hardware (Common)
 SRC += $(PIOSCOMMON)/pios_crc.c
+SRC += $(PIOSCOMMON)/pios_sdcard.c
 SRC += $(PIOSCOMMON)/pios_com.c
+SRC += $(PIOSCOMMON)/pios_bmp085.c
+SRC += $(PIOSCOMMON)/pios_hcsr04.c
 SRC += $(PIOSCOMMON)/pios_i2c_esc.c
+SRC += $(PIOSCOMMON)/pios_iap.c
+SRC += $(PIOSCOMMON)/pios_bl_helper.c
 SRC += $(PIOSCOMMON)/pios_rcvr.c
 SRC += $(PIOSCOMMON)/printf-stdarg.c
-SRC += $(PIOSCOMMON)/pios_rfm22b.c
-SRC += $(PIOSCOMMON)/pios_rfm22b_com.c
+SRC += $(FLIGHTLIB)/ahrs_spi_comm.c
+SRC += $(FLIGHTLIB)/ahrs_comm_objects.c
 ## Libraries for flight calculations
 SRC += $(FLIGHTLIB)/fifo_buffer.c
+SRC += $(FLIGHTLIB)/WorldMagModel.c
 SRC += $(FLIGHTLIB)/CoordinateConversions.c
 SRC += $(FLIGHTLIB)/taskmonitor.c
-SRC += $(FLIGHTLIB)/aes.c
-## The Reed-Solomon FEC library
-SRC += $(FLIGHTLIB)/rscode/rs.c
-SRC += $(FLIGHTLIB)/rscode/berlekamp.c
-SRC += $(FLIGHTLIB)/rscode/galois.c
 
 ## CMSIS for STM32
 SRC += $(CMSISDIR)/core_cm3.c
 SRC += $(CMSISDIR)/system_stm32f10x.c
 
 ## Used parts of the STM-Library
+SRC += $(STMSPDSRCDIR)/stm32f10x_adc.c
 SRC += $(STMSPDSRCDIR)/stm32f10x_bkp.c
 SRC += $(STMSPDSRCDIR)/stm32f10x_crc.c
 SRC += $(STMSPDSRCDIR)/stm32f10x_dac.c
@@ -208,8 +248,24 @@ SRC += $(RTOSSRCDIR)/queue.c
 SRC += $(RTOSSRCDIR)/tasks.c
 
 ## RTOS Portable
-SRC += $(RTOSPORTDIR)/portable/GCC/ARM_CM3/port.c
-SRC += $(RTOSPORTDIR)/portable/MemMang/heap_1.c
+SRC += $(RTOSSRCDIR)/portable/GCC/ARM_CM3/port.c
+SRC += $(RTOSSRCDIR)/portable/MemMang/heap_2.c
+
+## Dosfs file system
+SRC += $(DOSFSDIR)/dosfs.c
+SRC += $(DOSFSDIR)/dfs_sdcard.c
+
+## AHRS boot loader comms
+SRC += $(AHRSBOOTLOADER)/ahrs_spi_program_master.c
+SRC += $(AHRSBOOTLOADER)/ahrs_spi_program.c
+
+## Mass Storage Device
+#SRC += $(MSDDIR)/msd.c
+#SRC += $(MSDDIR)/msd_bot.c
+#SRC += $(MSDDIR)/msd_desc.c
+#SRC += $(MSDDIR)/msd_memory.c
+#SRC += $(MSDDIR)/msd_scsi.c
+#SRC += $(MSDDIR)/msd_scsi_data.c
 
 # List C source files here which must be compiled in ARM-Mode (no -mthumb).
 # use file-extension c for "c-only"-files
@@ -240,19 +296,16 @@ ASRCARM =
 # List any extra directories to look for include files here.
 #    Each directory must be seperated by a space.
 EXTRAINCDIRS  =  $(OPSYSTEM)
-EXTRAINCDIRS  += $(SHAREDAPIDIR)
 EXTRAINCDIRS  += $(OPSYSTEMINC)
 EXTRAINCDIRS  += $(OPUAVTALK)
 EXTRAINCDIRS  += $(OPUAVTALKINC)
 EXTRAINCDIRS  += $(OPUAVOBJ)
 EXTRAINCDIRS  += $(OPUAVOBJINC)
-EXTRAINCDIRS  += $(OPUAVSYNTHDIR)
+EXTRAINCDIRS  += $(UAVOBJSYNTHDIR)
 EXTRAINCDIRS  += $(PIOS)
 EXTRAINCDIRS  += $(PIOSINC)
 EXTRAINCDIRS  += $(FLIGHTLIBINC)
-EXTRAINCDIRS  += $(RSCODEINC)
 EXTRAINCDIRS  += $(PIOSSTM32F10X)
-EXTRAINCDIRS  += $(PIOSSTM32F10X)/inc
 EXTRAINCDIRS  += $(PIOSCOMMON)
 EXTRAINCDIRS  += $(PIOSBOARDS)
 EXTRAINCDIRS  += $(STMSPDINCDIR)
@@ -262,11 +315,12 @@ EXTRAINCDIRS  += $(DOSFSDIR)
 EXTRAINCDIRS  += $(MSDDIR)
 EXTRAINCDIRS  += $(RTOSINCDIR)
 EXTRAINCDIRS  += $(APPLIBDIR)
-EXTRAINCDIRS  += $(RTOSPORTDIR)/portable/GCC/ARM_CM3
+EXTRAINCDIRS  += $(RTOSSRCDIR)/portable/GCC/ARM_CM3
+EXTRAINCDIRS  += $(AHRSBOOTLOADERINC)
 EXTRAINCDIRS  += $(PYMITEINC)
 EXTRAINCDIRS  += $(HWDEFSINC)
 
-EXTRAINCDIRS += ${foreach MOD, ${OPTMODULES} ${MODULES}, ${OPMODULEDIR}/${MOD}/inc} ${OPMODULEDIR}/System/inc
+EXTRAINCDIRS += ${foreach MOD, ${OPTMODULES} ${MODULES} ${PYMODULES}, $(OPMODULEDIR)/${MOD}/inc} ${OPMODULEDIR}/System/inc
 
 
 # List any extra directories to look for library files here.
@@ -291,7 +345,7 @@ LINKERSCRIPTPATH = $(PIOSSTM32F10X)
 # (Note: 3 is not always the best optimization level. See avr-libc FAQ.)
 
 ifeq ($(DEBUG),YES)
-OPT = 1
+OPT = 0
 else
 OPT = s
 endif
@@ -317,20 +371,9 @@ endif
 ifeq ($(ENABLE_AUX_UART), YES)
 CDEFS += -DPIOS_ENABLE_AUX_UART
 endif
-ifeq ($(ERASE_FLASH), YES)
-CDEFS += -DERASE_FLASH
-endif
-
-ifneq ($(USE_GPS), NO)
-CDEFS += -DUSE_GPS
-endif
-
-ifeq ($(USE_I2C), YES)
-CDEFS += -DUSE_I2C
-endif
 
 # Declare all non-optional modules as built-in to force inclusion
-CDEFS += $(foreach MOD, $(notdir $(MODULES)), -DMODULE_$(MOD)_BUILTIN)
+CDEFS += ${foreach MOD, ${MODULES}, -DMODULE_$(MOD)_BUILTIN }
 
 # Place project-specific -D and/or -U options for
 # Assembler with preprocessor here.
@@ -358,26 +401,14 @@ CSTANDARD = -std=gnu99
 # Flags for C and C++ (arm-elf-gcc/arm-elf-g++)
 
 ifeq ($(DEBUG),YES)
-CFLAGS = -DDEBUG
+CFLAGS += -DDEBUG
 endif
 
-ifneq (,$(filter YES,$(STACK_DIAGNOSTICS) $(ALL_DIGNOSTICS)))
-CFLAGS += -DSTACK_DIAGNOSTICS
+ifeq ($(DIAGNOSTICS),YES)
+CFLAGS += -DDIAGNOSTICS
 endif
 
-ifneq (,$(filter YES,$(MIXERSTATUS_DIAGNOSTICS) $(ALL_DIGNOSTICS)))
-CFLAGS += -DMIXERSTATUS_DIAGNOSTICS
-endif
-
-ifneq (,$(filter YES,$(RATEDESIRED_DIAGNOSTICS) $(ALL_DIGNOSTICS)))
-CFLAGS += -DRATEDESIRED_DIAGNOSTICS
-endif
-
-ifneq (,$(filter YES,$(I2C_WDG_STATS_DIAGNOSTICS) $(ALL_DIGNOSTICS)))
-CFLAGS += -DI2C_WDG_STATS_DIAGNOSTICS
-endif
-
-ifneq (,$(filter YES,$(DIAG_TASKS) $(ALL_DIGNOSTICS)))
+ifeq ($(DIAG_TASKS),YES)
 CFLAGS += -DDIAG_TASKS
 endif
 
@@ -388,16 +419,11 @@ CFLAGS += -mcpu=$(MCU)
 CFLAGS += $(CDEFS)
 CFLAGS += $(patsubst %,-I%,$(EXTRAINCDIRS)) -I.
 
-#CFLAGS += -fno-cprop-registers -fno-defer-pop -fno-guess-branch-probability -fno-section-anchors
-#CFLAGS += -fno-if-conversion -fno-if-conversion2 -fno-ipa-pure-const -fno-ipa-reference -fno-merge-constants
-#CFLAGS += -fno-split-wide-types -fno-tree-ccp -fno-tree-ch -fno-tree-copy-prop -fno-tree-copyrename
-#CFLAGS += -fno-tree-dce -fno-tree-dominator-opts -fno-tree-dse -fno-tree-fre -fno-tree-sink -fno-tree-sra
-#CFLAGS += -fno-tree-ter
-#CFLAGS += -g$(DEBUGF) -DDEBUG
-
 CFLAGS += -mapcs-frame
 CFLAGS += -fomit-frame-pointer
-CFLAGS += -ffunction-sections -fdata-sections
+ifeq ($(CODE_SOURCERY), YES)
+CFLAGS += -fpromote-loop-indices
+endif
 
 CFLAGS += -Wall
 CFLAGS += -Werror
@@ -412,7 +438,7 @@ CONLYFLAGS += $(CSTANDARD)
 # Assembler flags.
 #  -Wa,...:    tell GCC to pass this to the assembler.
 #  -ahlns:     create listing
-ASFLAGS  = -mcpu=$(MCU) -I. -x assembler-with-cpp
+ASFLAGS  = -mcpu=$(MCU) -mthumb -I. -x assembler-with-cpp
 ASFLAGS += $(ADEFS)
 ASFLAGS += -Wa,-adhlns=$(addprefix $(OUTDIR)/, $(notdir $(addsuffix .lst, $(basename $<))))
 ASFLAGS += $(patsubst %,-I%,$(EXTRAINCDIRS))
@@ -429,15 +455,13 @@ LDFLAGS += -lc
 LDFLAGS += $(patsubst %,-l%,$(EXTRA_LIBS))
 LDFLAGS += $(MATH_LIB)
 LDFLAGS += -lc -lgcc
-LDFLAGS += -Wl,--warn-common
-LDFLAGS += -Wl,--fatal-warnings
 
 # Set linker-script name depending on selected submodel name
 LDFLAGS += -T$(LINKERSCRIPTPATH)/link_$(BOARD)_memory.ld
 LDFLAGS += -T$(LINKERSCRIPTPATH)/link_$(BOARD)_sections.ld
 
 # Define programs and commands.
-REMOVE  = rm -f
+REMOVE  = $(REMOVE_CMD) -f
 PYTHON  = python
 
 # List of all source files.
@@ -454,7 +478,7 @@ LSTFILES   = $(addprefix $(OUTDIR)/, $(addsuffix .lst, $(ALLSRCBASE)))
 DEPFILES   = $(addprefix $(OUTDIR)/dep/, $(addsuffix .o.d, $(ALLSRCBASE)))
 
 # Default target.
-all: build
+all: gccversion build
 
 ifeq ($(LOADFORMAT),ihex)
 build: elf hex lss sym
@@ -469,6 +493,15 @@ $(error "$(MSG_FORMATERROR) $(FORMAT)")
 endif
 endif
 endif
+
+# Generate intermediate code
+
+# Generate code for PyMite
+${OUTDIR}/pmlib_img.c ${OUTDIR}/pmlib_nat.c ${OUTDIR}/pmlibusr_img.c ${OUTDIR}/pmlibusr_nat.c ${OUTDIR}/pmfeatures.h: $(wildcard ${PYMITELIB}/*.py) $(wildcard ${PYMITEPLAT}/*.py) $(wildcard ${FLIGHTPLANLIB}/*.py) $(wildcard ${FLIGHTPLANS}/*.py) 
+	@echo $(MSG_PYMITEINIT) $(call toprel, $@)
+	@$(PYTHON) $(PYMITETOOLS)/pmImgCreator.py -f $(PYMITEPLAT)/pmfeatures.py -c -s --memspace=flash -o $(OUTDIR)/pmlib_img.c --native-file=$(OUTDIR)/pmlib_nat.c $(PYMITELIB)/list.py $(PYMITELIB)/dict.py $(PYMITELIB)/__bi.py $(PYMITELIB)/sys.py $(PYMITELIB)/string.py $(wildcard $(FLIGHTPLANLIB)/*.py)
+	@$(PYTHON) $(PYMITETOOLS)/pmGenPmFeatures.py $(PYMITEPLAT)/pmfeatures.py > $(OUTDIR)/pmfeatures.h
+	@$(PYTHON) $(PYMITETOOLS)/pmImgCreator.py -f $(PYMITEPLAT)/pmfeatures.py -c -u -o $(OUTDIR)/pmlibusr_img.c --native-file=$(OUTDIR)/pmlibusr_nat.c $(FLIGHTPLANS)/test.py
 
 # Link: create ELF output file from object files.
 $(eval $(call LINK_TEMPLATE, $(OUTDIR)/$(TARGET).elf, $(ALLOBJ)))
@@ -499,19 +532,19 @@ $(eval $(call PARTIAL_COMPILE_ARM_TEMPLATE, SRCARM))
 
 $(OUTDIR)/$(TARGET).bin.o: $(OUTDIR)/$(TARGET).bin
 
-$(eval $(call TLFW_TEMPLATE,$(OUTDIR)/$(TARGET).bin,$(BOARD_TYPE),$(BOARD_REVISION)))
+$(eval $(call OPFW_TEMPLATE,$(OUTDIR)/$(TARGET).bin,$(BOARD_TYPE),$(BOARD_REVISION)))
 
 # Add jtag targets (program and wipe)
 $(eval $(call JTAG_TEMPLATE,$(OUTDIR)/$(TARGET).bin,$(FW_BANK_BASE),$(FW_BANK_SIZE),$(OPENOCD_JTAG_CONFIG),$(OPENOCD_CONFIG)))
 
-.PHONY: elf lss sym hex bin bino tlfw
-elf: $(OUTDIR)/$(TARGET).elf
-lss: $(OUTDIR)/$(TARGET).lss
-sym: $(OUTDIR)/$(TARGET).sym
-hex: $(OUTDIR)/$(TARGET).hex
-bin: $(OUTDIR)/$(TARGET).bin
+.PHONY: elf lss sym hex bin bino opfw
+elf:  $(OUTDIR)/$(TARGET).elf
+lss:  $(OUTDIR)/$(TARGET).lss
+sym:  $(OUTDIR)/$(TARGET).sym
+hex:  $(OUTDIR)/$(TARGET).hex
+bin:  $(OUTDIR)/$(TARGET).bin
 bino: $(OUTDIR)/$(TARGET).bin.o
-tlfw: $(OUTDIR)/$(TARGET).tlfw
+opfw: $(OUTDIR)/$(TARGET).opfw
 
 # Display sizes of sections.
 $(eval $(call SIZE_TEMPLATE, $(OUTDIR)/$(TARGET).elf))
@@ -521,11 +554,11 @@ docs:
 	doxygen  $(DOXYGENDIR)/doxygen.cfg
 
 # Install: install binary file with prefix/suffix into install directory
-install: $(OUTDIR)/$(TARGET).tlfw
+install: $(OUTDIR)/$(TARGET).opfw
 ifneq ($(INSTALL_DIR),)
 	@echo $(MSG_INSTALLING) $(call toprel, $<)
 	$(V1) mkdir -p $(INSTALL_DIR)
-	$(V1) $(INSTALL) $< $(INSTALL_DIR)/$(INSTALL_PFX)$(TARGET)$(INSTALL_SFX).tlfw
+	$(V1) $(INSTALL) $< $(INSTALL_DIR)/$(INSTALL_PFX)$(TARGET)$(INSTALL_SFX).opfw
 else
 	$(error INSTALL_DIR must be specified for $@)
 endif
