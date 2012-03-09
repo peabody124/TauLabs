@@ -117,29 +117,6 @@ int main()
 	ADC_ExternalTrigConvCmd(ADC1, ENABLE);
 	ADC_ExternalTrigConvCmd(ADC2, ENABLE);
 
-	// TODO: Move this into a PIOS_DELAY functi
-
-/*	// TODO: Move this into a PIOS_DELAY function
-	TIM_OCInitTypeDef tim_oc_init = {
-		.TIM_OCMode = TIM_OCMode_PWM1,
-		.TIM_OutputState = TIM_OutputState_Enable,
-		.TIM_OutputNState = TIM_OutputNState_Disable,
-		.TIM_Pulse = 0,
-		.TIM_OCPolarity = TIM_OCPolarity_High,
-		.TIM_OCNPolarity = TIM_OCPolarity_High,
-		.TIM_OCIdleState = TIM_OCIdleState_Reset,
-		.TIM_OCNIdleState = TIM_OCNIdleState_Reset,
-	};
-	TIM_OC1Init(TIM4, &tim_oc_init);
-	TIM_ITConfig(TIM4, TIM_IT_CC1, ENABLE);  // Enabled by FSM 
-
-	NVIC_InitTypeDef NVIC_InitStructure;
-	NVIC_InitStructure.NVIC_IRQChannel = TIM4_IRQn;
-	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = PIOS_IRQ_PRIO_HIGH;
-	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
-	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
-	NVIC_Init(&NVIC_InitStructure); */
-
 	PIOS_LED_On(LED_GO);
 	PIOS_LED_Off(LED_ERR);
 

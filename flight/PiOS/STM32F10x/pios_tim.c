@@ -139,7 +139,9 @@ int32_t PIOS_TIM_InitChannels(uint32_t * tim_id, const struct pios_tim_channel *
 			PIOS_Assert(0);
 			break;
 		}
-		GPIO_Init(chan->pin.gpio, &chan->pin.init);
+		
+		if (chan->pin.gpio != NULL)
+			GPIO_Init(chan->pin.gpio, &chan->pin.init);
 
 		if (chan->remap) {
 			GPIO_PinRemapConfig(chan->remap, ENABLE);

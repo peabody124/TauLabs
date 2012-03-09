@@ -708,6 +708,21 @@ uint32_t events = 0;
 /**
  * The event interrupt
  */
+void PIOS_ESC_tim_edge_cb (uint32_t id, uint32_t context, uint8_t channel, uint16_t count)
+{
+	timeouts++;
+	if(esc_data.scheduled_event_armed) {
+		events++;
+		esc_data.scheduled_event_armed = false;
+		esc_fsm_inject_event(esc_data.scheduled_event, PIOS_DELAY_GetuS());
+	}
+}
+
+void PIOS_ESC_tim_overflow_cb (uint32_t id, uint32_t context, uint8_t channel, uint16_t count)
+{
+	
+}
+
 void PIOS_DELAY_timeout() {
 	timeouts++;
 	if(esc_data.scheduled_event_armed) {

@@ -27,6 +27,25 @@
 
 #include "board_hw_defs.c"
 
+
+extern void PIOS_ESC_tim_overflow_cb (uint32_t id, uint32_t context, uint8_t channel, uint16_t count);
+extern void PIOS_ESC_tim_edge_cb (uint32_t id, uint32_t context, uint8_t channel, uint16_t count);
+const static struct pios_tim_callbacks esc_callbacks = {
+	.overflow = PIOS_ESC_tim_overflow_cb,
+	.edge     = PIOS_ESC_tim_edge_cb,
+};
+
+static const struct pios_tim_channel pios_tim_esctiming_channels[] = {
+	{
+		.timer = TIM4,
+		.timer_chan = TIM_Channel_1,
+		.pin = {
+			.gpio = NULL,
+		},
+	},
+};
+
+
 /**
  * PIOS_Board_Init()
  * initializes all the core subsystems on this specific hardware
@@ -62,6 +81,33 @@ void PIOS_Board_Init(void) {
 	}
 	pios_rcvr_group_map[0] = pios_pwm_rcvr_id;
 #endif
+
+
+	/* Configure the timer to use a compare mode */
+	TIM_OCInitTypeDef oc_init = {
+		.TIM_OCMode = TIM_OCMode_PWM1,
+		.TIM_OutputState = TIM_OutputState_Enable,
+		.TIM_OutputNState = TIM_OutputNState_Disable,
+		.TIM_Pulse = 0,
+		.TIM_OCPolarity = TIM_OCPolarity_High,
+		.TIM_OCNPolarity = TIM_OCPolarity_High,
+		.TIM_OCIdleState = TIM_OCIdleState_Reset,
+		.TIM_OCNIdleState = TIM_OCNIdleState_Reset,
+	};
+	switch(pios_tim_esctiming_channels[0].timer_chan) {
+		case TIM_Channel_1:
+			TIM_OC1Init(pios_tim_esctiming_channels[0].timer, &oc_init);
+			break;
+		default:
+			PIOS_Assert(0);
+			break;
+	}
+	
+	/* Install the callbacks for hardware timing */
+	uint32_t tim_id;
+	if (PIOS_TIM_InitChannels(&tim_id, pios_tim_esctiming_channels, NELEMENTS(pios_tim_esctiming_channels), &esc_callbacks, 0)) {
+		PIOS_DEBUG_Assert(0);
+	}
 
 	/* Communication system */
 	if (PIOS_USART_Init(&pios_usart_debug_id, &pios_usart_debug_cfg)) {
