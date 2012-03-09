@@ -45,7 +45,4 @@
 #define PIOS_INCLUDE_IAP
 //#define PIOS_INCLUDE_WDG
 
-// So that we can handle the hardware timing
-#define PIOS_TIM_EXCLUDE4
-
 #endif /* PIOS_CONFIG_H */
