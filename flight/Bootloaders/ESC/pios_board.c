@@ -24,8 +24,7 @@
  */
 
 #include <pios.h>
-
-// ***********************************************************************************
+#include "board_hw_defs.c"
 
 /**
  * PIOS_Board_Init()
@@ -37,6 +36,8 @@ void PIOS_Board_Init(void) {
 	if (board_init_complete) {
 		return;
 	}
+
+	PIOS_LED_Init(&pios_led_cfg);
 
 	/* Enable Prefetch Buffer */
 	FLASH_PrefetchBufferCmd(FLASH_PrefetchBuffer_Enable);

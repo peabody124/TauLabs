@@ -56,6 +56,9 @@ int main() {
 
 	/* Brings up System using CMSIS functions, enables the LEDs. */
 	PIOS_SYS_Init();
+	PIOS_IAP_Init();
+	PIOS_Board_Init();
+
 	PIOS_DELAY_Init();
 	
 	PIOS_LED_On(0);

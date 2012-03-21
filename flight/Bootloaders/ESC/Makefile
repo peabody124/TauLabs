@@ -86,6 +86,7 @@ RTOSDIR = $(APPLIBDIR)/FreeRTOS
 RTOSSRCDIR = $(RTOSDIR)/Source
 RTOSINCDIR = $(RTOSSRCDIR)/include
 DOXYGENDIR = ../Doc/Doxygen
+HWDEFSINC = ../../board_hw_defs/$(BOARD_NAME)
 
 # List C source files here. (C dependencies are automatically generated.)
 # use file-extension c for "c-only"-files
@@ -96,13 +97,21 @@ SRC += $(OPSYSTEM)/pios_board.c
 #SRC += $(OPSYSTEM)/op_dfu.c
 
 ## PIOS Hardware (STM32F10x)
+SRC += $(PIOSSTM32F10X)/pios_adc.c
 SRC += $(PIOSSTM32F10X)/pios_sys.c
 SRC += $(PIOSSTM32F10X)/pios_led.c
+SRC += $(PIOSSTM32F10X)/pios_esc.c
 SRC += $(PIOSSTM32F10X)/pios_delay.c
 SRC += $(PIOSSTM32F10X)/pios_usart.c
 SRC += $(PIOSSTM32F10X)/pios_irq.c
-SRC += $(PIOSSTM32F10X)/pios_debug.c
+SRC += $(PIOSSTM32F10X)/pios_i2c.c
 SRC += $(PIOSSTM32F10X)/pios_gpio.c
+SRC += $(PIOSSTM32F10X)/pios_spi.c
+SRC += $(PIOSSTM32F10X)/pios_exti.c
+SRC += $(PIOSSTM32F10X)/pios_pwm.c
+SRC += $(PIOSSTM32F10X)/pios_tim.c
+SRC += $(PIOSSTM32F10X)/pios_wdg.c
+#SRC += $(PIOSSTM32F10X)/pios_softusart.c
 
 ## PIOS Hardware (Common)
 SRC += $(PIOSCOMMON)/pios_board_info.c
@@ -119,17 +128,22 @@ SRC += $(CMSISDIR)/core_cm3.c
 SRC += $(CMSISDIR)/system_stm32f10x.c
 
 ## Used parts of the STM-Library
+SRC += $(STMSPDSRCDIR)/stm32f10x_adc.c
 SRC += $(STMSPDSRCDIR)/stm32f10x_bkp.c
 SRC += $(STMSPDSRCDIR)/stm32f10x_crc.c
+SRC += $(STMSPDSRCDIR)/stm32f10x_dac.c
 SRC += $(STMSPDSRCDIR)/stm32f10x_dma.c
 SRC += $(STMSPDSRCDIR)/stm32f10x_exti.c
 SRC += $(STMSPDSRCDIR)/stm32f10x_flash.c
 SRC += $(STMSPDSRCDIR)/stm32f10x_gpio.c
+SRC += $(STMSPDSRCDIR)/stm32f10x_i2c.c
 SRC += $(STMSPDSRCDIR)/stm32f10x_pwr.c
 SRC += $(STMSPDSRCDIR)/stm32f10x_rcc.c
 SRC += $(STMSPDSRCDIR)/stm32f10x_rtc.c
 SRC += $(STMSPDSRCDIR)/stm32f10x_spi.c
+SRC += $(STMSPDSRCDIR)/stm32f10x_tim.c
 SRC += $(STMSPDSRCDIR)/stm32f10x_usart.c
+SRC += $(STMSPDSRCDIR)/stm32f10x_iwdg.c
 SRC += $(STMSPDSRCDIR)/stm32f10x_dbgmcu.c
 SRC += $(STMSPDSRCDIR)/misc.c
 
@@ -181,7 +195,7 @@ EXTRAINCDIRS  += $(MSDDIR)
 EXTRAINCDIRS  += $(RTOSINCDIR)
 EXTRAINCDIRS  += $(APPLIBDIR)
 EXTRAINCDIRS  += $(RTOSSRCDIR)/portable/GCC/ARM_CM3
-
+EXTRAINCDIRS  += $(HWDEFSINC)
 
 
 # List any extra directories to look for library files here.

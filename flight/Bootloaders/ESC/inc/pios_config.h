@@ -41,6 +41,7 @@
 #define PIOS_INCLUDE_COM
 #define PIOS_INCLUDE_GPIO
 #define PIOS_INCLUDE_IAP
+#define PIOS_INCLUDE_PWM
 //#define DEBUG_SSP
 
 /* Defaults for Logging */
