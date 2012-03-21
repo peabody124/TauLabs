@@ -41,7 +41,7 @@ const EscSettingsData default_config = {
 	.HardCurrentLimit = 23000,
 	.Braking = ESCSETTINGS_BRAKING_OFF,
 	.Direction = ESCSETTINGS_DIRECTION_FORWARD,
-	.Mode = ESCSETTINGS_MODE_CLOSED,
+	.Mode = ESCSETTINGS_MODE_OPEN,
 };
 
 static uint32_t settings_crc(const EscSettingsData * settings) 
