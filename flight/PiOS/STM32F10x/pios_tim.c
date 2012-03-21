@@ -124,6 +124,14 @@ int32_t PIOS_TIM_InitChannels(uint32_t * tim_id, const struct pios_tim_channel *
 	for (uint8_t i = 0; i < num_channels; i++) {
 		const struct pios_tim_channel * chan = &(channels[i]);
 
+		if (chan->remap) {
+			GPIO_PinRemapConfig(chan->remap, ENABLE);
+		}
+
+		// Channel timers can be used without a physical pin
+		if (chan->pin.gpio == NULL)
+			continue;
+
 		/* Enable the peripheral clock for the GPIO */
 		switch ((uint32_t)chan->pin.gpio) {
 		case (uint32_t) GPIOA:
@@ -142,10 +150,6 @@ int32_t PIOS_TIM_InitChannels(uint32_t * tim_id, const struct pios_tim_channel *
 		
 		if (chan->pin.gpio != NULL)
 			GPIO_Init(chan->pin.gpio, &chan->pin.init);
-
-		if (chan->remap) {
-			GPIO_PinRemapConfig(chan->remap, ENABLE);
-		}
 	}
 
 	*tim_id = (uint32_t)tim_dev;

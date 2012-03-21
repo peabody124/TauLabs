@@ -97,6 +97,7 @@ void PIOS_Board_Init(void) {
 	switch(pios_tim_esctiming_channels[0].timer_chan) {
 		case TIM_Channel_1:
 			TIM_OC1Init(pios_tim_esctiming_channels[0].timer, &oc_init);
+			TIM_ITConfig(pios_tim_esctiming_channels[0].timer, TIM_IT_CC1, ENABLE);
 			break;
 		default:
 			PIOS_Assert(0);
