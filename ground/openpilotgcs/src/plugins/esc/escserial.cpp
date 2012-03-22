@@ -1,5 +1,6 @@
 #include "escserial.h"
 #include "escsettings.h"
+#include <QThread>
 #include <QDebug>
 
 /* The size of the data packets.  Unfortunately the compiler won't allow */
@@ -20,6 +21,15 @@ const int EscSerial::esc_command_data_size[ESC_COMMAND_LAST] = {
     /*[EscSerial::ESC_COMMAND_SET_PWM_FREQ] = */ 2,
     /*[EscSerial::ESC_COMMAND_GET_STATUS] = */ 0,
     /*[EscSerial::ESC_COMMAND_BOOTLOADER] = */ 2,
+};
+
+class SleepThread : public QThread
+{
+public:
+    static void usleep(unsigned long usecs)
+    {
+        QThread::usleep(usecs);
+    }
 };
 
 /**
@@ -97,7 +107,7 @@ void EscSerial::writeCommand(enum esc_serial_command command, const char *data)
     // Sending byte by byte because weird things happen otherwise
     for (int i = 0; i < 2 + esc_command_data_size[command]; i++) {
         qio->write(&buffer[i], 1);
-        usleep(500);
+        SleepThread::usleep(500);
     }
     delete buffer;
 }
