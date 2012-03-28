@@ -205,6 +205,20 @@ int main()
 	return 0;
 }
 
+void panic_wait(uint32_t delay_ms)
+{
+	// Serial interface: Process any incoming characters, and then process
+	// any ongoing messages
+	uint32_t in_time = PIOS_DELAY_GetRaw();
+	
+	while(PIOS_DELAY_DiffuS(in_time) < (delay_ms * 1000)) {
+		uint8_t c;
+		if(PIOS_COM_ReceiveBuffer(PIOS_COM_DEBUG, &c, 1, 0) == 1)
+			esc_serial_parse(c);
+		esc_serial_process();
+	}
+}
+
 /* INS functions */
 void panic(int diagnostic_code)
 {
@@ -216,17 +230,17 @@ void panic(int diagnostic_code)
 			PIOS_LED_On(LED_ERR);
 			PIOS_LED_On(PIOS_LED_HEARTBEAT);
 			for(int i = 0 ; i < 250; i++) {
-				PIOS_DELAY_WaitmS(1); //Count 1ms intervals in order to allow for possibility of watchdog
+				panic_wait(1); //Count 1ms intervals in order to allow for possibility of watchdog
 			}
 
 			PIOS_LED_Off(LED_ERR);
 			PIOS_LED_Off(PIOS_LED_HEARTBEAT);
 			for(int i = 0 ; i < 250; i++) {
-				PIOS_DELAY_WaitmS(1); //Count 1ms intervals in order to allow for possibility of watchdog
+				panic_wait(1); //Count 1ms intervals in order to allow for possibility of watchdog
 			}
 
 		}
-		PIOS_DELAY_WaitmS(1000);
+		panic_wait(1000);
 	}
 }
 
