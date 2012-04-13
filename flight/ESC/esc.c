@@ -199,7 +199,10 @@ int main()
 		}
 		
 		if (esc_control.control_method == ESC_CONTROL_SERIAL) {
-			esc_data->speed_setpoint = esc_control.serial_input;
+			if (config.Mode == ESCSETTINGS_MODE_CLOSED)
+				esc_data->speed_setpoint = esc_control.serial_input;
+			else if (config.Mode == ESCSETTINGS_MODE_OPEN)
+				esc_data->duty_cycle_setpoint = PIOS_ESC_MAX_DUTYCYCLE * esc_control.serial_input / 100;
 		}
 	}
 	return 0;
