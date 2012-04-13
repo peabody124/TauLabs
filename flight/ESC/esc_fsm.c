@@ -384,7 +384,7 @@ static void go_esc_startup_grab(uint16_t time)
 	for(uint8_t i = 0; i < NUM_STORED_SWAP_INTERVALS; i++)
 		esc_data.swap_intervals[i] = 0;
 	esc_data.swap_interval_sum = 0;
-	esc_data.duty_cycle = 0.15 * PIOS_ESC_MAX_DUTYCYCLE;
+	esc_data.duty_cycle = 0.20 * PIOS_ESC_MAX_DUTYCYCLE;
 	PIOS_DELAY_WaitmS(100);
 	PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
 	esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, 50000);  // Grab stator for 50 ms
@@ -398,7 +398,7 @@ static void go_esc_startup_wait(uint16_t time)
 {
 	// Get the predicted duty_cycle for 1500 rpm
 	//esc_data.duty_cycle = (PIOS_ESC_MAX_DUTYCYCLE * 1000 * 1500 / config.Kv) / esc_data.battery_mv;
-	esc_data.duty_cycle = 0.15 * PIOS_ESC_MAX_DUTYCYCLE;
+	esc_data.duty_cycle = 0.10 * PIOS_ESC_MAX_DUTYCYCLE;
 	PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
 
 	commutate();
@@ -424,10 +424,13 @@ static void go_esc_startup_zcd(uint16_t time)
 	// this is dealing with a startup condition where noise will cause the ZCD to detect early, and
 	// then drive the speed up and make this happen really quickly and trigger a stall.  It can be
 	// neglected entirely but doing this makes it startup faster by phasing itself.
-	if(abs(esc_data.last_zcd_time - RPM_TO_US(esc_data.current_speed) / 2) < 250)
+	if(abs(esc_data.last_zcd_time - RPM_TO_US(esc_data.current_speed) / 2) < 1250)
 		esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, RPM_TO_US(esc_data.current_speed) / 2);
 
-	if(esc_data.consecutive_detected > 10) {
+	if(esc_data.current_speed < config.FinalStartupSpeed)
+		esc_data.current_speed+=5;
+
+	if(esc_data.consecutive_detected > 6) {
 		esc_data.consecutive_detected = 0;
 		esc_fsm_inject_event(ESC_EVENT_CLOSED, 0);
 	} else {
@@ -451,7 +454,7 @@ static void go_esc_startup_nozcd(uint16_t time)
 
 		// Since we aren't getting ZCD keep accelerating
 		if(esc_data.current_speed < config.FinalStartupSpeed)
-			esc_data.current_speed+=10;
+			esc_data.current_speed+=20;
 
 		// Schedule next commutation
 		esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, RPM_TO_US(esc_data.current_speed));
