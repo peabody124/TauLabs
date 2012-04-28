@@ -250,10 +250,26 @@ int32_t esc_serial_process()
 
 			// Send next byte of ADC log
 			uint8_t * buf = esc_logger_getbuffer();
-			if (PIOS_COM_SendCharNonBlocking(PIOS_COM_DEBUG, buf[esc_serial_state.sending_pointer]) != 0)
-				return 0;
-
-			esc_serial_state.sending_pointer ++;
+			int32_t ret_val = PIOS_COM_SendCharNonBlocking(PIOS_COM_DEBUG, buf[esc_serial_state.sending_pointer]);
+			
+			switch(ret_val) {
+				case 1:
+					// Sent byte
+					esc_serial_state.sending_pointer ++;
+					break;
+				case -1:
+					// Port not available.  Serious bug.
+					esc_serial_state.state = ESC_SERIAL_WAIT_SYNC;
+					esc_control.backbuffer_logging_status = ESC_LOGGING_NONE;
+					esc_serial_state.sending_pointer = 0;
+					return -1;
+				case -2:
+					// Port full.  Try again later
+					return 0;
+				default: // Shouldn't happen
+					PIOS_ESC_Off();
+					PIOS_DEBUG_Assert(0);
+			}
 
 			if (esc_serial_state.sending_pointer >= esc_logger_getlength()) {
 				esc_serial_state.state = ESC_SERIAL_WAIT_SYNC;
