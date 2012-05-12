@@ -324,7 +324,21 @@ classdef EscSerial
             system(['./tools/stm32flash/stm32flash -w esc.bin -v -g 0x0 -b 115200 ' self.port]);
             self = openPort(self, self.port);
         end
-        
+
+        function self = program(self)
+            self = closePort(self);
+            escbin;
+            system(['./tools/stm32flash/stm32flash -w esc.bin -v -g 0x0 -b 115200 ' self.port]);
+            self = openPort(self, self.port);
+        end
+
+        function self = boot(self)
+            self = closePort(self);
+            escbin;
+            system(['./tools/stm32flash/stm32flash -g 0x0 -b 115200 ' self.port]);
+            self = openPort(self, self.port);
+        end
+
         function display(esc)
             if(isOpen(esc))
                 disp('Esc is connected');
