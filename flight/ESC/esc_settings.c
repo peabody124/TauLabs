@@ -119,6 +119,8 @@ int32_t esc_settings_save(EscSettingsData * settings)
 
     // address of settings in FLASH area
     flash_addr = pios_board_info_blob.ee_base;
+	if(flash_addr != 0x0800FC00)
+		return -10;
 	
 	if(pios_board_info_blob.ee_size < sizeof(*settings))
 	   return -2;
@@ -131,14 +133,14 @@ int32_t esc_settings_save(EscSettingsData * settings)
 	// TODO: Check the settings have change AND the area isn't already erased
 
 	// Erase page
-	fs = FLASH_ErasePage(pios_board_info_blob.ee_base);
+	fs = FLASH_ErasePage(flash_addr);
 	if (fs != FLASH_COMPLETE)
 	{   // error
 		FLASH_Lock();
 		return -3;
 	}	
 
-	fs = FLASH_ErasePage(pios_board_info_blob.ee_base + 0x40);
+	fs = FLASH_ErasePage(flash_addr + 0x40);
 	if (fs != FLASH_COMPLETE)
 	{   // error
 		FLASH_Lock();

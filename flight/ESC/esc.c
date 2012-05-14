@@ -192,9 +192,10 @@ int main()
 			esc_serial_parse(c);
 		esc_serial_process();
 		
-		if(esc_control.save_requested && esc_data->state == ESC_STATE_IDLE) {
+		if(esc_control.save_requested && (esc_data->state == ESC_STATE_IDLE || esc_data->state == ESC_STATE_WAIT_FOR_ARM)) {
 			esc_control.save_requested = false;
-			esc_settings_save(&config);
+			int8_t ret_val = esc_settings_save(&config);
+			PIOS_COM_SendBufferNonBlocking(PIOS_COM_DEBUG, (uint8_t *) &ret_val, sizeof(ret_val));
 			// TODO: Send serial ack if succeeded or failed
 		}
 		

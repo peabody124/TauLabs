@@ -190,6 +190,7 @@ classdef EscSerial
         function self = saveConfiguration(self)
             assert(isOpen(self), 'Open serial port first');
             fwrite(self.ser, uint8([self.SYNC_BYTE self.ESC_COMMAND_SAVE_CONFIG]));
+            retval = fread(self.ser, 1, 'int8')
         end
         
         function status = getStatus(self)
