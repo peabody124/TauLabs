@@ -140,6 +140,7 @@ int main()
 	
 	esc_data = esc_fsm_init();
 	esc_data->speed_setpoint = -1;
+	esc_data->duty_cycle_setpoint = -1;
 
 	PIOS_ADC_StartDma();
 	
@@ -164,22 +165,24 @@ int main()
 		}
 		
 		// 1 based indexing on channels
-		uint32_t capture_value = PIOS_RCVR_Read(pios_rcvr_group_map[0],1);
+		uint16_t capture_value = PIOS_RCVR_Read(pios_rcvr_group_map[0],1);
 		esc_control.pwm_input = capture_value;
 		if(esc_control.control_method == ESC_CONTROL_PWM) {
-			if (capture_value == (uint16_t) PIOS_RCVR_INVALID || capture_value == (uint16_t) PIOS_RCVR_NODRIVER ||
-				(config.Mode != ESCSETTINGS_MODE_OPEN && config.Mode == ESCSETTINGS_MODE_CLOSED)) {
+			if (capture_value == (uint16_t) PIOS_RCVR_INVALID || capture_value == (uint16_t) PIOS_RCVR_NODRIVER || (uint16_t)	capture_value == PIOS_RCVR_TIMEOUT) {
 				esc_data->speed_setpoint = -1;
 				esc_data->duty_cycle_setpoint = -1;
 			}
 			else if (config.Mode == ESCSETTINGS_MODE_CLOSED) {
 				uint32_t scaled_capture = config.RpmMin + (capture_value - config.PwmMin) * (config.RpmMax - config.RpmMin) / (config.PwmMax - config.PwmMin);
 				esc_data->speed_setpoint = (capture_value < config.PwmMin) ? 0 : scaled_capture;
-				esc_data->duty_cycle_setpoint = 0;
+				esc_data->duty_cycle_setpoint = -1;
 			} else if (config.Mode == ESCSETTINGS_MODE_OPEN){
 				uint32_t scaled_capture = (capture_value - config.PwmMin) * PIOS_ESC_MAX_DUTYCYCLE / (config.PwmMax - config.PwmMin);
 				esc_data->duty_cycle_setpoint = (capture_value < config.PwmMin) ? 0 : scaled_capture;
-				esc_data->speed_setpoint = 0;
+				esc_data->speed_setpoint = -1;
+			} else { // Invalid mode specified
+				esc_data->speed_setpoint = -1;
+				esc_data->duty_cycle_setpoint = -1;
 			}
 		}
 
@@ -203,7 +206,7 @@ int main()
 			if (config.Mode == ESCSETTINGS_MODE_CLOSED)
 				esc_data->speed_setpoint = esc_control.serial_input;
 			else if (config.Mode == ESCSETTINGS_MODE_OPEN)
-				esc_data->duty_cycle_setpoint = PIOS_ESC_MAX_DUTYCYCLE * esc_control.serial_input / 100;
+				esc_data->duty_cycle_setpoint = PIOS_ESC_MAX_DUTYCYCLE * esc_control.serial_input / 10000;
 		}
 	}
 	return 0;
