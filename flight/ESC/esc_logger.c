@@ -8,7 +8,7 @@
 
 #include "pios.h"
 
-#define BACKBUFFER_SIZE 4048
+#define BACKBUFFER_SIZE 12048
 uint8_t back_buf[BACKBUFFER_SIZE];
 uint32_t back_buf_point = 0;
 

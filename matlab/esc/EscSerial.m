@@ -306,7 +306,7 @@ classdef EscSerial
             pause(0.5);
             fwrite(self.ser, uint8([self.SYNC_BYTE self.ESC_COMMAND_GET_ADC_LOG]));
             for i = 1:40
-                if get(self.ser,'BytesAvailable') == 4048
+                if get(self.ser,'BytesAvailable') == 12048
                     break;
                 end
                 pause(0.1);
