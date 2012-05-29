@@ -282,7 +282,7 @@ static void get_voltages()
 	PIOS_ESC_TestGate(ESC_A_LOW);
 	PIOS_DELAY_WaituS(250);
 	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE);
-	PIOS_DELAY_WaituS(3000);
+	PIOS_DELAY_WaituS(250);
 	voltages[1][0] = PIOS_ADC_PinGet(1);
 	voltages[1][1] = PIOS_ADC_PinGet(2);
 	voltages[1][2] = PIOS_ADC_PinGet(3);
@@ -291,7 +291,7 @@ static void get_voltages()
 	PIOS_ESC_TestGate(ESC_A_HIGH);
 	PIOS_DELAY_WaituS(250);
 	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE);
-	PIOS_DELAY_WaituS(3000);
+	PIOS_DELAY_WaituS(250);
 	voltages[0][0] = PIOS_ADC_PinGet(1);
 	voltages[0][1] = PIOS_ADC_PinGet(2);
 	voltages[0][2] = PIOS_ADC_PinGet(3);
@@ -300,7 +300,7 @@ static void get_voltages()
 	PIOS_ESC_TestGate(ESC_B_LOW);
 	PIOS_DELAY_WaituS(250);
 	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE);
-	PIOS_DELAY_WaituS(3000);
+	PIOS_DELAY_WaituS(250);
 	voltages[3][0] = PIOS_ADC_PinGet(1);
 	voltages[3][1] = PIOS_ADC_PinGet(2);
 	voltages[3][2] = PIOS_ADC_PinGet(3);
@@ -309,7 +309,7 @@ static void get_voltages()
 	PIOS_ESC_TestGate(ESC_B_HIGH);
 	PIOS_DELAY_WaituS(250);
 	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE);
-	PIOS_DELAY_WaituS(3000);
+	PIOS_DELAY_WaituS(250);
 	voltages[2][0] = PIOS_ADC_PinGet(1);
 	voltages[2][1] = PIOS_ADC_PinGet(2);
 	voltages[2][2] = PIOS_ADC_PinGet(3);
@@ -318,7 +318,7 @@ static void get_voltages()
 	PIOS_ESC_TestGate(ESC_C_LOW);
 	PIOS_DELAY_WaituS(250);
 	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE);
-	PIOS_DELAY_WaituS(3000);
+	PIOS_DELAY_WaituS(250);
 	voltages[5][0] = PIOS_ADC_PinGet(1);
 	voltages[5][1] = PIOS_ADC_PinGet(2);
 	voltages[5][2] = PIOS_ADC_PinGet(3);
@@ -327,7 +327,7 @@ static void get_voltages()
 	PIOS_ESC_TestGate(ESC_C_HIGH);
 	PIOS_DELAY_WaituS(250);
 	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE);
-	PIOS_DELAY_WaituS(3000);
+	PIOS_DELAY_WaituS(250);
 	voltages[4][0] = PIOS_ADC_PinGet(1);
 	voltages[4][1] = PIOS_ADC_PinGet(2);
 	voltages[4][2] = PIOS_ADC_PinGet(3);
@@ -335,9 +335,44 @@ static void get_voltages()
 
 const float scale = 3.3 / 4096 * 12.7 / 2.7;
 
-static void check_motor()
+float max_lead_difference(int16_t voltages[3])
 {
+	float d1, d2, d3;
+	d1 = scale * fabs(voltages[0] - voltages[1]);
+	d2 = scale * fabs(voltages[0] - voltages[2]);
+	d3 = scale * fabs(voltages[1] - voltages[2]);
 	
+	float max = (d1 > d2) ? d1 : d2;
+	max = (max > d3) ? max : d3;
+	
+	return max;
+}
+
+/**
+ * Analyze the voltages from the initial power up test to determine
+ * if a motor is present.  This should be improved to look at current
+ * dynamics and extract the R / L values for the motor
+ */
+static bool check_motor()
+{
+	const float max_diff = 0.3;
+	
+	bool present = (max_lead_difference(voltages[0]) < max_diff) &&
+		(max_lead_difference(voltages[1]) < max_diff) &&
+		(max_lead_difference(voltages[2]) < max_diff) &&
+		(max_lead_difference(voltages[3]) < max_diff) &&
+		(max_lead_difference(voltages[4]) < max_diff) &&
+		(max_lead_difference(voltages[5]) < max_diff) &&
+		(max_lead_difference(voltages[6]) < max_diff);
+
+	// For now just indicate this with long LED pulse
+	if (!present) {
+		PIOS_LED_On(LED_ERR);
+		PIOS_DELAY_WaitmS(1000);
+		PIOS_LED_Off(LED_ERR);
+	}
+
+	return present;
 }
 
 void test_esc() 
