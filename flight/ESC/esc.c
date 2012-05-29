@@ -255,19 +255,18 @@ void panic(int diagnostic_code)
 //TODO: Other things to test for 
 //      - impedance from motor(?)
 //      - difference between high voltages
-int32_t voltages[6][3];
-void test_esc() {
-
-
+int16_t voltages[6][3];
+static void get_voltages()
+{
 	PIOS_ESC_Off();
 	for(int i = 0; i < 150; i++) {
 		PIOS_DELAY_WaitmS(1);
 	}
-
+	
 	zero_current = PIOS_ADC_PinGet(0);
-
+	
 	PIOS_ESC_Arm();
-
+	
 	PIOS_ESC_TestGate(ESC_A_LOW);
 	PIOS_DELAY_WaituS(250);
 	low_voltages[0] = PIOS_ADC_PinGet(1);
@@ -278,7 +277,7 @@ void test_esc() {
 	PIOS_DELAY_WaituS(250);
 	low_voltages[2] = PIOS_ADC_PinGet(3);
 	avg_low_voltage = low_voltages[0] + low_voltages[1] + low_voltages[2];
-
+	
 	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 2);
 	PIOS_ESC_TestGate(ESC_A_LOW);
 	PIOS_DELAY_WaituS(250);
@@ -287,7 +286,7 @@ void test_esc() {
 	voltages[1][0] = PIOS_ADC_PinGet(1);
 	voltages[1][1] = PIOS_ADC_PinGet(2);
 	voltages[1][2] = PIOS_ADC_PinGet(3);
-
+	
 	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 2);
 	PIOS_ESC_TestGate(ESC_A_HIGH);
 	PIOS_DELAY_WaituS(250);
@@ -296,7 +295,7 @@ void test_esc() {
 	voltages[0][0] = PIOS_ADC_PinGet(1);
 	voltages[0][1] = PIOS_ADC_PinGet(2);
 	voltages[0][2] = PIOS_ADC_PinGet(3);
-
+	
 	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 2);
 	PIOS_ESC_TestGate(ESC_B_LOW);
 	PIOS_DELAY_WaituS(250);
@@ -305,7 +304,7 @@ void test_esc() {
 	voltages[3][0] = PIOS_ADC_PinGet(1);
 	voltages[3][1] = PIOS_ADC_PinGet(2);
 	voltages[3][2] = PIOS_ADC_PinGet(3);
-
+	
 	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 2);
 	PIOS_ESC_TestGate(ESC_B_HIGH);
 	PIOS_DELAY_WaituS(250);
@@ -314,7 +313,7 @@ void test_esc() {
 	voltages[2][0] = PIOS_ADC_PinGet(1);
 	voltages[2][1] = PIOS_ADC_PinGet(2);
 	voltages[2][2] = PIOS_ADC_PinGet(3);
-
+	
 	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 2);
 	PIOS_ESC_TestGate(ESC_C_LOW);
 	PIOS_DELAY_WaituS(250);
@@ -323,7 +322,7 @@ void test_esc() {
 	voltages[5][0] = PIOS_ADC_PinGet(1);
 	voltages[5][1] = PIOS_ADC_PinGet(2);
 	voltages[5][2] = PIOS_ADC_PinGet(3);
-
+	
 	PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 2);
 	PIOS_ESC_TestGate(ESC_C_HIGH);
 	PIOS_DELAY_WaituS(250);
@@ -332,40 +331,59 @@ void test_esc() {
 	voltages[4][0] = PIOS_ADC_PinGet(1);
 	voltages[4][1] = PIOS_ADC_PinGet(2);
 	voltages[4][2] = PIOS_ADC_PinGet(3);
+}
+
+const float scale = 3.3 / 4096 * 12.7 / 2.7;
+
+static void check_motor()
+{
+	
+}
+
+void test_esc() 
+{
+	const float max_diff = 0.3;
+	const float max_low = 0.1;
+
+	get_voltages();
+
+	float battery = (voltages[0][0] + voltages[2][1] + voltages[4][2]) / 3 * scale;
+	if (battery < 7) // Don't run if battery is too low
+		panic(8);
 
 	// If the particular phase isn't moving fet is dead
-	if(voltages[0][0] < 1000) {
+	if(fabs(voltages[0][0] * scale - battery) > max_diff) {
 		PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 10);
 		PIOS_ESC_TestGate(ESC_A_HIGH);
 		panic(1);
 	}
-	if(voltages[1][0] > 30) {
+	if(voltages[1][0] * scale > max_low) {
 		PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 10);
 		PIOS_ESC_TestGate(ESC_A_LOW);
 		panic(2);		
 	}
-	if(voltages[2][1] < 1000) {
+	if(fabs(voltages[2][1] * scale - battery) > max_diff) {
 		PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 10);
 		PIOS_ESC_TestGate(ESC_B_HIGH);
 		panic(3);
 	}
-	if(voltages[3][1] > 30){
+	if(voltages[3][1] * scale > max_low){
 		PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 10);
 		PIOS_ESC_TestGate(ESC_B_LOW);
 		panic(4);
 	}	
-	if(voltages[4][2] < 1000) {
+	if(fabs(voltages[4][2] * scale - battery) > max_diff) {
 		PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 10);
 		PIOS_ESC_TestGate(ESC_C_HIGH);
 		panic(5);
 	}
-	if(voltages[5][2] > 30){
+	if(voltages[5][2] * scale > max_low){
 		PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 10);
 		PIOS_ESC_TestGate(ESC_C_LOW);
 		panic(6);
 	}
-	// TODO: If other channels don't follow then motor lead bad
 	
 	PIOS_ESC_Off();
 
+	check_motor();
 }
