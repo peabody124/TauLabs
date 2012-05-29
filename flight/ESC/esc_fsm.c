@@ -132,6 +132,7 @@ const static struct esc_transition esc_transition[ESC_FSM_NUM_STATES] = {
 			// Could not get BEMF in time
 			[ESC_EVENT_TIMEOUT] = ESC_STATE_STOPPING,
 			[ESC_EVENT_ZCD] = ESC_STATE_STARTUP_ZCD_DETECTED,
+			[ESC_EVENT_CLOSED] = ESC_STATE_CL_ZCD,
 			[ESC_EVENT_COMMUTATED] = ESC_STATE_STARTUP_NOZCD_COMMUTATED,
 			[ESC_EVENT_STOP] = ESC_STATE_STOPPING,
 		},
@@ -400,9 +401,21 @@ static void go_esc_startup_wait(uint16_t time)
 	//esc_data.duty_cycle = (PIOS_ESC_MAX_DUTYCYCLE * 1000 * 1500 / config.Kv) / esc_data.battery_mv;
 	esc_data.duty_cycle = 0.10 * PIOS_ESC_MAX_DUTYCYCLE;
 	PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
+	
+	if (0) {
+		commutate();
+		esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, RPM_TO_US(esc_data.current_speed));
+	} else {
 
-	commutate();
-	esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, RPM_TO_US(esc_data.current_speed));
+		const uint32_t val = 1000;
+		esc_data.swap_interval_sum = val * NUM_STORED_SWAP_INTERVALS;
+		for (uint8_t i = 0; i < NUM_STORED_SWAP_INTERVALS; i++)
+			esc_data.swap_intervals[i] = val;
+		esc_data.swap_interval_smoothed = esc_data.swap_interval_sum / NUM_STORED_SWAP_INTERVALS;
+		esc_data.current_speed = US_TO_RPM(esc_data.swap_interval_smoothed);
+
+		esc_fsm_inject_event(ESC_EVENT_CLOSED, 0);
+	}
 }
 
 /**
