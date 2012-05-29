@@ -344,7 +344,7 @@ void test_esc()
 {
 	const float max_diff = 0.3;
 	const float max_low = 0.1;
-
+	const bool testing = false;
 	get_voltages();
 
 	float battery = (voltages[0][0] + voltages[2][1] + voltages[4][2]) / 3 * scale;
@@ -354,32 +354,32 @@ void test_esc()
 	// If the particular phase isn't moving fet is dead
 	if(fabs(voltages[0][0] * scale - battery) > max_diff) {
 		PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 10);
-		PIOS_ESC_TestGate(ESC_A_HIGH);
+		if (testing) PIOS_ESC_TestGate(ESC_A_HIGH);
 		panic(1);
 	}
 	if(voltages[1][0] * scale > max_low) {
 		PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 10);
-		PIOS_ESC_TestGate(ESC_A_LOW);
+		if (testing) PIOS_ESC_TestGate(ESC_A_LOW);
 		panic(2);		
 	}
 	if(fabs(voltages[2][1] * scale - battery) > max_diff) {
 		PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 10);
-		PIOS_ESC_TestGate(ESC_B_HIGH);
+		if (testing) PIOS_ESC_TestGate(ESC_B_HIGH);
 		panic(3);
 	}
 	if(voltages[3][1] * scale > max_low){
 		PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 10);
-		PIOS_ESC_TestGate(ESC_B_LOW);
+		if (testing) PIOS_ESC_TestGate(ESC_B_LOW);
 		panic(4);
 	}	
 	if(fabs(voltages[4][2] * scale - battery) > max_diff) {
 		PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 10);
-		PIOS_ESC_TestGate(ESC_C_HIGH);
+		if (testing) PIOS_ESC_TestGate(ESC_C_HIGH);
 		panic(5);
 	}
 	if(voltages[5][2] * scale > max_low){
 		PIOS_ESC_SetDutyCycle(PIOS_ESC_MAX_DUTYCYCLE / 10);
-		PIOS_ESC_TestGate(ESC_C_LOW);
+		if (testing) PIOS_ESC_TestGate(ESC_C_LOW);
 		panic(6);
 	}
 	
