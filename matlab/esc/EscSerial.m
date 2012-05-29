@@ -51,7 +51,8 @@ classdef EscSerial
         ESC_COMMAND_SET_PWM_FREQ = 12;
         ESC_COMMAND_GET_STATUS = 13;
         ESC_COMMAND_BOOTLOADER = 14;
-        ESC_COMMAND_LAST = 15;
+        ESC_COMMAND_GETVOLTAGES = 15;
+        ESC_COMMAND_LAST = 16;
         
         READ_PACKET_LENGTH = 6*2;
     end
@@ -213,6 +214,19 @@ classdef EscSerial
             status.DutyCycle = dat(15);
             status.ZcdFraction = dat(16);
             status.Error = dat(17);
+        end
+        
+        function voltages = getVoltages(self)
+            % Get the configuration from the ESC
+            % dat = getConfiguration(self)
+            assert(isOpen(self), 'Open serial port first');
+            assert(~self.logging, 'Do not do this while serial logging is enabled');
+            flush(self);
+            command = uint8([self.SYNC_BYTE self.ESC_COMMAND_GETVOLTAGES]);
+            fwrite(self.ser, command);
+            pause(0.1);
+            voltages = fread(self.ser, 3*6, 'int16');
+            voltages = reshape(voltages,3,6);
         end
         
         function [self t rpm setpoint dutycycle] = parseLogging(self)

@@ -37,7 +37,8 @@ enum esc_serial_command {
 	ESC_COMMAND_SET_PWM_FREQ = 12,
 	ESC_COMMAND_GET_STATUS = 13,
 	ESC_COMMAND_BOOTLOADER = 14,
-	ESC_COMMAND_LAST = 15,
+	ESC_COMMAND_GETVOLTAGES = 15,
+	ESC_COMMAND_LAST = 16,
 };
 
 //! The size of the data packets
@@ -52,7 +53,8 @@ const uint8_t esc_command_data_size[ESC_COMMAND_LAST] = {
 	[ESC_COMMAND_SET_SPEED] = 2,
 	[ESC_COMMAND_SET_PWM_FREQ] = 2,
 	[ESC_COMMAND_GET_STATUS] = 0,
-	[ESC_COMMAND_BOOTLOADER] = 2
+	[ESC_COMMAND_BOOTLOADER] = 2,
+	[ESC_COMMAND_GETVOLTAGES] = 0
 };
 
 //! States for the ESC parsers
@@ -133,6 +135,7 @@ int32_t esc_serial_parse(int32_t c)
 extern EscSettingsData config;
 extern EscStatusData status;
 extern struct esc_control esc_control;
+extern int16_t voltages[6][3];
 
 /**
  * Process a command once it is parsed
@@ -226,6 +229,10 @@ static int32_t esc_serial_command_received()
 				PIOS_DELAY_WaitmS(20);
                 PIOS_SYS_Reset();
 			}
+			break;
+		case ESC_COMMAND_GETVOLTAGES:
+			retval = PIOS_COM_SendBufferNonBlocking(PIOS_COM_DEBUG, (uint8_t *)voltages, sizeof(voltages));
+			break;
 		default:
 			PIOS_DEBUG_Assert(0);
 	}
