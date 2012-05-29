@@ -2,7 +2,7 @@ function tortureTest(varargin)
 
 params.esc = [];
 params.port = '/dev/tty.usbmodemfd131';
-params.dt_ms = 1;
+params.dt_ms = 50;
 params.low_speed_rpm = 2000;
 params.high_speed_rpm = 8000;
 params.test_time_s = 15;
@@ -96,67 +96,6 @@ if opened
     esc = closePort(esc);
 end
 
-keyboard
-
-b = robustfit(rpm', duty_cycle')
-Kff = b(2) * 32176 / 1024 * 32
-Kff2 = -b(1) * 32176 / 1024
-
-
-esc.configuration.RisingKp = 100; %Kp(i);
-esc.configuration.FallingKp = 100; %Kp(i);
-esc.configuration.Ki = 0;
-esc.configuration.MaxDcChange = 15;
-esc.configuration.ILim = 10000;
-esc.configuration.InitialStartupSpeed = 30;
-esc.configuration.Kff = Kff;
-esc.configuration.Kff2 = Kff2;
-esc = setConfiguration(esc);
-pause(0.1)
-
-
-% flush old data and enable logging 
-if get(esc.ser,'BytesAvailable') > 0
-    fread(esc.ser, get(esc.ser,'BytesAvailable'), 'uint8');
-end
-esc = enableLogging(esc);
-esc.packet = [];
-
-t = [];
-rpm = [];
-setpoint = [];
-duty_cycle = [];
-low = 0;
-
-tic;
-a = [];
-while toc < params.test_time_s
-    pause(params.dt_ms / 1000);
-    speed = params.low_speed_rpm + toc * (params.high_speed_rpm - params.low_speed_rpm) / params.test_time_s;
-    esc = setSerialSpeed(esc, speed);
-    
-    [esc t_ rpm_ setpoint_ dc_] = parseLogging(esc);    
-    t = [t t_];
-    rpm = [rpm rpm_];
-    duty_cycle = [duty_cycle dc_];
-    
-    if mean(rpm) < 100
-        disp('Failed to start or shut down');
-        esc = setSerialSpeed(esc, 0);
-        break;
-    end
-    setpoint = [setpoint setpoint_];
-end
-
-keyboard
-clf
-subplot(211);
-plot((t-t(1))/1000,setpoint,(t-t(1))/1000,rpm + 2* params.sin_amp_rpm);
-legend('setpoint [rpm]','speed [rpm]')
-title('Input and Output (intentionally offset)')
-ylim([params.base_speed_rpm-params.sin_amp_rpm*2  params.base_speed_rpm + 4* params.sin_amp_rpm]);
-xlabel('Time (s)')
-ylabel('RPM');
 
 
 function params = parseVarArgs(params,varargin)
