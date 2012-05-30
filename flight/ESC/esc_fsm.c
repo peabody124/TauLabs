@@ -63,6 +63,7 @@ static void esc_fsm_schedule_event(enum esc_event event, uint16_t time);
 
 static void commutate();
 static void zcd(uint16_t time);
+static void update_duty_cycle(uint16_t new_value);
 static void bound_duty_cycle();
 
 const static struct esc_transition esc_transition[ESC_FSM_NUM_STATES] = {
@@ -280,9 +281,7 @@ void esc_process_static_fsm_rxn() {
 			uint16_t cur_timer = PIOS_DELAY_GetuS();
 
 			if(esc_data.current_ma > config.SoftCurrentLimit) {
-				esc_data.duty_cycle -= 1;
-				bound_duty_cycle();
-				PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
+				update_duty_cycle(esc_data.duty_cycle - 1);
 			}
 			last_timer = cur_timer;
 
@@ -397,12 +396,10 @@ static void go_esc_startup_grab(uint16_t time)
  */
 static void go_esc_startup_wait(uint16_t time)
 {
-	// Get the predicted duty_cycle for 1500 rpm
-	//esc_data.duty_cycle = (PIOS_ESC_MAX_DUTYCYCLE * 1000 * 1500 / config.Kv) / esc_data.battery_mv;
-	esc_data.duty_cycle = 0.10 * PIOS_ESC_MAX_DUTYCYCLE;
-	PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
-	
-	if (0) {
+	update_duty_cycle(0.10 * PIOS_ESC_MAX_DUTYCYCLE);
+
+	const bool active_startup = false;
+	if (active_startup) {
 		commutate();
 		esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, RPM_TO_US(esc_data.current_speed));
 	} else {
@@ -494,7 +491,8 @@ static void go_esc_cl_commutated(uint16_t time)
 	uint32_t timeval = PIOS_DELAY_GetRaw();
 	commutate();
 	esc_fsm_schedule_event(ESC_EVENT_TIMEOUT, esc_data.swap_interval_smoothed << 1);
-//	esc_data.Kv += (esc_data.current_speed / (12 * esc_data.duty_cycle) - esc_data.Kv) * 0.001;
+	// Hardcoding 12V battery here
+	status.Kv += (esc_data.current_speed * PIOS_ESC_MAX_DUTYCYCLE/ (12 * esc_data.duty_cycle) - status.Kv) * 0.001;
 	commutation_time = PIOS_DELAY_DiffuS(timeval);
 }
 
@@ -516,9 +514,7 @@ static void go_esc_cl_zcd(uint16_t time)
 	esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, zcd_delay);
 		
 	if(esc_data.current_ma > config.SoftCurrentLimit) {
-		esc_data.duty_cycle -= config.MaxDcChange;
-		bound_duty_cycle();
-		PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
+		update_duty_cycle(esc_data.duty_cycle - config.MaxDcChange);
 	} else {
 		// Require two rotations when we start this before engaging control loop
 		if (!esc_data.locked) {
@@ -528,7 +524,7 @@ static void go_esc_cl_zcd(uint16_t time)
 		}
 		if (config.Mode == ESCSETTINGS_MODE_OPEN) {
 			// TODO: Include current limiting here
-			esc_data.duty_cycle = esc_data.duty_cycle_setpoint;
+			update_duty_cycle(esc_data.duty_cycle_setpoint);
 		} else if (config.Mode == ESCSETTINGS_MODE_CLOSED) {
 			int32_t error = esc_data.speed_setpoint - esc_data.current_speed;
 			
@@ -791,6 +787,29 @@ static void zcd(uint16_t time)
 	esc_data.zcd_fraction = (zcd_fraction + 3 * esc_data.zcd_fraction) / 4;
 }
 
+/**
+ * Update teh duty cycle to a new value but make
+ * sure this doesn't exeed the maximum slew rate
+ */
+static void update_duty_cycle(uint16_t new_val)
+{
+	static int32_t timeval;
+	int32_t delay = PIOS_DELAY_DiffuS(timeval);
+	timeval = PIOS_DELAY_GetRaw();
+	
+	// MaxDcChange is in units of (1/32178) / µs
+	uint32_t max_val = esc_data.duty_cycle + (1 + ((uint32_t) config.MaxDcChange * (uint32_t) delay) / 20000);
+	esc_data.duty_cycle = new_val > max_val ? max_val : new_val;
+	
+	// Check values and then use them
+	bound_duty_cycle();
+	PIOS_ESC_SetDutyCycle(esc_data.duty_cycle);
+
+}
+
+/**
+ * Check the new duty cycle is safe and allowed
+ */
 static void bound_duty_cycle()
 {
 	if(esc_data.duty_cycle < config.MinDc)
