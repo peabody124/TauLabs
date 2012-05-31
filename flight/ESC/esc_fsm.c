@@ -792,13 +792,9 @@ static void zcd(uint16_t time)
  * sure this doesn't exeed the maximum slew rate
  */
 static void update_duty_cycle(uint16_t new_val)
-{
-	static int32_t timeval;
-	int32_t delay = PIOS_DELAY_DiffuS(timeval);
-	timeval = PIOS_DELAY_GetRaw();
-	
+{	
 	// MaxDcChange is in units of (1/32178) / µs
-	uint32_t max_val = esc_data.duty_cycle + (1 + ((uint32_t) config.MaxDcChange * (uint32_t) delay) / 20000);
+	uint32_t max_val = esc_data.duty_cycle + (1 + (uint32_t) config.MaxDcChange);
 	esc_data.duty_cycle = new_val > max_val ? max_val : new_val;
 	
 	// Check values and then use them
