@@ -510,10 +510,13 @@ static void go_esc_cl_zcd(uint16_t time)
 	esc_data.consecutive_missed = 0;
 
 	zcd(time);
+	
+	int32_t zcd_delay = esc_data.swap_interval_smoothed * (30 - config.CommutationPhase) / 60 - config.CommutationOffset;
+	if (zcd_delay > 1)
+		esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, zcd_delay);
+	else
+		esc_fsm_inject_event(ESC_EVENT_COMMUTATED, 1);
 
-	uint32_t zcd_delay = esc_data.swap_interval_smoothed * (30 - config.CommutationPhase) / 60 - config.CommutationOffset;
-	esc_fsm_schedule_event(ESC_EVENT_COMMUTATED, zcd_delay);
-		
 	if(esc_data.current_ma > config.SoftCurrentLimit) {
 		update_duty_cycle(esc_data.duty_cycle - config.MaxDcChange);
 	} else {
