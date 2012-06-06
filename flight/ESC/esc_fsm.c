@@ -322,6 +322,7 @@ static void go_esc_fault(uint16_t time)
 //	PIOS_ADC_StopDma();
 	if(status.Error == ESCSTATUS_ERROR_NONE) {
 		status.Error = ESCSTATUS_ERROR_FAULT;
+		status.TotalCurrent = esc_data.pre_fault_state;
 	}
 	PIOS_ESC_Off();
 	esc_data.faults ++;
