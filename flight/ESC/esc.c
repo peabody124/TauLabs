@@ -377,7 +377,6 @@ static bool check_motor()
 
 void test_esc() 
 {
-	const float max_diff = 0.3;
 	const float max_low = 0.1;
 	const bool testing = false;
 	get_voltages();
@@ -385,6 +384,9 @@ void test_esc()
 	float battery = (voltages[0][0] + voltages[2][1] + voltages[4][2]) / 3 * scale;
 	if (battery < 7) // Don't run if battery is too low
 		panic(8);
+	
+	// Allow up to 5% difference on the channel values
+	const float max_diff = 0.05 * battery;
 
 	// If the particular phase isn't moving fet is dead
 	if(fabs(voltages[0][0] * scale - battery) > max_diff) {
