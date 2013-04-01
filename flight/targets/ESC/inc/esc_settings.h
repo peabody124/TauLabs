@@ -9,7 +9,8 @@
 #ifndef OpenPilotOSX_esc_settings_h
 #define OpenPilotOSX_esc_settings_h
 
-typedef void *UAVObjHandle;
+typedef void *xQueueHandle;
+#include "uavobjectmanager.h"
 
 #include "escsettings.h"
 #include "escstatus.h"

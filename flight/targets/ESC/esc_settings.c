@@ -11,10 +11,7 @@
 #include "esc_fsm.h"
 #include <pios_board_info.h>
 
-typedef void *UAVObjHandle;
-
-#include "escsettings.h"
-
+#include "esc_settings.h"
 
 const EscSettingsData default_config = {
 	.RisingKp = 20, //0.0005 * PID_SCALE,

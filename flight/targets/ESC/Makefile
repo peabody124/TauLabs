@@ -57,7 +57,6 @@ STMUSBDIR = $(STMLIBDIR)/STM32_USB-FS-Device_Driver
 STMSPDSRCDIR = $(STMSPDDIR)/src
 STMSPDINCDIR = $(STMSPDDIR)/inc
 CMSISDIR  = $(STMLIBDIR)/CMSIS/Core/CM3
-HWDEFSINC = ../board_hw_defs/$(BOARD_NAME)
 
 OPUAVSYNTHDIR = $(OUTDIR)/../uavobject-synthetics/flight
 
