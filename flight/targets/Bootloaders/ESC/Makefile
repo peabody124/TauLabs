@@ -23,15 +23,9 @@
  #####
 
 WHEREAMI := $(dir $(lastword $(MAKEFILE_LIST)))
-TOP      := $(realpath $(WHEREAMI)/../../../)
+TOP      := $(realpath $(WHEREAMI)/../../../../)
 include $(TOP)/make/firmware-defs.mk
 include $(TOP)/make/boards/$(BOARD_NAME)/board-info.mk
-
-# Target file name (without extension).
-TARGET := bl_$(BOARD_NAME)
-
-# Directory for output files (lst, obj, dep, elf, sym, map, hex, bin etc.)
-OUTDIR := $(TOP)/build/$(TARGET)
 
 # Set developer code and compile options
 # Set to YES to compile for debugging
@@ -43,30 +37,10 @@ ENABLE_DEBUG_PINS ?= NO
 # Set to Yes to enable the AUX UART which is mapped on the S1 (Tx) and S2 (Rx) servo outputs  
 ENABLE_AUX_UART ?= NO
 
-# Set to YES when using Code Sourcery toolchain
-CODE_SOURCERY ?= NO
-
-# Remove command is different for Code Sourcery on Windows
-ifeq ($(CODE_SOURCERY), YES)
-REMOVE_CMD = cs-rm
-else
-REMOVE_CMD = rm
-endif
-
-FLASH_TOOL = OPENOCD
-
 # Paths
 OPSYSTEM = .
 OPSYSTEMINC = $(OPSYSTEM)/inc
-OPUAVTALK = ./UAVTalk
-OPUAVTALKINC = $(OPUAVTALK)/inc
-OPUAVOBJ = ./UAVObjects
-OPUAVOBJINC = $(OPUAVOBJ)/inc
-OPTESTS  = ./Tests
-OPMODULEDIR = ./Modules
-FLIGHTLIB = ../../Libraries
-FLIGHTLIBINC = ../../Libraries/inc
-PIOS = ../../PiOS
+FLIGHTLIBINC = $(FLIGHTLIB)/inc
 PIOSINC = $(PIOS)/inc
 PIOSSTM32F10X = $(PIOS)/STM32F10x
 PIOSCOMMON = $(PIOS)/Common
@@ -85,8 +59,6 @@ MSDDIR  = $(APPLIBDIR)/msd
 RTOSDIR = $(APPLIBDIR)/FreeRTOS
 RTOSSRCDIR = $(RTOSDIR)/Source
 RTOSINCDIR = $(RTOSSRCDIR)/include
-DOXYGENDIR = ../Doc/Doxygen
-HWDEFSINC = ../../board_hw_defs/$(BOARD_NAME)
 
 # List C source files here. (C dependencies are automatically generated.)
 # use file-extension c for "c-only"-files
@@ -97,27 +69,20 @@ SRC += $(OPSYSTEM)/pios_board.c
 #SRC += $(OPSYSTEM)/op_dfu.c
 
 ## PIOS Hardware (STM32F10x)
-SRC += $(PIOSSTM32F10X)/pios_adc.c
 SRC += $(PIOSSTM32F10X)/pios_sys.c
 SRC += $(PIOSSTM32F10X)/pios_led.c
-SRC += $(PIOSSTM32F10X)/pios_esc.c
 SRC += $(PIOSSTM32F10X)/pios_delay.c
 SRC += $(PIOSSTM32F10X)/pios_usart.c
 SRC += $(PIOSSTM32F10X)/pios_irq.c
-SRC += $(PIOSSTM32F10X)/pios_i2c.c
+SRC += $(PIOSSTM32F10X)/pios_debug.c
 SRC += $(PIOSSTM32F10X)/pios_gpio.c
-SRC += $(PIOSSTM32F10X)/pios_spi.c
-SRC += $(PIOSSTM32F10X)/pios_exti.c
-SRC += $(PIOSSTM32F10X)/pios_pwm.c
-SRC += $(PIOSSTM32F10X)/pios_tim.c
-SRC += $(PIOSSTM32F10X)/pios_wdg.c
+SRC += $(PIOSSTM32F10X)/pios_iap.c
+SRC += $(PIOSSTM32F10X)/pios_bl_helper.c
 #SRC += $(PIOSSTM32F10X)/pios_softusart.c
 
 ## PIOS Hardware (Common)
 SRC += $(PIOSCOMMON)/pios_board_info.c
 SRC += $(PIOSCOMMON)/pios_com.c
-SRC += $(PIOSCOMMON)/pios_bl_helper.c
-SRC += $(PIOSCOMMON)/pios_iap.c
 SRC += $(PIOSCOMMON)/printf-stdarg.c
 
 ## Libraries for flight calculations
@@ -185,6 +150,7 @@ EXTRAINCDIRS  += $(PIOS)
 EXTRAINCDIRS  += $(PIOSINC)
 EXTRAINCDIRS  += $(FLIGHTLIBINC)
 EXTRAINCDIRS  += $(PIOSSTM32F10X)
+EXTRAINCDIRS  += $(PIOSSTM32F10X)/inc
 EXTRAINCDIRS  += $(PIOSCOMMON)
 EXTRAINCDIRS  += $(PIOSBOARDS)
 EXTRAINCDIRS  += $(STMSPDINCDIR)
