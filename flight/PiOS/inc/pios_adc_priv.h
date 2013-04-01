@@ -41,6 +41,7 @@ struct pios_adc_cfg {
 	uint32_t half_flag;
 	uint32_t full_flag;
 	bool compute_downsample;
+	uint16_t max_downsample;
 };
 
 struct pios_adc_dev {
@@ -60,6 +61,8 @@ struct pios_adc_dev {
 
 extern struct pios_adc_dev pios_adc_devs[];
 extern uint8_t pios_adc_num_devices;
+
+int32_t PIOS_ADC_Init(const struct pios_adc_cfg * cfg);
 
 #endif /* PIOS_ADC_PRIV_H */
 

@@ -45,7 +45,7 @@ static const uint32_t ADC_CHANNEL_MAPPING[PIOS_ADC_NUM_PINS] = PIOS_ADC_CHANNEL_
 /**
  * @brief Initialise the ADC Peripheral, configure to run at the max oversampling
  */
-void PIOS_ADC_Init()
+int32_t PIOS_ADC_Init(const struct pios_adc_cfg * cfg)
 {	
 	pios_adc_devs[0].callback_function = NULL;
 	
@@ -65,7 +65,9 @@ void PIOS_ADC_Init()
 		GPIO_Init(ADC_GPIO_PORT[i], &GPIO_InitStructure);
 	}
 
-	PIOS_ADC_Config(PIOS_ADC_MAX_OVERSAMPLING);	
+	PIOS_ADC_Config(PIOS_ADC_MAX_OVERSAMPLING);
+
+	return 0;
 }
 
 /**

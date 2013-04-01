@@ -63,7 +63,7 @@ void PIOS_Board_Init(void) {
 	PIOS_GPIO_Init();
 
 	/* Bring up ADC for sensing BEMF */
-	PIOS_ADC_Init();
+	PIOS_ADC_Init(NULL);
 	PIOS_ADC_Config(1);
 
 	/* Remap AFIO pin */
