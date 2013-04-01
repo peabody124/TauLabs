@@ -355,5 +355,5 @@ void PIOS_I2C_main_adapter_er_irq_handler(void)
 
 extern const struct pios_com_driver pios_usart_com_driver;
 
-uint32_t pios_com_debug_id;
+uintptr_t pios_com_debug_id;
 uint8_t adc_fifo_buf[sizeof(float) * 6 * 4] __attribute__ ((aligned(4)));    // align to 32-bit to try and provide speed improvement

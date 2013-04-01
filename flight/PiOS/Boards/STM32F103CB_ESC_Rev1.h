@@ -200,7 +200,7 @@ extern uint32_t pios_i2c_main_adapter_id;
 //-------------------------
 #define PIOS_COM_MAX_DEVS			1
 
-extern uint32_t pios_com_debug_id;
+extern uintptr_t pios_com_debug_id;
 #define PIOS_COM_TELEM_RF               (pios_com_debug_id)
 #define PIOS_COM_DEBUG                  PIOS_COM_TELEM_RF
 
