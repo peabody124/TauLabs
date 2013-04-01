@@ -2,9 +2,9 @@
  # Project: OpenPilot ESC
  #
  #
- # Makefile for OpenPilot project
+ # Makefile for Tau Labs project
  #
- # The OpenPilot Team, http://www.openpilot.org, Copyright (C) 2009.
+ # Tau Labs, http://github.com/TauLabs, Copyright (C) 2009-2013.
  #
  #
  # This program is free software; you can redistribute it and/or modify
@@ -23,7 +23,7 @@
  #####
 
 WHEREAMI := $(dir $(lastword $(MAKEFILE_LIST)))
-TOP      := $(realpath $(WHEREAMI)/../../)
+TOP      := $(realpath $(WHEREAMI)/../../../)
 include $(TOP)/make/firmware-defs.mk
 include $(TOP)/make/boards/$(BOARD_NAME)/board-info.mk
 
@@ -37,26 +37,16 @@ OUTDIR := $(TOP)/build/$(TARGET)
 # Set to YES for debugging
 DEBUG ?= NO
 
-# Set to YES when using Code Sourcery toolchain
-CODE_SOURCERY ?= NO
-
-ifeq ($(CODE_SOURCERY), YES)
-REMOVE_CMD = cs-rm
-else
 REMOVE_CMD = rm
-endif
 
 FLASH_TOOL = OPENOCD
 
 # Paths
 ESC = ./
 ESCINC = $(ESC)/inc
-PIOS = ../PiOS
 PIOSINC = $(PIOS)/inc
-FLIGHTLIB = ../Libraries
-FLIGHTLIBINC = ../Libraries/inc
-OPUAVOBJ = ../UAVObjects
 OPUAVOBJINC = $(OPUAVOBJ)/inc
+FLIGHTLIBINC = $(FLIGHTLIB)/inc
 PIOSSTM32F10X = $(PIOS)/STM32F10x
 PIOSCOMMON = $(PIOS)/Common
 PIOSBOARDS = $(PIOS)/Boards
@@ -67,12 +57,6 @@ STMUSBDIR = $(STMLIBDIR)/STM32_USB-FS-Device_Driver
 STMSPDSRCDIR = $(STMSPDDIR)/src
 STMSPDINCDIR = $(STMSPDDIR)/inc
 CMSISDIR  = $(STMLIBDIR)/CMSIS/Core/CM3
-OPDIR = ../OpenPilot
-OPUAVOBJ = ../UAVObjects
-OPUAVOBJINC = $(OPUAVOBJ)/inc
-OPSYSINC = $(OPDIR)/System/inc
-BOOT = ../Bootloaders/ESC
-BOOTINC = $(BOOT)/inc
 HWDEFSINC = ../board_hw_defs/$(BOARD_NAME)
 
 OPUAVSYNTHDIR = $(OUTDIR)/../uavobject-synthetics/flight
@@ -171,14 +155,15 @@ EXTRAINCDIRS  += $(PIOS)
 EXTRAINCDIRS  += $(PIOSINC)
 EXTRAINCDIRS  += $(FLIGHTLIBINC)
 EXTRAINCDIRS  += $(PIOSSTM32F10X)
+EXTRAINCDIRS  += $(PIOSSTM32F10X)/inc
 EXTRAINCDIRS  += $(PIOSCOMMON)
 EXTRAINCDIRS  += $(PIOSBOARDS)
 EXTRAINCDIRS  += $(STMSPDINCDIR)
 EXTRAINCDIRS  += $(CMSISDIR)
 EXTRAINCDIRS  += $(ESCINC)
 EXTRAINCDIRS  += $(OPUAVSYNTHDIR)
-EXTRAINCDIRS  += $(BOOTINC)
 EXTRAINCDIRS  += $(OPUAVOBJINC)
+EXTRAINCDIRS  += $(OPUAVTALK)
 EXTRAINCDIRS  += $(HWDEFSINC)
 
 # List any extra directories to look for library files here.
@@ -379,10 +364,10 @@ $(eval $(call PARTIAL_COMPILE_ARM_TEMPLATE, SRCARM))
 
 $(OUTDIR)/$(TARGET).bin.o: $(OUTDIR)/$(TARGET).bin
 
-$(eval $(call OPFW_TEMPLATE,$(OUTDIR)/$(TARGET).bin,$(BOARD_TYPE),$(BOARD_REVISION)))
+$(eval $(call TLFW_TEMPLATE,$(OUTDIR)/$(TARGET).bin,$(BOARD_TYPE),$(BOARD_REVISION)))
 
 # Add jtag targets (program and wipe)
-$(eval $(call JTAG_TEMPLATE,$(OUTDIR)/$(TARGET).bin,$(BL_BANK_BASE),$(BL_BANK_SIZE),$(OPENOCD_JTAG_CONFIG),$(OPENOCD_CONFIG)))
+$(eval $(call JTAG_TEMPLATE,$(OUTDIR)/$(TARGET).bin,$(FW_BANK_BASE),$(FW_BANK_SIZE),$(OPENOCD_JTAG_CONFIG),$(OPENOCD_CONFIG)))
 
 .PHONY: elf lss sym hex bin bino opfw
 elf: $(OUTDIR)/$(TARGET).elf
