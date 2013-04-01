@@ -12,8 +12,8 @@
 	<field name="ZcdFraction" units="100" type="uint8" elements="1"/>
 	<field name="Error" units="" type="enum" elements="1" options="None,FAULT,STARTUP,MANYMISSED,HIGH_A_FET,LOW_A_FET,HIGH_B_FET,LOW_B_FET,HIGH_C_FET,LOW_C_FET,NO_MOTOR"/>
         <access gcs="readwrite" flight="readwrite"/>
-        <telemetrygcs acked="false" updatemode="manual" period="0"/>
+        <telemetrygcs acked="false" updatemode="onchange" period="0"/>
         <telemetryflight acked="false" updatemode="periodic" period="1000"/>
-        <logging updatemode="never" period="0"/>
+        <logging updatemode="manual" period="0"/>
     </object>
 </xml>

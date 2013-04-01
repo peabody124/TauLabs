@@ -26,9 +26,10 @@
 	<field name="Braking" units="" type="enum" elements="1"	options="Off,On" defaultvalue="Off"/>
 	<field name="Direction" units="" type="enum" elements="1" options="Forward,Reverse" defaultvalue="Forward"/>
 	<field name="Mode" units="" type="enum" elements="1" options="Closed,Open" defaultvalue="Closed"/>
-        <access gcs="readwrite" flight="readwrite"/>
-        <telemetrygcs acked="true" updatemode="onchange" period="0"/>
-        <telemetryflight acked="true" updatemode="onchange" period="0"/>
-        <logging updatemode="never" period="0"/>
+
+	<access gcs="readwrite" flight="readwrite"/>
+	<telemetrygcs acked="true" updatemode="onchange" period="0"/>
+	<telemetryflight acked="true" updatemode="onchange" period="0"/>
+	<logging updatemode="manual" period="0"/>
     </object>
 </xml>
