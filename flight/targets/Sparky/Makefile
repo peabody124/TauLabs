@@ -34,7 +34,7 @@ DEBUG ?= NO
 
 # List of modules to include
 MODULES = Sensors
-MODULES += Attitude/revolution
+#MODULES += Attitude/revolution
 MODULES += Actuator
 MODULES += ManualControl
 MODULES += Stabilization
@@ -65,6 +65,7 @@ OPUAVOBJINC = $(OPUAVOBJ)/inc
 PIOSINC = $(PIOS)/inc
 FLIGHTLIBINC = $(FLIGHTLIB)/inc
 MATHLIBINC = $(MATHLIB)
+FILTERLIBINC = $(FILTERLIB)
 RSCODE = $(FLIGHTLIB)/rscode
 RSCODEINC = $(FLIGHTLIB)/rscode
 PIOSSTM32F30X = $(PIOS)/STM32F30x
@@ -118,6 +119,11 @@ SRC += $(MATHLIB)/sin_lookup.c
 SRC += $(MATHLIB)/misc_math.c
 SRC += $(MATHLIB)/pid.c
 
+## Enable some filters
+SRC += $(FILTERLIB)/dcm_interface.c
+SRC += $(FILTERLIB)/filter_infrastructure_se3.c
+SRC += $(FILTERLIB)/filter_interface.c
+
 ## PIOS Hardware (STM32F30x)
 include $(PIOS)/STM32F30x/library.mk
 
@@ -158,6 +164,7 @@ EXTRAINCDIRS += $(OPUAVOBJINC)
 EXTRAINCDIRS += $(OPUAVSYNTHDIR)
 EXTRAINCDIRS += $(FLIGHTLIBINC)
 EXTRAINCDIRS += $(MATHLIBINC)
+EXTRAINCDIRS += $(FILTERLIBINC)
 EXTRAINCDIRS += $(RSCODEINC)
 EXTRAINCDIRS += $(PIOSSTM32F30X)
 EXTRAINCDIRS += $(PIOSCOMMON)
