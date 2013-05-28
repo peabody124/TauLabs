@@ -45,7 +45,7 @@ USE_BOOTLOADER ?= NO
 
 # List of modules to include
 MODULES += Actuator ManualControl Stabilization 
-MODULES += Attitude/revolution
+MODULES += StateEstimation
 MODULES += FirmwareIAP
 
 OPTMODULES += PathPlanner
@@ -118,6 +118,7 @@ OPTESTS  = ./Tests
 FLIGHTLIBINC = $(FLIGHTLIB)/inc
 MATHLIB = $(FLIGHTLIB)/math
 MATHLIBINC = $(MATHLIB)
+FILTERLIBINC = $(FILTERLIB)
 PIOSINC = $(PIOS)/inc
 PIOSPOSIX = $(PIOS)/osx
 APPLIBDIR = $(PIOSPOSIX)/Libraries
@@ -200,6 +201,10 @@ SRC += $(MATHLIB)/misc_math.c
 SRC += $(MATHLIB)/pid.c
 SRC += $(MATHLIB)/sin_lookup.c
 
+## Enable some filters
+SRC += $(FILTERLIB)/dcm_interface.c
+SRC += $(FILTERLIB)/filter_infrastructure_se3.c
+SRC += $(FILTERLIB)/filter_interface.c
 
 ## RTOS and RTOS Portable 
 SRC += $(RTOSSRCDIR)/list.c
@@ -241,6 +246,7 @@ EXTRAINCDIRS  += $(PIOS)
 EXTRAINCDIRS  += $(PIOSINC)
 EXTRAINCDIRS  += $(FLIGHTLIBINC)
 EXTRAINCDIRS  += $(MATHLIBINC)
+EXTRAINCDIRS  += $(FILTERLIBINC)
 EXTRAINCDIRS  += $(FLIGTH)
 EXTRAINCDIRS  += $(PIOSPOSIX)
 EXTRAINCDIRS  += $(RTOSINCDIR)
