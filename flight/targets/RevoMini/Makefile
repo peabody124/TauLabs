@@ -35,7 +35,6 @@ DEBUG ?= NO
 
 # List of modules to include
 MODULES = Sensors
-MODULES += Attitude/revolution 
 MODULES += ManualControl
 MODULES += Stabilization
 MODULES += Actuator
@@ -44,6 +43,12 @@ MODULES += FirmwareIAP
 MODULES += Telemetry
 PYMODULES = 
 #FlightPlan
+
+ifeq ($(FILTER_ARCHITECTURE),YES)
+MODULES += State
+else
+MODULES += Attitude/revolution
+endif
 
 OPTMODULES += GPS
 OPTMODULES += AltitudeHold 
@@ -138,6 +143,11 @@ SRC += $(MATHLIB)/coordinate_conversions.c
 SRC += $(MATHLIB)/sin_lookup.c
 SRC += $(MATHLIB)/misc_math.c
 SRC += $(MATHLIB)/pid.c
+
+## Enable some filters for the new architecture
+ifeq ($(FILTER_ARCHITECTURE),YES)
+include $(FILTERLIB)/filters.mk
+endif
 
 ## For RFM22b
 SRC += $(RSCODE)/berlekamp.c
