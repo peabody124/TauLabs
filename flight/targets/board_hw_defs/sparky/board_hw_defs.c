@@ -234,6 +234,78 @@ void PIOS_I2C_flexi_er_irq_handler(void)
 
 #endif /* PIOS_INCLUDE_I2C */
 
+#if defined(PIOS_INCLUDE_CAN)
+#include "pios_can_priv.h"
+struct pios_can_cfg pios_can_cfg = {
+	.regs = CAN1,
+	.init = {
+  		.CAN_Prescaler = 16,   /*!< Specifies the length of a time quantum. 
+                                 It ranges from 1 to 1024. */
+  		.CAN_Mode = CAN_Mode_Normal,         /*!< Specifies the CAN operating mode.
+                                 This parameter can be a value of @ref CAN_operating_mode */
+  		.CAN_SJW = CAN_SJW_1tq,          /*!< Specifies the maximum number of time quanta 
+                                 the CAN hardware is allowed to lengthen or 
+                                 shorten a bit to perform resynchronization.
+                                 This parameter can be a value of @ref CAN_synchronisation_jump_width */
+  		.CAN_BS1 = CAN_BS1_9tq,          /*!< Specifies the number of time quanta in Bit 
+                                 Segment 1. This parameter can be a value of 
+                                 @ref CAN_time_quantum_in_bit_segment_1 */
+  		.CAN_BS2 = CAN_BS2_8tq,          /*!< Specifies the number of time quanta in Bit Segment 2.
+                                 This parameter can be a value of @ref CAN_time_quantum_in_bit_segment_2 */
+  		.CAN_TTCM = DISABLE, /*!< Enable or disable the time triggered communication mode.
+                                This parameter can be set either to ENABLE or DISABLE. */
+  		.CAN_ABOM = DISABLE,  /*!< Enable or disable the automatic bus-off management.
+                                  This parameter can be set either to ENABLE or DISABLE. */
+  		.CAN_AWUM = DISABLE,  /*!< Enable or disable the automatic wake-up mode. 
+                                  This parameter can be set either to ENABLE or DISABLE. */
+  		.CAN_NART = ENABLE,  /*!< Enable or disable the non-automatic retransmission mode.
+                                  This parameter can be set either to ENABLE or DISABLE. */
+  		.CAN_RFLM = DISABLE,  /*!< Enable or disable the Receive FIFO Locked mode.
+                                  This parameter can be set either to ENABLE or DISABLE. */
+  		.CAN_TXFP = DISABLE,  /*!< Enable or disable the transmit FIFO priority.
+                                  This parameter can be set either to ENABLE or DISABLE. */
+	},
+	.remap = GPIO_AF_9,
+	.tx = {
+		.gpio = GPIOB,
+		.init = {
+			.GPIO_Pin   = GPIO_Pin_9,
+			.GPIO_Speed = GPIO_Speed_50MHz,
+			.GPIO_Mode  = GPIO_Mode_AF,
+			.GPIO_OType = GPIO_OType_PP,
+			.GPIO_PuPd  = GPIO_PuPd_UP
+		},
+		.pin_source = GPIO_PinSource9,
+	},
+	.rx = {
+		.gpio = GPIOB,
+		.init = {
+			.GPIO_Pin   = GPIO_Pin_8,
+			.GPIO_Speed = GPIO_Speed_50MHz,
+			.GPIO_Mode  = GPIO_Mode_AF,
+			.GPIO_OType = GPIO_OType_PP,
+			.GPIO_PuPd  = GPIO_PuPd_UP
+		},
+		.pin_source = GPIO_PinSource8,
+	},
+	.rx_irq = {
+		.init = {
+			.NVIC_IRQChannel = CAN1_RX1_IRQn,
+			.NVIC_IRQChannelPreemptionPriority = PIOS_IRQ_PRIO_MID,
+			.NVIC_IRQChannelSubPriority = 0,
+			.NVIC_IRQChannelCmd = ENABLE,
+		},
+	},
+	.tx_irq = {
+		.init = {
+			.NVIC_IRQChannel = USB_HP_CAN1_TX_IRQn,
+			.NVIC_IRQChannelPreemptionPriority = PIOS_IRQ_PRIO_MID,
+			.NVIC_IRQChannelSubPriority = 0,
+			.NVIC_IRQChannelCmd = ENABLE,
+		},
+	},
+};
+#endif /* PIOS_INCLUDE_CAN */
 
 #if defined(PIOS_INCLUDE_FLASH)
 #include "pios_flashfs_logfs_priv.h"
@@ -373,6 +445,51 @@ static const struct pios_dsm_cfg pios_flexi_dsm_aux_cfg = {
 	},
 };
 
+static const struct pios_usart_cfg pios_main_dsm_cfg = {
+	.regs = USART3,
+	.remap = GPIO_AF_7,
+	.init = {
+		.USART_BaudRate = 115200,
+		.USART_WordLength = USART_WordLength_8b,
+		.USART_Parity = USART_Parity_No,
+		.USART_StopBits = USART_StopBits_1,
+		.USART_HardwareFlowControl = USART_HardwareFlowControl_None,
+		.USART_Mode = USART_Mode_Rx,
+	},
+	.irq = {
+		.init = {
+			.NVIC_IRQChannel = USART3_IRQn,
+			.NVIC_IRQChannelPreemptionPriority = PIOS_IRQ_PRIO_HIGHEST,
+			.NVIC_IRQChannelSubPriority = 0,
+			.NVIC_IRQChannelCmd = ENABLE,
+		},
+	},
+	.rxtx_swap = false,
+	.rx = {
+		.gpio = GPIOB,
+		.init = {
+			.GPIO_Pin   = GPIO_Pin_11,
+			.GPIO_Speed = GPIO_Speed_2MHz,
+			.GPIO_Mode  = GPIO_Mode_AF,
+			.GPIO_OType = GPIO_OType_PP,
+			.GPIO_PuPd  = GPIO_PuPd_UP
+		},
+		.pin_source = GPIO_PinSource11,
+	},
+};
+
+static const struct pios_dsm_cfg pios_main_dsm_aux_cfg = {
+	.bind = {
+		.gpio = GPIOB,
+		.init = {
+			.GPIO_Pin   = GPIO_Pin_11,
+			.GPIO_Speed = GPIO_Speed_2MHz,
+			.GPIO_Mode  = GPIO_Mode_OUT,
+			.GPIO_OType = GPIO_OType_PP,
+			.GPIO_PuPd  = GPIO_PuPd_NOPULL
+		},
+	},
+};
 #endif	/* PIOS_INCLUDE_DSM */
 
 #if defined(PIOS_INCLUDE_SBUS)
@@ -457,6 +574,43 @@ static const struct pios_sbus_cfg pios_flexi_sbus_aux_cfg = {
 	/* No inverter configuration, f3 uart subsystem already does this for us */
 };
 
+static const struct pios_usart_cfg pios_main_sbus_cfg = {
+	.regs = USART3,
+	.remap = GPIO_AF_7,
+	.rx_invert = true,
+	.init = {
+		.USART_BaudRate            = 100000,
+		.USART_WordLength          = USART_WordLength_8b,
+		.USART_Parity              = USART_Parity_Even,
+		.USART_StopBits            = USART_StopBits_2,
+		.USART_HardwareFlowControl = USART_HardwareFlowControl_None,
+		.USART_Mode                = USART_Mode_Rx,
+	},
+	.irq = {
+		.init = {
+			.NVIC_IRQChannel                   = USART3_IRQn,
+			.NVIC_IRQChannelPreemptionPriority = PIOS_IRQ_PRIO_HIGHEST,
+			.NVIC_IRQChannelSubPriority        = 0,
+			.NVIC_IRQChannelCmd                = ENABLE,
+		},
+	},
+	.rxtx_swap = false,
+	.rx = {
+		.gpio = GPIOB,
+		.init = {
+			.GPIO_Pin   = GPIO_Pin_11,
+			.GPIO_Speed = GPIO_Speed_2MHz,
+			.GPIO_Mode  = GPIO_Mode_AF,
+			.GPIO_OType = GPIO_OType_PP,
+			.GPIO_PuPd  = GPIO_PuPd_UP
+		},
+		.pin_source = GPIO_PinSource11,
+	},
+};
+
+static const struct pios_sbus_cfg pios_main_sbus_aux_cfg = {
+	/* No inverter configuration, f3 uart subsystem already does this for us */
+};
 #endif	/* PIOS_INCLUDE_SBUS */
 
 static const struct pios_usart_cfg pios_flexi_usart_cfg = {
@@ -503,6 +657,48 @@ static const struct pios_usart_cfg pios_flexi_usart_cfg = {
 	},
 };
 
+static const struct pios_usart_cfg pios_main_usart_cfg = {
+	.regs = USART3,
+	.remap = GPIO_AF_7,
+	.init = {
+		.USART_BaudRate = 57600,
+		.USART_WordLength = USART_WordLength_8b,
+		.USART_Parity = USART_Parity_No,
+		.USART_StopBits = USART_StopBits_1,
+		.USART_HardwareFlowControl = USART_HardwareFlowControl_None,
+		.USART_Mode = USART_Mode_Rx | USART_Mode_Tx,
+	},
+	.irq = {
+		.init = {
+			.NVIC_IRQChannel = USART3_IRQn,
+			.NVIC_IRQChannelPreemptionPriority = PIOS_IRQ_PRIO_HIGHEST,
+			.NVIC_IRQChannelSubPriority = 0,
+			.NVIC_IRQChannelCmd = ENABLE,
+		},
+	},
+	.rx = {
+		.gpio = GPIOB,
+		.init = {
+			.GPIO_Pin   = GPIO_Pin_11,
+			.GPIO_Speed = GPIO_Speed_2MHz,
+			.GPIO_Mode  = GPIO_Mode_AF,
+			.GPIO_OType = GPIO_OType_PP,
+			.GPIO_PuPd  = GPIO_PuPd_UP
+		},
+		.pin_source = GPIO_PinSource11,
+	},
+	.tx = {
+		.gpio = GPIOB,
+		.init = {
+			.GPIO_Pin   = GPIO_Pin_10,
+			.GPIO_Speed = GPIO_Speed_2MHz,
+			.GPIO_Mode  = GPIO_Mode_AF,
+			.GPIO_OType = GPIO_OType_PP,
+			.GPIO_PuPd  = GPIO_PuPd_UP
+		},
+		.pin_source = GPIO_PinSource10,
+	},
+};
 #endif  /* PIOS_INCLUDE_USART */
 
 #if defined(PIOS_INCLUDE_COM)
@@ -888,6 +1084,7 @@ static const struct pios_tim_channel pios_tim_servoport_v02_pins[] = {
 			.pin_source = GPIO_PinSource7,
 		},
 	},
+#if !defined(PIOS_INCLUDE_ADC)	
 	{ // Ch9 TIM3_CH2  (PA4)
 		.timer = TIM3,
 		.timer_chan = TIM_Channel_2,
@@ -920,6 +1117,7 @@ static const struct pios_tim_channel pios_tim_servoport_v02_pins[] = {
 			.pin_source = GPIO_PinSource1,
 		},
 	},
+#endif  /* PIOS_INCLUDE_ADC */
 };
 
 
@@ -998,6 +1196,46 @@ static const struct pios_ppm_cfg pios_ppm_cfg = {
 };
 
 #endif //PPM
+
+#if defined(PIOS_INCLUDE_ADC)
+#include "pios_adc_priv.h"
+#include "pios_internal_adc_priv.h"
+
+/**
+ * ADC0 : PA1 ADC1_IN2
+ * ADC1 : PA4 ADC2_IN1
+ * ADC2 : PA7 ADC2_IN4 (disabled by default and should have external resistor)
+ */
+static const struct pios_internal_adc_cfg internal_adc_cfg = {
+	.dma = {
+		.irq = {
+			.flags   = (DMA1_FLAG_TC1 | DMA1_FLAG_TE1 | DMA1_FLAG_HT1 | DMA1_FLAG_GL1),
+			.init    = {
+				.NVIC_IRQChannel                   = DMA1_Channel1_IRQn,
+				.NVIC_IRQChannelPreemptionPriority = PIOS_IRQ_PRIO_HIGH,
+				.NVIC_IRQChannelSubPriority        = 0,
+				.NVIC_IRQChannelCmd                = ENABLE,
+			},
+		},
+		.rx = {
+			.channel = DMA1_Channel1,
+			.init    = {
+				.DMA_Priority           = DMA_Priority_High,
+			},
+		}
+	},
+	.half_flag = DMA1_IT_HT1,
+	.full_flag = DMA1_IT_TC1,
+	.oversampling = 32,
+	.number_of_used_pins = 2,
+	.adc_pins = (struct adc_pin[]){
+		{GPIOA,GPIO_Pin_1,ADC_Channel_2,true},
+		{GPIOA,GPIO_Pin_4,ADC_Channel_1,false},
+	},
+	.adc_dev_master = ADC1,
+	.adc_dev_slave = ADC2,
+};
+#endif /* PIOS_INCLUDE_ADC */
 
 
 #if defined(PIOS_INCLUDE_GCSRCVR)

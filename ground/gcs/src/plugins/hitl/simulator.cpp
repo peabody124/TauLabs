@@ -4,6 +4,7 @@
  * @file       simulator.cpp
  * @author     The OpenPilot Team, http://www.openpilot.org Copyright (C) 2010.
  * @author     Tau Labs, http://taulabs.org, Copyright (C) 2013
+ *
  * @addtogroup GCSPlugins GCS Plugins
  * @{
  * @addtogroup HITLPlugin HITL Plugin
@@ -257,8 +258,9 @@ void Simulator::setupUAVObjects()
                 UAVObject::Metadata mdata = obj->getMetadata();
                 UAVObject::SetFlightTelemetryUpdateMode(mdata, UAVObject::UPDATEMODE_PERIODIC);
 
-                // Default configuration for all UAVO data rates is "slowUpdate"
-                mdata.flightTelemetryUpdatePeriod = slowUpdate;
+                // Default configuration for all UAVO data rates is "slowUpdate". Add a random factor
+                // so that not all UAVOs update at the same time, which otherwise congests the bus.
+                mdata.flightTelemetryUpdatePeriod = slowUpdate + (rand() % 30);
 
                 metaDataList.insert(obj->getName(), mdata);
             }
@@ -402,7 +404,7 @@ void Simulator::onSimulatorConnectionTimeout()
 
 
 void Simulator::resetInitialHomePosition(){
-    once=false;
+    homePositionSet=false;
 }
 
 
@@ -422,7 +424,7 @@ void Simulator::updateUAVOs(Output2Hardware out){
 
     /*******************************/
     HomeLocation::DataFields homeData = posHome->getData();
-    if(!once)
+    if(!homePositionSet)
     {
         // Upon startup, we reset the HomeLocation object to
         // the plane's location:
@@ -436,6 +438,8 @@ void Simulator::updateUAVOs(Output2Hardware out){
         homeData.Be[1]=0;
         homeData.Be[2]=0;
 
+        homeData.Set = HomeLocation::SET_TRUE;
+
         homeData.GroundTemperature=15;
         homeData.SeaLevelPressure=1013;
 
@@ -447,7 +451,7 @@ void Simulator::updateUAVOs(Output2Hardware out){
         initE = out.dstE;
         initD = out.dstD;
 
-        once=true;
+        homePositionSet=true;
     }
 
     /*******************************/
@@ -519,13 +523,11 @@ void Simulator::updateUAVOs(Output2Hardware out){
 
         AttitudeSettings::DataFields attitudeSettingsData = attitudeSettings->getData();
         float accelKp = attitudeSettingsData.AccelKp * 0.1666666666666667;
-        float accelKi = attitudeSettingsData.AccelKp * 0.1666666666666667;
         float yawBiasRate = attitudeSettingsData.YawBiasRate;
 
         // calibrate sensors on arming
         if (flightStatus->getData().Armed == FlightStatus::ARMED_ARMING) {
             accelKp = 2.0;
-            accelKi = 0.9;
         }
 
         float gyro[3] = {out.rollRate, out.pitchRate, out.yawRate};

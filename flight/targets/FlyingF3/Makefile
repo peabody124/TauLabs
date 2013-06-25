@@ -38,13 +38,18 @@ DEBUG ?= NO
 # @endgroup Compile Options
 # List of modules to include
 MODULES = Sensors
-MODULES += Attitude/revolution
 MODULES += Actuator
 MODULES += ManualControl
 MODULES += Stabilization
 #MODULES += Airspeed/revolution
 MODULES += FirmwareIAP
 MODULES += Telemetry
+
+ifeq ($(FILTER_ARCHITECTURE),YES)
+MODULES += State
+else
+MODULES += Attitude/revolution
+endif
 
 OPTMODULES += GPS
 OPTMODULES += CameraStab
@@ -58,8 +63,8 @@ OPTMODULES += FixedWingPathFollower
 OPTMODULES += GroundPathFollower
 OPTMODULES += VibrationAnalysis
 OPTMODULES += UAVOMavlinkBridge
-#OPTMODULES += Battery
-#OPTMODULES += ComUsbBridge
+OPTMODULES += Battery
+OPTMODULES += ComUsbBridge
 
 # Paths
 OPSYSTEM = ./System
@@ -68,8 +73,7 @@ OPUAVTALKINC = $(OPUAVTALK)/inc
 OPUAVOBJINC = $(OPUAVOBJ)/inc
 PIOSINC = $(PIOS)/inc
 FLIGHTLIBINC = $(FLIGHTLIB)/inc
-MATHLIB = $(FLIGHTLIB)/math
-MATHLIBINC = $(FLIGHTLIB)/math
+MATHLIBINC = $(MATHLIB)
 RSCODE = $(FLIGHTLIB)/rscode
 RSCODEINC = $(FLIGHTLIB)/rscode
 PIOSSTM32F30X = $(PIOS)/STM32F30x
@@ -124,6 +128,11 @@ SRC += $(MATHLIB)/coordinate_conversions.c
 SRC += $(MATHLIB)/sin_lookup.c
 SRC += $(MATHLIB)/misc_math.c
 SRC += $(MATHLIB)/pid.c
+
+## Enable some filters for the new architecture
+ifeq ($(FILTER_ARCHITECTURE),YES)
+include $(FILTERLIB)/filters.mk
+endif
 
 ## PIOS Hardware (STM32F30x)
 include $(PIOS)/STM32F30x/library.mk

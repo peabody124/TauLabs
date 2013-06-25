@@ -229,9 +229,7 @@ static bool PIOS_USB_HID_SendReport(struct pios_usb_hid_dev * usb_hid_dev)
 #endif
 
 #if defined(PIOS_INCLUDE_FREERTOS)
-	if (need_yield) {
-		vPortYieldFromISR();
-	}
+	portEND_SWITCHING_ISR(need_yield);
 #endif	/* PIOS_INCLUDE_FREERTOS */
 
 	return true;
@@ -348,8 +346,14 @@ static void PIOS_USB_HID_IF_DeInit(uint32_t usb_hid_id)
 		return;
 	}
 
-	/* DeRegister endpoint specific callbacks with the USBHOOK layer */
+	/* reset state of the usb hid device structure */
+	usb_hid_dev->rx_active = false;
+	usb_hid_dev->rx_dropped = 0;
+	usb_hid_dev->rx_oversize = 0;
+	usb_hid_dev->tx_active = false;
 	usb_hid_dev->usb_if_enabled = false;
+
+	/* DeRegister endpoint specific callbacks with the USBHOOK layer */
 	PIOS_USBHOOK_DeRegisterEpInCallback(usb_hid_dev->cfg->data_tx_ep);
 	PIOS_USBHOOK_DeRegisterEpOutCallback(usb_hid_dev->cfg->data_rx_ep);
 }
@@ -530,9 +534,7 @@ static bool PIOS_USB_HID_EP_OUT_Callback(uint32_t usb_hid_id, uint8_t epnum, uin
 	}
 
 #if defined(PIOS_INCLUDE_FREERTOS)
-	if (need_yield) {
-		vPortYieldFromISR();
-	}
+	portEND_SWITCHING_ISR(need_yield);
 #endif	/* PIOS_INCLUDE_FREERTOS */
 
 	return rc;

@@ -196,6 +196,10 @@ help:
 	@echo
 	@echo "   [GCS]"
 	@echo "     gcs                  - Build the Ground Control System (GCS) application"
+	@echo "        GCS_QMAKE_OPTS=     - Optional build flags with the following arguments:"
+	@echo "           \"CONFIG+=LIGHTWEIGHT_GCS\"  - Build a lightweight GCS suitable for low-powered platforms"
+	@echo "           \"CONFIG+=SDL\"              - Enable joystick and gamepad support"
+	@echo "           \"CONFIG+=OSG\"              - Enable OpenSceneGraph support"
 	@echo "     gcs_clean            - Remove the Ground Control System (GCS) application"
 	@echo
 	@echo "   [AndroidGCS]"
@@ -567,6 +571,8 @@ uavo-collections_clean:
 # to prevent these being repeated in every sub makefile
 PIOS          := $(ROOT_DIR)/flight/PiOS
 FLIGHTLIB     := $(ROOT_DIR)/flight/Libraries
+MATHLIB       := $(ROOT_DIR)/flight/Libraries/math
+FILTERLIB     := $(ROOT_DIR)/flight/Libraries/filters
 OPMODULEDIR   := $(ROOT_DIR)/flight/Modules
 OPUAVOBJ      := $(ROOT_DIR)/flight/targets/UAVObjects
 OPUAVTALK     := $(ROOT_DIR)/flight/targets/UAVTalk
@@ -601,6 +607,8 @@ sim_$(4)_$(1)_%: uavobjects_flight
 		\
 		PIOS=$(PIOS).$(4) \
 		FLIGHTLIB=$(FLIGHTLIB) \
+		MATHLIB=$(MATHLIB) \
+		FILTERLIB=$(FILTERLIB) \
 		OPMODULEDIR=$(OPMODULEDIR) \
 		OPUAVOBJ=$(OPUAVOBJ) \
 		OPUAVTALK=$(OPUAVTALK) \
@@ -640,6 +648,8 @@ fw_$(1)_%: uavobjects_flight
 		\
 		PIOS=$(PIOS) \
 		FLIGHTLIB=$(FLIGHTLIB) \
+		MATHLIB=$(MATHLIB) \
+		FILTERLIB=$(FILTERLIB) \
 		OPMODULEDIR=$(OPMODULEDIR) \
 		OPUAVOBJ=$(OPUAVOBJ) \
 		OPUAVTALK=$(OPUAVTALK) \
@@ -904,7 +914,7 @@ $(eval $(call SIM_TEMPLATE,openpilot,OpenPilot,'op  ',win32,exe))
 #
 ##############################
 
-ALL_UNITTESTS := logfs i2c_vm misc_math sin_lookup
+ALL_UNITTESTS := logfs i2c_vm misc_math sin_lookup coordinate_conversions
 
 UT_OUT_DIR := $(BUILD_DIR)/unit_tests
 

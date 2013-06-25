@@ -132,8 +132,7 @@ OPTESTS  = ./Tests
 FLIGHTLIBINC = $(FLIGHTLIB)/inc
 STATEESTIMATIONLIB = $(FLIGHTLIB)/StateEstimationFilters
 STATEESTIMATIONLIBINC = $(STATEESTIMATIONLIB)/inc
-MATHLIB = $(FLIGHTLIB)/math
-MATHLIBINC = $(FLIGHTLIB)/math
+MATHLIBINC = $(MATHLIB)
 PIOSINC = $(PIOS)/inc
 PIOSSTM32F10X = $(PIOS)/STM32F10x
 PIOSCOMMON = $(PIOS)/Common
@@ -236,14 +235,17 @@ SRC += $(OPUAVSYNTHDIR)/fixedwingpathfollowersettingscc.c
 SRC += $(OPUAVSYNTHDIR)/pathstatus.c
 SRC += $(OPUAVSYNTHDIR)/pathdesired.c
 SRC += $(OPUAVSYNTHDIR)/homelocation.c
+SRC += $(OPUAVSYNTHDIR)/poilocation.c
 SRC += $(OPUAVSYNTHDIR)/positionactual.c
+SRC += $(OPUAVSYNTHDIR)/tabletinfo.c
 SRC += $(OPUAVSYNTHDIR)/velocityactual.c
 SRC += $(OPUAVSYNTHDIR)/airspeedactual.c
 SRC += $(OPUAVSYNTHDIR)/sensorsettings.c
 SRC += $(OPUAVSYNTHDIR)/flightbatterystate.c
 SRC += $(OPUAVSYNTHDIR)/flightbatterysettings.c
 SRC += $(OPUAVSYNTHDIR)/adcrouting.c
-
+SRC += $(OPUAVSYNTHDIR)/trimanglessettings.c
+SRC += $(OPUAVSYNTHDIR)/trimangles.c
 endif
 
 ## PIOS Hardware (STM32F10x)

@@ -3,6 +3,7 @@
  *
  * @file       configtaskwidget.cpp
  * @author     The OpenPilot Team, http://www.openpilot.org Copyright (C) 2010.
+ *
  * @addtogroup GCSPlugins GCS Plugins
  * @{
  * @addtogroup UAVObjectWidgetUtils Plugin
@@ -987,6 +988,10 @@ void ConfigTaskWidget::connectWidgetUpdatesToSlot(QWidget * widget,const char* f
     else if(QPushButton * cb=qobject_cast<QPushButton *>(widget))
     {
         connect(cb,SIGNAL(clicked()),this,function);
+    }
+    else if(qobject_cast<QLabel *>(widget))
+    {
+
     }
     else
         qDebug() << __FUNCTION__ << "widget to uavobject relation not implemented for widget: " << widget->objectName()  << "of class:" << widget->metaObject()->className();

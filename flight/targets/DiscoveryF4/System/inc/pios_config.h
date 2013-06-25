@@ -60,7 +60,7 @@
 //#define PIOS_INCLUDE_SERVO
 #define PIOS_INCLUDE_SPI
 #define PIOS_INCLUDE_SYS
-//#define PIOS_INCLUDE_USART
+#define PIOS_INCLUDE_USART
 #define PIOS_INCLUDE_USB
 #define PIOS_INCLUDE_USB_HID
 #define PIOS_INCLUDE_USB_CDC
@@ -76,8 +76,7 @@
 
 #define PIOS_INCLUDE_FLASH
 #define PIOS_INCLUDE_FLASH_INTERNAL
-/* A really shitty setting saving implementation */
-#define PIOS_INCLUDE_FLASH_SECTOR_SETTINGS
+#define PIOS_INCLUDE_LOGFS_SETTINGS
 
 /* Other Interfaces */
 //#define PIOS_INCLUDE_I2C_ESC

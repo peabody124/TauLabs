@@ -131,12 +131,13 @@ int32_t configuration_check()
 				}
 				break;
 			case MANUALCONTROLSETTINGS_FLIGHTMODEPOSITION_POSITIONHOLD:
+			case MANUALCONTROLSETTINGS_FLIGHTMODEPOSITION_RETURNTOHOME:
 				if (coptercontrol) {
-					error_code = SYSTEMALARMS_CONFIGERROR_POSITIONHOLD;
+					error_code = SYSTEMALARMS_CONFIGERROR_PATHPLANNER;
 				}
 				else {
 					if (!TaskMonitorQueryRunning(TASKINFO_RUNNING_PATHFOLLOWER)) {
-						error_code = SYSTEMALARMS_CONFIGERROR_POSITIONHOLD;
+						error_code = SYSTEMALARMS_CONFIGERROR_PATHPLANNER;
 					}
 				}
 				break;
@@ -209,6 +210,18 @@ static int32_t check_stabilization_settings(int index, bool multirotor)
 				return SYSTEMALARMS_CONFIGERROR_AUTOTUNE;
 		}
 	}
+
+	// POI mode is only valid for YAW in the case it is enabled and camera stab is running
+	if (modes[MANUALCONTROLSETTINGS_STABILIZATION1SETTINGS_ROLL] == MANUALCONTROLSETTINGS_STABILIZATION1SETTINGS_POI ||
+		modes[MANUALCONTROLSETTINGS_STABILIZATION1SETTINGS_PITCH] == MANUALCONTROLSETTINGS_STABILIZATION1SETTINGS_POI)
+		return SYSTEMALARMS_CONFIGERROR_STABILIZATION;
+	if (modes[MANUALCONTROLSETTINGS_STABILIZATION1SETTINGS_YAW] == MANUALCONTROLSETTINGS_STABILIZATION1SETTINGS_POI) {
+#if !defined(CAMERASTAB_POI_MODE)
+		return SYSTEMALARMS_CONFIGERROR_STABILIZATION;
+#endif
+		// TODO: Need to check camera stab is actually running
+	}
+
 
 	// Warning: This assumes that certain conditions in the XML file are met.  That 
 	// MANUALCONTROLSETTINGS_STABILIZATION1SETTINGS_NONE has the same numeric value for each channel

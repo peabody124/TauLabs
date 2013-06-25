@@ -53,11 +53,11 @@
 #include "pios_usb_rctx.h"
 #endif	/* PIOS_INCLUDE_USB_RCTX */
 
-#define THROTTLE_FAILSAFE -0.1f
 #define ARMED_TIME_MS      1000
 #define ARMED_THRESHOLD    0.50f
 //safe band to allow a bit of calibration error or trim offset (in microseconds)
-#define CONNECTION_OFFSET 250
+#define CONNECTION_OFFSET_THROTTLE 100
+#define CONNECTION_OFFSET          250
 
 // Private types
 enum arm_state {
@@ -96,13 +96,12 @@ static void update_actuator_desired(ManualControlCommandData * cmd);
 static void update_stabilization_desired(ManualControlCommandData * cmd, ManualControlSettingsData * settings);
 static void altitude_hold_desired(ManualControlCommandData * cmd, bool flightModeChanged);
 static void update_path_desired(ManualControlCommandData * cmd, bool flightModeChanged, bool home);
-static uint8_t get_flight_mode();
 static void set_flight_mode();
 static void process_transmitter_events(ManualControlCommandData * cmd, ManualControlSettingsData * settings);
 static void set_manual_control_error(SystemAlarmsManualControlOptions errorCode);
 static float scaleChannel(int16_t value, int16_t max, int16_t min, int16_t neutral);
 static uint32_t timeDifferenceMs(portTickType start_time, portTickType end_time);
-static bool validInputRange(int16_t min, int16_t max, uint16_t value);
+static bool validInputRange(int16_t min, int16_t max, uint16_t value, uint16_t offset);
 static void applyDeadband(float *value, float deadband);
 static void resetRcvrActivity(struct rcvr_activity_fsm * fsm);
 static bool updateRcvrActivity(struct rcvr_activity_fsm * fsm);
@@ -234,11 +233,12 @@ int32_t transmitter_control_update()
 		cmd.Channel[MANUALCONTROLSETTINGS_CHANNELGROUPS_THROTTLE] == (uint16_t) PIOS_RCVR_NODRIVER ||
 		// Check the FlightModeNumber is valid
 		settings.FlightModeNumber < 1 || settings.FlightModeNumber > MANUALCONTROLSETTINGS_FLIGHTMODEPOSITION_NUMELEM ||
-		// Similar checks for FlightMode channel but only if more than one flight mode has been set. Otherwise don't care
-		((settings.FlightModeNumber > 1) && (
-			settings.ChannelGroups[MANUALCONTROLSETTINGS_CHANNELGROUPS_FLIGHTMODE] >= MANUALCONTROLSETTINGS_CHANNELGROUPS_NONE ||
+		// If we've got more than one possible valid FlightMode, we require a configured FlightMode channel
+		((settings.FlightModeNumber > 1) && (settings.ChannelGroups[MANUALCONTROLSETTINGS_CHANNELGROUPS_FLIGHTMODE] >= MANUALCONTROLSETTINGS_CHANNELGROUPS_NONE)) ||
+		// Whenever FlightMode channel is configured, it needs to be valid regardless of FlightModeNumber settings
+		((settings.ChannelGroups[MANUALCONTROLSETTINGS_CHANNELGROUPS_FLIGHTMODE] < MANUALCONTROLSETTINGS_CHANNELGROUPS_NONE) && (
 			cmd.Channel[MANUALCONTROLSETTINGS_CHANNELGROUPS_FLIGHTMODE] == (uint16_t) PIOS_RCVR_INVALID ||
-			cmd.Channel[MANUALCONTROLSETTINGS_CHANNELGROUPS_FLIGHTMODE] == (uint16_t) PIOS_RCVR_NODRIVER))) {
+			cmd.Channel[MANUALCONTROLSETTINGS_CHANNELGROUPS_FLIGHTMODE] == (uint16_t) PIOS_RCVR_NODRIVER ))) {
 
 		set_manual_control_error(SYSTEMALARMS_MANUALCONTROL_SETTINGS);
 
@@ -252,11 +252,16 @@ int32_t transmitter_control_update()
 		return -1;
 	}
 
+	// the block above validates the input configuration. this simply checks that the range is valid if flight mode is configured.
+	bool flightmode_valid_input = settings.ChannelGroups[MANUALCONTROLSETTINGS_CHANNELGROUPS_FLIGHTMODE] >= MANUALCONTROLSETTINGS_CHANNELGROUPS_NONE ||
+		validInputRange(settings.ChannelMin[MANUALCONTROLSETTINGS_CHANNELGROUPS_FLIGHTMODE], settings.ChannelMax[MANUALCONTROLSETTINGS_CHANNELGROUPS_FLIGHTMODE], cmd.Channel[MANUALCONTROLSETTINGS_CHANNELGROUPS_FLIGHTMODE], CONNECTION_OFFSET);
+
 	// decide if we have valid manual input or not
-	valid_input_detected &= validInputRange(settings.ChannelMin[MANUALCONTROLSETTINGS_CHANNELGROUPS_THROTTLE], settings.ChannelMax[MANUALCONTROLSETTINGS_CHANNELGROUPS_THROTTLE], cmd.Channel[MANUALCONTROLSETTINGS_CHANNELGROUPS_THROTTLE]) &&
-	     validInputRange(settings.ChannelMin[MANUALCONTROLSETTINGS_CHANNELGROUPS_ROLL], settings.ChannelMax[MANUALCONTROLSETTINGS_CHANNELGROUPS_ROLL], cmd.Channel[MANUALCONTROLSETTINGS_CHANNELGROUPS_ROLL]) &&
-	     validInputRange(settings.ChannelMin[MANUALCONTROLSETTINGS_CHANNELGROUPS_YAW], settings.ChannelMax[MANUALCONTROLSETTINGS_CHANNELGROUPS_YAW], cmd.Channel[MANUALCONTROLSETTINGS_CHANNELGROUPS_YAW]) &&
-	     validInputRange(settings.ChannelMin[MANUALCONTROLSETTINGS_CHANNELGROUPS_PITCH], settings.ChannelMax[MANUALCONTROLSETTINGS_CHANNELGROUPS_PITCH], cmd.Channel[MANUALCONTROLSETTINGS_CHANNELGROUPS_PITCH]);
+	valid_input_detected &= validInputRange(settings.ChannelMin[MANUALCONTROLSETTINGS_CHANNELGROUPS_THROTTLE], settings.ChannelMax[MANUALCONTROLSETTINGS_CHANNELGROUPS_THROTTLE], cmd.Channel[MANUALCONTROLSETTINGS_CHANNELGROUPS_THROTTLE], CONNECTION_OFFSET_THROTTLE) &&
+	     validInputRange(settings.ChannelMin[MANUALCONTROLSETTINGS_CHANNELGROUPS_ROLL], settings.ChannelMax[MANUALCONTROLSETTINGS_CHANNELGROUPS_ROLL], cmd.Channel[MANUALCONTROLSETTINGS_CHANNELGROUPS_ROLL], CONNECTION_OFFSET) &&
+	     validInputRange(settings.ChannelMin[MANUALCONTROLSETTINGS_CHANNELGROUPS_YAW], settings.ChannelMax[MANUALCONTROLSETTINGS_CHANNELGROUPS_YAW], cmd.Channel[MANUALCONTROLSETTINGS_CHANNELGROUPS_YAW], CONNECTION_OFFSET) &&
+	     validInputRange(settings.ChannelMin[MANUALCONTROLSETTINGS_CHANNELGROUPS_PITCH], settings.ChannelMax[MANUALCONTROLSETTINGS_CHANNELGROUPS_PITCH], cmd.Channel[MANUALCONTROLSETTINGS_CHANNELGROUPS_PITCH], CONNECTION_OFFSET) &&
+	     flightmode_valid_input;
 
 	// Implement hysteresis loop on connection status
 	if (valid_input_detected && (++connected_count > 10)) {
@@ -398,25 +403,23 @@ int32_t transmitter_control_select(bool reset_controller)
 	return 0;
 }
 
-//! Choose the control source based on transmitter status
-enum control_selection transmitter_control_selected_controller()
-{
-	ManualControlCommandGet(&cmd);
-	if (cmd.Connected != MANUALCONTROLCOMMAND_CONNECTED_TRUE) {
-		return CONTROL_SELECTION_FAILSAFE;
-	} else if (get_flight_mode() == MANUALCONTROLSETTINGS_FLIGHTMODEPOSITION_TABLETCONTROL) {
-		return CONTROL_SELECTION_TABLET;
-	} else {
-		return CONTROL_SELECTION_TRANSMITTER;
-	}
-}
-
 //! Get any control events and flush it
 enum control_events transmitter_control_get_events()
 {
 	enum control_events to_return = pending_control_event;
 	pending_control_event = CONTROL_EVENTS_NONE;
 	return to_return;
+}
+
+//! Determine which of N positions the flight mode switch is in but do not set it
+uint8_t transmitter_control_get_flight_mode()
+{
+	// Convert flightMode value into the switch position in the range [0..N-1]
+	uint8_t pos = ((int16_t)(flight_mode_value * 256.0f) + 256) * settings.FlightModeNumber >> 9;
+	if (pos >= settings.FlightModeNumber)
+		pos = settings.FlightModeNumber - 1;
+
+	return settings.FlightModePosition[pos];
 }
 
 //! Schedule the appropriate event to change the arm status
@@ -550,21 +553,11 @@ static void process_transmitter_events(ManualControlCommandData * cmd, ManualCon
 	}
 }
 
-//! Determine which of N positions the flight mode switch is in but do not set it
-static uint8_t get_flight_mode()
-{
-	// Convert flightMode value into the switch position in the range [0..N-1]
-	uint8_t pos = ((int16_t)(flight_mode_value * 256.0f) + 256) * settings.FlightModeNumber >> 9;
-	if (pos >= settings.FlightModeNumber)
-		pos = settings.FlightModeNumber - 1;
-
-	return settings.FlightModePosition[pos];
-}
 
 //! Determine which of N positions the flight mode switch is in and set flight mode accordingly
 static void set_flight_mode()
 {
-	uint8_t new_mode = get_flight_mode();
+	uint8_t new_mode = transmitter_control_get_flight_mode();
 
 	FlightStatusData flightStatus;
 	FlightStatusGet(&flightStatus);
@@ -766,6 +759,7 @@ static void update_stabilization_desired(ManualControlCommandData * cmd, ManualC
 	     (stab_settings[0] == STABILIZATIONDESIRED_STABILIZATIONMODE_RATE) ? cmd->Roll * stabSettings.ManualRate[STABILIZATIONSETTINGS_MANUALRATE_ROLL] :
 	     (stab_settings[0] == STABILIZATIONDESIRED_STABILIZATIONMODE_WEAKLEVELING) ? cmd->Roll * stabSettings.ManualRate[STABILIZATIONSETTINGS_MANUALRATE_ROLL] :
 	     (stab_settings[0] == STABILIZATIONDESIRED_STABILIZATIONMODE_ATTITUDE) ? cmd->Roll * stabSettings.RollMax :
+	     (stab_settings[0] == STABILIZATIONDESIRED_STABILIZATIONMODE_ATTITUDEPLUS) ? cmd->Roll * stabSettings.RollMax :
 	     (stab_settings[0] == STABILIZATIONDESIRED_STABILIZATIONMODE_AXISLOCK) ? cmd->Roll * stabSettings.ManualRate[STABILIZATIONSETTINGS_MANUALRATE_ROLL] :
 	     (stab_settings[0] == STABILIZATIONDESIRED_STABILIZATIONMODE_VIRTUALBAR) ? cmd->Roll :
 	     (stab_settings[0] == STABILIZATIONDESIRED_STABILIZATIONMODE_RELAYRATE) ? cmd->Roll * stabSettings.ManualRate[STABILIZATIONSETTINGS_MANUALRATE_ROLL] :
@@ -777,6 +771,7 @@ static void update_stabilization_desired(ManualControlCommandData * cmd, ManualC
 	     (stab_settings[1] == STABILIZATIONDESIRED_STABILIZATIONMODE_RATE) ? cmd->Pitch * stabSettings.ManualRate[STABILIZATIONSETTINGS_MANUALRATE_PITCH] :
 	     (stab_settings[1] == STABILIZATIONDESIRED_STABILIZATIONMODE_WEAKLEVELING) ? cmd->Pitch * stabSettings.ManualRate[STABILIZATIONSETTINGS_MANUALRATE_PITCH] :
 	     (stab_settings[1] == STABILIZATIONDESIRED_STABILIZATIONMODE_ATTITUDE) ? cmd->Pitch * stabSettings.PitchMax :
+	     (stab_settings[1] == STABILIZATIONDESIRED_STABILIZATIONMODE_ATTITUDEPLUS) ? cmd->Pitch * stabSettings.PitchMax :
 	     (stab_settings[1] == STABILIZATIONDESIRED_STABILIZATIONMODE_AXISLOCK) ? cmd->Pitch * stabSettings.ManualRate[STABILIZATIONSETTINGS_MANUALRATE_PITCH] :
 	     (stab_settings[1] == STABILIZATIONDESIRED_STABILIZATIONMODE_VIRTUALBAR) ? cmd->Pitch :
 	     (stab_settings[1] == STABILIZATIONDESIRED_STABILIZATIONMODE_RELAYRATE) ? cmd->Pitch * stabSettings.ManualRate[STABILIZATIONSETTINGS_MANUALRATE_PITCH] :
@@ -788,6 +783,7 @@ static void update_stabilization_desired(ManualControlCommandData * cmd, ManualC
 	     (stab_settings[2] == STABILIZATIONDESIRED_STABILIZATIONMODE_RATE) ? cmd->Yaw * stabSettings.ManualRate[STABILIZATIONSETTINGS_MANUALRATE_YAW] :
 	     (stab_settings[2] == STABILIZATIONDESIRED_STABILIZATIONMODE_WEAKLEVELING) ? cmd->Yaw * stabSettings.ManualRate[STABILIZATIONSETTINGS_MANUALRATE_YAW] :
 	     (stab_settings[2] == STABILIZATIONDESIRED_STABILIZATIONMODE_ATTITUDE) ? cmd->Yaw * stabSettings.YawMax :
+	     (stab_settings[2] == STABILIZATIONDESIRED_STABILIZATIONMODE_ATTITUDEPLUS) ? cmd->Yaw * stabSettings.YawMax :
 	     (stab_settings[2] == STABILIZATIONDESIRED_STABILIZATIONMODE_AXISLOCK) ? cmd->Yaw * stabSettings.ManualRate[STABILIZATIONSETTINGS_MANUALRATE_YAW] :
 	     (stab_settings[2] == STABILIZATIONDESIRED_STABILIZATIONMODE_VIRTUALBAR) ? cmd->Yaw :
 	     (stab_settings[2] == STABILIZATIONDESIRED_STABILIZATIONMODE_RELAYRATE) ? cmd->Yaw * stabSettings.ManualRate[STABILIZATIONSETTINGS_MANUALRATE_YAW] :
@@ -955,7 +951,7 @@ static uint32_t timeDifferenceMs(portTickType start_time, portTickType end_time)
  * @brief Determine if the manual input value is within acceptable limits
  * @returns return TRUE if so, otherwise return FALSE
  */
-bool validInputRange(int16_t min, int16_t max, uint16_t value)
+bool validInputRange(int16_t min, int16_t max, uint16_t value, uint16_t offset)
 {
 	if (min > max)
 	{
@@ -963,7 +959,7 @@ bool validInputRange(int16_t min, int16_t max, uint16_t value)
 		min = max;
 		max = tmp;
 	}
-	return (value >= min - CONNECTION_OFFSET && value <= max + CONNECTION_OFFSET);
+	return (value >= min - offset && value <= max + offset);
 }
 
 /**

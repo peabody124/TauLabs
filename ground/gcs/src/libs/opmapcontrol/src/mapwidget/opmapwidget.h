@@ -3,6 +3,7 @@
 *
 * @file       opmapwidget.h
 * @author     The OpenPilot Team, http://www.openpilot.org Copyright (C) 2012.
+* @author     Tau Labs, http://taulabs.org, Copyright (C) 2013
 * @brief      The Map Widget, this is the part exposed to the user
 * @see        The GNU Public License (GPL) Version 3
 * @defgroup   OPMapWidget
@@ -41,8 +42,8 @@
 #include "gpsitem.h"
 #include "homeitem.h"
 #include "mapripper.h"
-#include "waypointline.h"
-#include "waypointcircle.h"
+#include "mapline.h"
+#include "mapcircle.h"
 #include "waypointcurve.h"
 #include "waypointitem.h"
 namespace mapcontrol
@@ -355,7 +356,8 @@ namespace mapcontrol
         */
         void WPRenumber(WayPointItem* item,int const& newnumber);
 
-        void SetShowCompass(bool const& value);
+        void SetShowCompassRose(bool const& value);
+        void SetShowWindCompass(bool const& value);
 
         void setOverlayOpacity(qreal value);
 
@@ -370,15 +372,15 @@ namespace mapcontrol
         void SetUavPic(QString UAVPic);
 
         //! Create a line between two waypoint items
-        WayPointLine *WPLineCreate(WayPointItem *from,WayPointItem *to, QColor color);
+        MapLine *WPLineCreate(WayPointItem *from,WayPointItem *to, QColor color);
         //! Create a line from home to a waypoint item
-        WayPointLine *WPLineCreate(HomeItem *from,WayPointItem *to, QColor color);
+        MapLine *WPLineCreate(HomeItem *from,WayPointItem *to, QColor color);
         //! Create a curve from one waypoint item to another with a given radius
         WayPointCurve *WPCurveCreate(WayPointItem *start, WayPointItem *dest, double radius, bool clockwise, QColor color);
         //! Create a circle around a waypoint with the radius specified by the distance to another waypoint
-        WayPointCircle *WPCircleCreate(WayPointItem *center, WayPointItem *radius,bool clockwise,QColor color);
+        MapCircle *WPCircleCreate(WayPointItem *center, WayPointItem *radius,bool clockwise,QColor color);
         //! Create a circle around home with the radius specifed by the distance to another waypoint
-        WayPointCircle *WPCircleCreate(HomeItem *center, WayPointItem *radius,bool clockwise,QColor color);
+        MapCircle *WPCircleCreate(HomeItem *center, WayPointItem *radius,bool clockwise,QColor color);
 
         void deleteAllOverlays();
         void WPSetVisibleAll(bool value);
@@ -387,6 +389,8 @@ namespace mapcontrol
         void WPDelete(int number);
         WayPointItem *WPFind(int number);
         void setSelectedWP(QList<WayPointItem *> list);
+
+        void setWindVelocity(double windVelocity_NED[3]);
       private:
         internals::Core *core;
         MapGraphicItem *map;
@@ -398,13 +402,17 @@ namespace mapcontrol
         internals::PointLatLng currentmouseposition;
         bool followmouse;
         void ConnectWP(WayPointItem* item);
-        QGraphicsSvgItem *compass;
+        QGraphicsSvgItem *compassRose;
+        QGraphicsSvgItem *windCompass;
         bool showuav;
         bool showhome;
         QTimer * diagTimer;
         QGraphicsTextItem * diagGraphItem;
         bool showDiag;
         qreal overlayOpacity;
+
+        QGraphicsTextItem *windspeedTxt;
+
     private slots:
         void diagRefresh();
         //   WayPointItem* item;//apagar

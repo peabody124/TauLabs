@@ -62,13 +62,18 @@ endif
 
 # List of modules to include
 MODULES = Sensors 
-MODULES += Attitude/revolution
 MODULES += ManualControl
 MODULES += Stabilization
 MODULES += Actuator
 MODULES += FirmwareIAP
 MODULES += Airspeed/revolution
 MODULES += Telemetry
+
+ifeq ($(FILTER_ARCHITECTURE),YES)
+MODULES += State
+else
+MODULES += Attitude/revolution
+endif
 
 OPTMODULES += GPS
 OPTMODULES += AltitudeHold 
@@ -92,8 +97,7 @@ OPUAVTALKINC = $(OPUAVTALK)/inc
 OPUAVOBJINC = $(OPUAVOBJ)/inc
 PIOSINC = $(PIOS)/inc
 FLIGHTLIBINC = $(FLIGHTLIB)/inc
-MATHLIB = $(FLIGHTLIB)/math
-MATHLIBINC = $(FLIGHTLIB)/math
+MATHLIBINC = $(MATHLIB)
 PIOSSTM32F4XX = $(PIOS)/STM32F4xx
 PIOSCOMMON = $(PIOS)/Common
 PIOSBOARDS = $(PIOS)/Boards
@@ -167,6 +171,11 @@ SRC += $(MATHLIB)/coordinate_conversions.c
 SRC += $(MATHLIB)/sin_lookup.c
 SRC += $(MATHLIB)/misc_math.c
 SRC += $(MATHLIB)/pid.c
+
+## Enable some filters for the new architecture
+ifeq ($(FILTER_ARCHITECTURE),YES)
+include $(FILTERLIB)/filters.mk
+endif
 
 ## PIOS Hardware (STM32F4xx)
 include $(PIOS)/STM32F4xx/library.mk

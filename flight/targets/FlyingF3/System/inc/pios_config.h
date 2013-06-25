@@ -38,6 +38,7 @@
 #define PIOS_INCLUDE_DMA_CB_SUBSCRIBING_FUNCTION
 #define PIOS_INCLUDE_DELAY
 #define PIOS_INCLUDE_I2C
+#define PIOS_INCLUDE_CAN
 #define PIOS_I2C_DIAGNOSTICS
 #define I2C_WDG_STATS_DIAGNOSTICS
 #define PIOS_INCLUDE_IRQ
@@ -55,6 +56,7 @@
 #define PIOS_INCLUDE_EXTI
 #define PIOS_INCLUDE_RTC
 #define PIOS_INCLUDE_WDG
+#define PIOS_INCLUDE_ADC
 
 /* Select the sensors to include */
 #define PIOS_INCLUDE_L3GD20
@@ -82,10 +84,12 @@
 #define PIOS_INCLUDE_SETTINGS
 #define PIOS_INCLUDE_FLASH
 #define PIOS_INCLUDE_FLASH_INTERNAL
-#define PIOS_INCLUDE_FLASH_SECTOR_SETTINGS
+#define PIOS_INCLUDE_LOGFS_SETTINGS
 
 /* Other Interfaces */
 //#define PIOS_INCLUDE_I2C_ESC
+
+#define CAMERASTAB_POI_MODE
 
 /* Flags that alter behaviors - mostly to lower resources for CC */
 #define PIOS_INCLUDE_INITCALL           /* Include init call structures */

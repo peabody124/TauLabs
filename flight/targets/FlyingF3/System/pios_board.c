@@ -151,6 +151,9 @@ uint32_t pios_rcvr_group_map[MANUALCONTROLSETTINGS_CHANNELGROUPS_NONE];
 #define PIOS_COM_TELEM_USB_RX_BUF_LEN 65
 #define PIOS_COM_TELEM_USB_TX_BUF_LEN 65
 
+#define PIOS_COM_CAN_RX_BUF_LEN 256
+#define PIOS_COM_CAN_TX_BUF_LEN 256
+
 #define PIOS_COM_BRIDGE_RX_BUF_LEN 65
 #define PIOS_COM_BRIDGE_TX_BUF_LEN 12
 
@@ -169,9 +172,12 @@ uintptr_t pios_com_bridge_id;
 uintptr_t pios_internal_adc_id;
 uintptr_t pios_com_mavlink_id;
 uintptr_t pios_com_overo_id;
+uintptr_t pios_com_can_id;
 
 uintptr_t pios_uavo_settings_fs_id;
 uintptr_t pios_waypoints_settings_fs_id;
+
+uintptr_t pios_can_id;
 
 /*
  * Setup a com port based on the passed cfg, driver and buffer sizes. rx or tx size of 0 disables rx or tx
@@ -239,6 +245,7 @@ static void PIOS_Board_configure_dsm(const struct pios_usart_cfg *pios_usart_dsm
  * 2 pulses - LSM303
  * 3 pulses - internal I2C bus locked
  * 4 pulses - external I2C bus locked
+ * 6 pulses - CAN bus
  */
 void panic(int32_t code) {
 	while(1){
@@ -301,6 +308,22 @@ void PIOS_Board_Init(void) {
 	}
 	if (PIOS_I2C_CheckClear(pios_i2c_external_id) != 0)
 		panic(4);
+#endif
+
+#if defined(PIOS_INCLUDE_CAN)
+	if (PIOS_CAN_Init(&pios_can_id, &pios_can_cfg) != 0)
+		panic(6);
+
+	uint8_t * rx_buffer = (uint8_t *) pvPortMalloc(PIOS_COM_CAN_RX_BUF_LEN);
+	uint8_t * tx_buffer = (uint8_t *) pvPortMalloc(PIOS_COM_CAN_TX_BUF_LEN);
+	PIOS_Assert(rx_buffer);
+	PIOS_Assert(tx_buffer);
+	if (PIOS_COM_Init(&pios_com_can_id, &pios_can_com_driver, pios_can_id,
+	                  rx_buffer, PIOS_COM_CAN_RX_BUF_LEN,
+	                  tx_buffer, PIOS_COM_CAN_TX_BUF_LEN))
+		panic(6);
+
+	pios_com_bridge_id = pios_com_can_id;
 #endif
 
 #if defined(PIOS_INCLUDE_FLASH)
@@ -520,7 +543,6 @@ void PIOS_Board_Init(void) {
 #endif
 		break;
 	case HWFLYINGF3_UART1_SBUS:
-		//hardware signal inverter required
 #if defined(PIOS_INCLUDE_SBUS) && defined(PIOS_INCLUDE_USART)
 		{
 			uint32_t pios_usart_sbus_id;
@@ -606,7 +628,6 @@ void PIOS_Board_Init(void) {
 #endif
 		break;
 	case HWFLYINGF3_UART2_SBUS:
-		//hardware signal inverter required
 #if defined(PIOS_INCLUDE_SBUS) && defined(PIOS_INCLUDE_USART)
 		{
 			uint32_t pios_usart_sbus_id;
@@ -691,7 +712,6 @@ void PIOS_Board_Init(void) {
 #endif
 		break;
 	case HWFLYINGF3_UART3_SBUS:
-		//hardware signal inverter required
 #if defined(PIOS_INCLUDE_SBUS) && defined(PIOS_INCLUDE_USART)
 		{
 			uint32_t pios_usart_sbus_id;
@@ -776,7 +796,6 @@ void PIOS_Board_Init(void) {
 #endif
 		break;
 	case HWFLYINGF3_UART4_SBUS:
-		//hardware signal inverter required
 #if defined(PIOS_INCLUDE_SBUS) && defined(PIOS_INCLUDE_USART)
 		{
 			uint32_t pios_usart_sbus_id;
@@ -861,7 +880,6 @@ void PIOS_Board_Init(void) {
 #endif
 		break;
 	case HWFLYINGF3_UART5_SBUS:
-		//hardware signal inverter required
 #if defined(PIOS_INCLUDE_SBUS) && defined(PIOS_INCLUDE_USART)
 		{
 			uint32_t pios_usart_sbus_id;
@@ -1104,12 +1122,27 @@ void PIOS_Board_Init(void) {
 	PIOS_GPIO_Init();
 #endif
 
-#if defined(PIOS_INCLUDE_ADC)
+	//FlyingF3 shield specific hw init
+	uint8_t flyingf3_shield;
 	uint32_t internal_adc_id;
-	if(PIOS_INTERNAL_ADC_Init(&internal_adc_id, &internal_adc_cfg) < 0)
-	        PIOS_Assert(0);
-	PIOS_ADC_Init(&pios_internal_adc_id, &pios_internal_adc_driver, internal_adc_id);
+	HwFlyingF3ShieldGet(&flyingf3_shield);
+	switch (flyingf3_shield) {
+	case HWFLYINGF3_SHIELD_RCFLYER:
+#if defined(PIOS_INCLUDE_ADC)
+		//Sanity check, this is to ensure that no one changes the adc_pins array without changing the defines
+		PIOS_Assert(internal_adc_cfg_rcflyer_shield.adc_pins[PIOS_ADC_RCFLYER_SHIELD_BARO_PIN].pin == GPIO_Pin_3);
+		PIOS_Assert(internal_adc_cfg_rcflyer_shield.adc_pins[PIOS_ADC_RCFLYER_SHIELD_BAT_VOLTAGE_PIN].pin == GPIO_Pin_4);
+		if (PIOS_INTERNAL_ADC_Init(&internal_adc_id, &internal_adc_cfg_rcflyer_shield) < 0)
+			PIOS_Assert(0);
+		PIOS_ADC_Init(&pios_internal_adc_id, &pios_internal_adc_driver, internal_adc_id);
 #endif
+		break;
+	case HWFLYINGF3_SHIELD_NONE:
+		break;
+	default:
+		PIOS_Assert(0);
+		break;
+	}
 
 	/* Make sure we have at least one telemetry link configured or else fail initialization */
 	PIOS_Assert(pios_com_telem_rf_id || pios_com_telem_usb_id);

@@ -85,8 +85,7 @@
 #define PIOS_INCLUDE_MPU6000
 #define PIOS_MPU6000_ACCEL
 
-/* A really shitty setting saving implementation */
-#define PIOS_INCLUDE_FLASH_SECTOR_SETTINGS
+#define PIOS_INCLUDE_LOGFS_SETTINGS
 
 /* Alarm Thresholds */
 #define HEAP_LIMIT_WARNING             220
@@ -104,6 +103,7 @@
 #define PIOS_TELEM_STACK_SIZE           500
 #define PIOS_EVENTDISPATCHER_STACK_SIZE 130
 #define PIOS_MAVLINK_STACK_SIZE         600
+#define PIOS_COMUSBBRIDGE_STACK_SIZE    280
 #define IDLE_COUNTS_PER_SEC_AT_NO_LOAD 1995998
 //#define PIOS_QUATERNION_STABILIZATION
 

@@ -90,8 +90,7 @@
 
 #define PIOS_INCLUDE_SETTINGS
 #define PIOS_INCLUDE_FLASH
-/* A really shitty setting saving implementation */
-#define PIOS_INCLUDE_FLASH_SECTOR_SETTINGS
+#define PIOS_INCLUDE_LOGFS_SETTINGS
 
 //#define PIOS_INCLUDE_DEBUG_CONSOLE
 
@@ -103,6 +102,8 @@
 #define PIOS_TELEM_PRIORITY_QUEUE       /* Enable a priority queue in telemetry */
 //#define PIOS_QUATERNION_STABILIZATION   /* Stabilization options */
 #define PIOS_GPS_SETS_HOMELOCATION      /* GPS options */
+
+#define CAMERASTAB_POI_MODE
 
 /* Alarm Thresholds */
 #define HEAP_LIMIT_WARNING		1000

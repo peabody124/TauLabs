@@ -75,6 +75,7 @@ UAVOBJSRCFILENAMES += overosyncsettings
 UAVOBJSRCFILENAMES += pathdesired
 UAVOBJSRCFILENAMES += pathplannersettings
 UAVOBJSRCFILENAMES += pathstatus
+UAVOBJSRCFILENAMES += poilocation
 UAVOBJSRCFILENAMES += positionactual
 UAVOBJSRCFILENAMES += ratedesired
 UAVOBJSRCFILENAMES += relaytuning
@@ -83,6 +84,7 @@ UAVOBJSRCFILENAMES += sonaraltitude
 UAVOBJSRCFILENAMES += stabilizationdesired
 UAVOBJSRCFILENAMES += stabilizationsettings
 UAVOBJSRCFILENAMES += stateestimation
+UAVOBJSRCFILENAMES += statefilter
 UAVOBJSRCFILENAMES += systemalarms
 UAVOBJSRCFILENAMES += systemsettings
 UAVOBJSRCFILENAMES += systemstats
@@ -106,6 +108,8 @@ UAVOBJSRCFILENAMES += waypointactive
 
 UAVOBJSRCFILENAMES += vibrationanalysissettings
 UAVOBJSRCFILENAMES += vibrationanalysisoutput
+UAVOBJSRCFILENAMES += trimangles
+UAVOBJSRCFILENAMES += trimanglessettings
 
 UAVOBJSRC = $(foreach UAVOBJSRCFILE,$(UAVOBJSRCFILENAMES),$(OPUAVSYNTHDIR)/$(UAVOBJSRCFILE).c )
 UAVOBJDEFINE = $(foreach UAVOBJSRCFILE,$(UAVOBJSRCFILENAMES),-DUAVOBJ_INIT_$(UAVOBJSRCFILE) )

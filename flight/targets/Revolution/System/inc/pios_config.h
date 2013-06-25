@@ -92,8 +92,7 @@
 
 #define PIOS_INCLUDE_SETTINGS
 #define PIOS_INCLUDE_FLASH
-/* A really shitty setting saving implementation */
-#define PIOS_INCLUDE_FLASH_SECTOR_SETTINGS
+#define PIOS_INCLUDE_LOGFS_SETTINGS
 
 /* Other Interfaces */
 //#define PIOS_INCLUDE_I2C_ESC
@@ -102,6 +101,8 @@
 #define PIOS_INCLUDE_INITCALL           /* Include init call structures */
 #define PIOS_TELEM_PRIORITY_QUEUE       /* Enable a priority queue in telemetry */
 //#define PIOS_QUATERNION_STABILIZATION   /* Stabilization options */
+
+#define CAMERASTAB_POI_MODE
 
 /* Alarm Thresholds */
 #define HEAP_LIMIT_WARNING		1000
@@ -125,6 +126,9 @@
 #define IDLE_COUNTS_PER_SEC_AT_NO_LOAD (6984538)
 
 #define REVOLUTION
+
+// Enable POI tracking mode for camera stabilization
+#define CAMERASTAB_POI_MODE
 
 #endif /* PIOS_CONFIG_H */
 /**

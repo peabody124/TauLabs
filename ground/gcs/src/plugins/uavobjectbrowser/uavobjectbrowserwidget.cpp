@@ -200,7 +200,7 @@ void UAVObjectBrowserWidget::onTreeItemCollapsed(QModelIndex currentIndex)
 void UAVObjectBrowserWidget::updateThrottlePeriod(UAVObject *obj)
 {
     // Test if this is a metadata object. A UAVO's metadata's object ID is the UAVO's object ID + 1
-    if (obj->getObjID() & 0x01 == 1){
+    if ((obj->getObjID() & 0x01) == 1){
         ExtensionSystem::PluginManager *pm = ExtensionSystem::PluginManager::instance();
         Q_ASSERT(pm);
         UAVObjectManager *objManager = pm->getObject<UAVObjectManager>();
@@ -488,6 +488,8 @@ void UAVObjectBrowserWidget::toggleUAVOButtons(const QModelIndex &currentIndex, 
     TreeItem *item = static_cast<TreeItem*>(currentIndex.internalPointer());
     TopTreeItem *top = dynamic_cast<TopTreeItem*>(item);
     ObjectTreeItem *data = dynamic_cast<ObjectTreeItem*>(item);
+    CategoryTreeItem *category = dynamic_cast<CategoryTreeItem*>(item);
+
     bool enableState = true;
 
     //Check if current index refers to an empty index
@@ -496,6 +498,10 @@ void UAVObjectBrowserWidget::toggleUAVOButtons(const QModelIndex &currentIndex, 
 
     //Check if current tree index is the top tree item
     if (top || (data && !data->object()))
+        enableState = false;
+
+    // Check if category selected
+    if (category)
         enableState = false;
 
     enableUAVOBrowserButtons(enableState);

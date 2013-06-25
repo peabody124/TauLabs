@@ -70,7 +70,6 @@ HEADERS += $$UAVOBJECT_SYNTHETICS/accels.h \
     $$UAVOBJECT_SYNTHETICS/hwfreedom.h \
     $$UAVOBJECT_SYNTHETICS/hwflyingf3.h \
     $$UAVOBJECT_SYNTHETICS/hwflyingf4.h \
-    $$UAVOBJECT_SYNTHETICS/hwosd.h \
     $$UAVOBJECT_SYNTHETICS/hwquanton.h \
     $$UAVOBJECT_SYNTHETICS/hwrevolution.h \
     $$UAVOBJECT_SYNTHETICS/hwrevomini.h \
@@ -92,12 +91,12 @@ HEADERS += $$UAVOBJECT_SYNTHETICS/accels.h \
     $$UAVOBJECT_SYNTHETICS/objectpersistence.h \
     $$UAVOBJECT_SYNTHETICS/oplinksettings.h \
     $$UAVOBJECT_SYNTHETICS/oplinkstatus.h \
-    $$UAVOBJECT_SYNTHETICS/osdsettings.h \
     $$UAVOBJECT_SYNTHETICS/overosyncsettings.h \
     $$UAVOBJECT_SYNTHETICS/overosyncstats.h \
     $$UAVOBJECT_SYNTHETICS/pathdesired.h \
     $$UAVOBJECT_SYNTHETICS/pathplannersettings.h \
     $$UAVOBJECT_SYNTHETICS/pathstatus.h \
+    $$UAVOBJECT_SYNTHETICS/poilocation.h \
     $$UAVOBJECT_SYNTHETICS/positionactual.h \
     $$UAVOBJECT_SYNTHETICS/ratedesired.h \
     $$UAVOBJECT_SYNTHETICS/receiveractivity.h \
@@ -113,6 +112,8 @@ HEADERS += $$UAVOBJECT_SYNTHETICS/accels.h \
     $$UAVOBJECT_SYNTHETICS/systemsettings.h \
     $$UAVOBJECT_SYNTHETICS/tabletinfo.h \
     $$UAVOBJECT_SYNTHETICS/taskinfo.h \
+    $$UAVOBJECT_SYNTHETICS/trimangles.h \
+    $$UAVOBJECT_SYNTHETICS/trimanglessettings.h \
     $$UAVOBJECT_SYNTHETICS/txpidsettings.h \
     $$UAVOBJECT_SYNTHETICS/velocitydesired.h \
     $$UAVOBJECT_SYNTHETICS/velocityactual.h \
@@ -121,7 +122,8 @@ HEADERS += $$UAVOBJECT_SYNTHETICS/accels.h \
     $$UAVOBJECT_SYNTHETICS/vtolpathfollowersettings.h \
     $$UAVOBJECT_SYNTHETICS/watchdogstatus.h \
     $$UAVOBJECT_SYNTHETICS/waypoint.h \
-    $$UAVOBJECT_SYNTHETICS/waypointactive.h
+    $$UAVOBJECT_SYNTHETICS/waypointactive.h \
+    $$UAVOBJECT_SYNTHETICS/windvelocityactual.h
 
 SOURCES += $$UAVOBJECT_SYNTHETICS/accels.cpp \
     $$UAVOBJECT_SYNTHETICS/accessorydesired.cpp \
@@ -170,7 +172,6 @@ SOURCES += $$UAVOBJECT_SYNTHETICS/accels.cpp \
     $$UAVOBJECT_SYNTHETICS/hwfreedom.cpp \
     $$UAVOBJECT_SYNTHETICS/hwflyingf3.cpp \
     $$UAVOBJECT_SYNTHETICS/hwflyingf4.cpp \
-    $$UAVOBJECT_SYNTHETICS/hwosd.cpp \
     $$UAVOBJECT_SYNTHETICS/hwquanton.cpp \
     $$UAVOBJECT_SYNTHETICS/hwrevolution.cpp \
     $$UAVOBJECT_SYNTHETICS/hwrevomini.cpp \
@@ -190,7 +191,6 @@ SOURCES += $$UAVOBJECT_SYNTHETICS/accels.cpp \
     $$UAVOBJECT_SYNTHETICS/nedaccel.cpp \
     $$UAVOBJECT_SYNTHETICS/nedposition.cpp \
     $$UAVOBJECT_SYNTHETICS/objectpersistence.cpp \
-    $$UAVOBJECT_SYNTHETICS/osdsettings.cpp \
     $$UAVOBJECT_SYNTHETICS/oplinksettings.cpp \
     $$UAVOBJECT_SYNTHETICS/oplinkstatus.cpp \
     $$UAVOBJECT_SYNTHETICS/overosyncsettings.cpp \
@@ -198,6 +198,7 @@ SOURCES += $$UAVOBJECT_SYNTHETICS/accels.cpp \
     $$UAVOBJECT_SYNTHETICS/pathdesired.cpp \
     $$UAVOBJECT_SYNTHETICS/pathplannersettings.cpp \
     $$UAVOBJECT_SYNTHETICS/pathstatus.cpp \
+    $$UAVOBJECT_SYNTHETICS/poilocation.cpp \
     $$UAVOBJECT_SYNTHETICS/positionactual.cpp \
     $$UAVOBJECT_SYNTHETICS/ratedesired.cpp \
     $$UAVOBJECT_SYNTHETICS/receiveractivity.cpp \
@@ -213,6 +214,8 @@ SOURCES += $$UAVOBJECT_SYNTHETICS/accels.cpp \
     $$UAVOBJECT_SYNTHETICS/systemstats.cpp \
     $$UAVOBJECT_SYNTHETICS/tabletinfo.cpp \
     $$UAVOBJECT_SYNTHETICS/taskinfo.cpp \
+    $$UAVOBJECT_SYNTHETICS/trimangles.cpp \
+    $$UAVOBJECT_SYNTHETICS/trimanglessettings.cpp \
     $$UAVOBJECT_SYNTHETICS/txpidsettings.cpp \
     $$UAVOBJECT_SYNTHETICS/uavobjectsinit.cpp \
     $$UAVOBJECT_SYNTHETICS/velocitydesired.cpp \
@@ -222,4 +225,5 @@ SOURCES += $$UAVOBJECT_SYNTHETICS/accels.cpp \
     $$UAVOBJECT_SYNTHETICS/vtolpathfollowersettings.cpp \
     $$UAVOBJECT_SYNTHETICS/watchdogstatus.cpp \
     $$UAVOBJECT_SYNTHETICS/waypoint.cpp \
-    $$UAVOBJECT_SYNTHETICS/waypointactive.cpp
+    $$UAVOBJECT_SYNTHETICS/waypointactive.cpp\
+    $$UAVOBJECT_SYNTHETICS/windvelocityactual.cpp

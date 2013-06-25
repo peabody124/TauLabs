@@ -45,8 +45,13 @@ USE_BOOTLOADER ?= NO
 
 # List of modules to include
 MODULES += Actuator ManualControl Stabilization 
-MODULES += Attitude/revolution
 MODULES += FirmwareIAP
+
+ifeq ($(FILTER_ARCHITECTURE),YES)
+MODULES += State
+else
+MODULES += Attitude/revolution
+endif
 
 OPTMODULES += PathPlanner
 OPTMODULES += AltitudeHold 
@@ -200,6 +205,10 @@ SRC += $(MATHLIB)/misc_math.c
 SRC += $(MATHLIB)/pid.c
 SRC += $(MATHLIB)/sin_lookup.c
 
+## Enable some filters for the new architecture
+ifeq ($(FILTER_ARCHITECTURE),YES)
+include $(FILTERLIB)/filters.mk
+endif
 
 ## RTOS and RTOS Portable 
 SRC += $(RTOSSRCDIR)/list.c

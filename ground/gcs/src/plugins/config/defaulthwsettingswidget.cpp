@@ -37,11 +37,17 @@
  */
 DefaultHwSettingsWidget::DefaultHwSettingsWidget(QWidget *parent, bool autopilotConnected) :
         ConfigTaskWidget(parent),
-        ui(new Ui_defaulthwsettings),
+        defaultHWSettingsWidget(new Ui_defaulthwsettings),
         hwSettingsObject(NULL),
         settingSelected(false)
 {
-    ui->setupUi(this);
+    defaultHWSettingsWidget->setupUi(this);
+
+    // Add modules widget. Don't forget to remove placeholder "Modules" widget first.
+    ModuleSettingsForm *optionalModuleSettings = new ModuleSettingsForm(this, defaultHWSettingsWidget->saveButton, defaultHWSettingsWidget->applyButton, defaultHWSettingsWidget->reloadButton);
+    QString modulesTabText = defaultHWSettingsWidget->tabWidget->tabText(defaultHWSettingsWidget->tabWidget->indexOf(defaultHWSettingsWidget->modules_placeholder));
+    defaultHWSettingsWidget->tabWidget->removeTab(defaultHWSettingsWidget->tabWidget->indexOf(defaultHWSettingsWidget->modules_placeholder));
+    defaultHWSettingsWidget->tabWidget->addTab(optionalModuleSettings, modulesTabText); //Add the widget to the UI
 
     //TODO: This is a bit ugly. It sets up a form with no elements. The
     //result is that there is no formatting-- such as scrolling and stretching behavior--, so
@@ -50,9 +56,10 @@ DefaultHwSettingsWidget::DefaultHwSettingsWidget(QWidget *parent, bool autopilot
     //generic elements based on the hardware UAVO.
     fieldWidgets.clear();
 
+    bool unknown_board = true;
     if (autopilotConnected){
-        addApplySaveButtons(ui->applyButton,ui->saveButton);
-        addReloadButton(ui->reloadButton, 0);
+        addApplySaveButtons(defaultHWSettingsWidget->applyButton,defaultHWSettingsWidget->saveButton);
+        addReloadButton(defaultHWSettingsWidget->reloadButton, 0);
 
         // Query the board plugin for the connected board to get the specific
         // hw settings object
@@ -60,30 +67,31 @@ DefaultHwSettingsWidget::DefaultHwSettingsWidget(QWidget *parent, bool autopilot
         if (pm != NULL) {
              UAVObjectUtilManager* uavoUtilManager = pm->getObject<UAVObjectUtilManager>();
              Core::IBoardType* board = uavoUtilManager->getBoardType();
+             if (board != NULL) {
+                 QString hwSwettingsObject = board->getHwUAVO();
 
-             QString hwSwettingsObject = board->getHwUAVO();
-
-             UAVObject *obj = getObjectManager()->getObject(hwSwettingsObject);
-             if (obj != NULL) {
-                 qDebug() << "Checking object " << obj->getName();
-                 connect(obj,SIGNAL(transactionCompleted(UAVObject*,bool)), this, SLOT(settingsUpdated(UAVObject*,bool)));
-                 obj->requestUpdate();
-             } else {
-                 qDebug() << "HwConfiguration object not found";
+                 UAVObject *obj = getObjectManager()->getObject(hwSwettingsObject);
+                 if (obj != NULL) {
+                     unknown_board = false;
+                     qDebug() << "Checking object " << obj->getName();
+                     connect(obj,SIGNAL(transactionCompleted(UAVObject*,bool)), this, SLOT(settingsUpdated(UAVObject*,bool)));
+                     obj->requestUpdate();
+                 }
              }
         }
+    }
 
+    if (unknown_board) {
+        QLabel *label = new QLabel("  No recognized board detected.\n  Hardware tab will refresh once a known board is detected.", defaultHWSettingsWidget->hardware);
+        label->resize(385, 200);
     }
-    else{
-        qDebug() << "No hardware attached. Showing placeholder text/graphic.";
-        QLabel *label = new QLabel("  No board detected.\n  Hardware tab will refresh once board is detected.", this);
-        label->resize(335,200);
-    }
+
+    disableMouseWheelEvents();
 }
 
 DefaultHwSettingsWidget::~DefaultHwSettingsWidget()
 {
-    delete ui;
+    delete defaultHWSettingsWidget;
 }
 
 void DefaultHwSettingsWidget::settingsUpdated(UAVObject *obj, bool success)
@@ -115,7 +123,7 @@ void DefaultHwSettingsWidget::updateFields()
     Q_ASSERT(settingSelected);
     Q_ASSERT(hwSettingsObject != NULL);
 
-    QLayout *layout = ui->portSettingsFrame->layout();
+    QLayout *layout = defaultHWSettingsWidget->scrollAreaWidgetContents->layout();
     for (int i = 0; i < fieldWidgets.size(); i++)
         layout->removeWidget(fieldWidgets[i]);
     fieldWidgets.clear();
@@ -130,4 +138,12 @@ void DefaultHwSettingsWidget::updateFields()
         fieldWidgets.append(sel);
         addUAVObjectToWidgetRelation(hwSettingsObject->getName(),fields[i]->getName(),sel->getCombo());
     }
+
+    QBoxLayout *boxLayout = dynamic_cast<QBoxLayout *>(layout);
+    if (boxLayout) {
+        boxLayout->addStretch();
+    }
+
+    // Prevent mouse wheel from changing items
+    disableMouseWheelEvents();
 }
