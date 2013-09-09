@@ -28,6 +28,7 @@
 #define LEAPCONTROLGADGET_H
 
 #include <coreplugin/iuavgadget.h>
+#include "uavtalk/telemetrymanager.h"
 #include "leapcontrolplugin.h"
 #include "leapcontrol.h"
 #include <QTimer>
@@ -58,6 +59,10 @@ private:
     LeapControl * m_leapControl;
 
 signals:
+
+private slots:
+    void onAutopilotConnect();
+    void onAutopilotDisconnect();
 
 protected slots:
     void handUpdated(bool present, double x, double y, double z, double roll, double pitch, double yaw);

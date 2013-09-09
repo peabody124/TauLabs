@@ -65,6 +65,11 @@ LeapControlGadget::LeapControlGadget(QString classId, LeapControlGadgetWidget *w
     m_leapControl = LeapControl::GetInstance(objmngr);
     Q_ASSERT(m_leapControl);
 
+    // Listen to autopilot connection events
+    TelemetryManager* telMngr = pm->getObject<TelemetryManager>();
+    connect(telMngr, SIGNAL(connected()), this, SLOT(onAutopilotConnect()));
+    connect(telMngr, SIGNAL(disconnected()), this, SLOT(onAutopilotDisconnect()));
+
     connect(lf, SIGNAL(handUpdated(bool,double,double,double,double,double,double)), this,
             SLOT(handUpdated(bool,double,double,double,double,double,double)));
 }
@@ -77,6 +82,34 @@ LeapControlGadget::~LeapControlGadget()
 void LeapControlGadget::loadConfiguration(IUAVGadgetConfiguration* config)
 {
     Q_UNUSED(config);
+}
+
+void LeapControlGadget::onAutopilotConnect()
+{
+    // By default, the LeapControl object metadata does not set it up to send updates
+    // over the telemetry link, so we gotta update this metadata when we instanciate the gadget.
+    // A 30ms update rate requires a hefty telemetry link, but that's what you should have if
+    // you are playing with this :
+    UAVObject::Metadata mdata;
+    mdata = m_leapControl->getMetadata();
+
+    UAVObject::SetGcsTelemetryUpdateMode(mdata, UAVObject::UPDATEMODE_PERIODIC);
+    mdata.gcsTelemetryUpdatePeriod = 30;
+
+    UAVObject::SetFlightTelemetryUpdateMode(mdata, UAVObject::UPDATEMODE_PERIODIC);
+    mdata.flightTelemetryUpdatePeriod = 0;
+
+    m_leapControl->setMetadata(mdata);
+
+}
+
+void LeapControlGadget::onAutopilotDisconnect()
+{
+    // We want to reset metadata to default values once we
+    // disconnect
+    UAVObject::Metadata mdata;
+    mdata = m_leapControl->getDefaultMetadata();
+    m_leapControl->setMetadata(mdata);
 }
 
 //! When hand is updated, store the information in a UAVO
