@@ -18,7 +18,7 @@
 #define PFDQMLGADGETWIDGET_H_
 
 #include "pfdqmlgadgetconfiguration.h"
-#include <QQuickView>
+#include <QtQuick/QQuickView>
 
 class UAVObjectManager;
 
@@ -85,8 +85,6 @@ private:
     double m_altitude;
 
     UAVObjectManager *m_objManager;
-    void hideEvent(QHideEvent *event);
-    void showEvent(QShowEvent *event);
     void exportUAVOInstance(const QString &objectName, int instId);
     void resetUAVOExport(const QString &objectName, int instId);
 };

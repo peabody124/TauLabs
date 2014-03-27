@@ -47,6 +47,7 @@ PfdQmlGadgetWidget::PfdQmlGadgetWidget(QWindow *parent) :
 
     objectsToExport << "VelocityActual" <<
                        "PositionActual" <<
+                       "AltitudeHoldDesired" <<
                        "AttitudeActual" <<
                        "AirspeedActual" <<
                        "Accels" <<
@@ -208,38 +209,3 @@ void PfdQmlGadgetWidget::setAltitude(double arg)
     }
 }
 
-
-/**
- * @brief PfdQmlGadgetWidget::hideEvent Reimplements hideEvent() in order to break
- * the connection between the UAVO and the QML state updates
- * @param event
- */
-void PfdQmlGadgetWidget::hideEvent(QHideEvent *event)
-{
-    ExtensionSystem::PluginManager *pm = ExtensionSystem::PluginManager::instance();
-    m_objManager = pm->getObject<UAVObjectManager>();
-
-    foreach (const QString &objectName, objectsToExport) {
-        resetUAVOExport(objectName, 0);
-    }
-
-    QWindow::hideEvent(event);
-}
-
-
-/**
- * @brief PfdQmlGadgetWidget::showEvent Reimplements showEvent() in order to recreate
- * the connection between the UAVO and the QML state updates
- * @param event
- */
-void PfdQmlGadgetWidget::showEvent(QShowEvent *event)
-{
-    ExtensionSystem::PluginManager *pm = ExtensionSystem::PluginManager::instance();
-    m_objManager = pm->getObject<UAVObjectManager>();
-
-    foreach (const QString &objectName, objectsToExport) {
-        exportUAVOInstance(objectName, 0);
-    }
-
-    QWindow::showEvent(event);
-}
