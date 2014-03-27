@@ -27,15 +27,15 @@
 #include <QtOpenGL/QGLWidget>
 #include <QtCore/qfileinfo.h>
 #include <QtCore/qdir.h>
+#include <QMouseEvent>
 
-#include <QtDeclarative/qdeclarativeengine.h>
-#include <QtDeclarative/qdeclarativecontext.h>
-#include <QtDeclarative/qdeclarative.h>
+#include <QQmlEngine>
+#include <QQmlContext>
 #include "lowpassfilter.h"
 #include "stabilizationdesired.h"
 
-PfdQmlGadgetWidget::PfdQmlGadgetWidget(QWidget *parent) :
-    QDeclarativeView(parent),
+PfdQmlGadgetWidget::PfdQmlGadgetWidget(QWindow *parent) :
+    QQuickView(parent),
     m_openGLEnabled(false),
     m_terrainEnabled(false),
     m_actualPositionUsed(false),
@@ -43,20 +43,7 @@ PfdQmlGadgetWidget::PfdQmlGadgetWidget(QWidget *parent) :
     m_longitude(10.158932),
     m_altitude(2000)
 {
-    setMinimumSize(64,64);
-    setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
-    setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform);
     setResizeMode(SizeRootObjectToView);
-
-    // Prevent flickering. http://blog.rburchell.com/2011/11/avoiding-graphics-flicker-in-qt-qml.html
-    // "Qt::WA_OpaquePaintEvent basically implies that you'll repaint
-    // everything as necessary yourself (which QML is well behaved with),
-    // and Qt::WA_NoSystemBackground tells Qt to nicely not paint the
-    // background."
-    setAttribute(Qt::WA_OpaquePaintEvent);
-    setAttribute(Qt::WA_NoSystemBackground);
-
-    //setViewport(new QGLWidget(QGLFormat(QGL::SampleBuffers)));
 
     objectsToExport << "VelocityActual" <<
                        "PositionActual" <<
@@ -87,8 +74,8 @@ PfdQmlGadgetWidget::PfdQmlGadgetWidget(QWidget *parent) :
 #ifdef USE_OSG
     qmlRegisterType<OsgEarthItem>("org.TauLabs", 1, 0, "OsgEarth");
 #endif
-    qmlRegisterType<LowPassFilter>("org.TauLabs", 1, 0, "LowPassFilter");
-    qmlRegisterUncreatableType<StabilizationDesired>("org.TauLabs", 1, 0, "StabilizationDesiredType","");
+    //qmlRegisterType<LowPassFilter>("org.TauLabs", 1, 0, "LowPassFilter");
+    //qmlRegisterUncreatableType<StabilizationDesired>("org.TauLabs", 1, 0, "StabilizationDesiredType","");
 }
 
 PfdQmlGadgetWidget::~PfdQmlGadgetWidget()
@@ -108,7 +95,7 @@ void PfdQmlGadgetWidget::exportUAVOInstance(const QString &objectName, int instI
     if (object)
         engine()->rootContext()->setContextProperty(objectName, object);
     else
-        qWarning() << "Failed to load object" << objectName;
+        qWarning() << "[PFDQML] Failed to load object" << objectName;
 }
 
 
@@ -134,6 +121,8 @@ void PfdQmlGadgetWidget::setQmlFile(QString fn)
     SvgImageProvider *svgProvider = new SvgImageProvider(fn);
     engine()->addImageProvider("svg", svgProvider);
 
+    engine()->clearComponentCache();
+
     //it's necessary to allow qml side to query svg element position
     engine()->rootContext()->setContextProperty("svgRenderer", svgProvider);
     engine()->setBaseUrl(QUrl::fromLocalFile(fn));
@@ -141,7 +130,7 @@ void PfdQmlGadgetWidget::setQmlFile(QString fn)
     qDebug() << Q_FUNC_INFO << fn;
     setSource(QUrl::fromLocalFile(fn));
 
-    foreach(const QDeclarativeError &error, errors()) {
+    foreach(const QQmlError &error, errors()) {
         qDebug() << error.description();
     }
 }
@@ -165,18 +154,8 @@ void PfdQmlGadgetWidget::setTerrainEnabled(bool arg)
 
 void PfdQmlGadgetWidget::setOpenGLEnabled(bool arg)
 {
-    if (m_openGLEnabled != arg) {
-        m_openGLEnabled = arg;
-
-        qDebug() << Q_FUNC_INFO << "Set OPENGL" << m_openGLEnabled;
-        if (m_openGLEnabled)
-            setViewport(new QGLWidget(QGLFormat(QGL::SampleBuffers)));
-        else
-            setViewport(new QWidget);
-
-        //update terrainEnabled status with opengl status chaged
-        setTerrainEnabled(m_terrainEnabled);
-    }
+    Q_UNUSED(arg);
+    setTerrainEnabled(m_terrainEnabled);
 }
 
 //Switch between PositionActual UAVObject position
@@ -192,6 +171,16 @@ void PfdQmlGadgetWidget::setActualPositionUsed(bool arg)
 void PfdQmlGadgetWidget::setSettingsMap(const QVariantMap &settings)
 {
     engine()->rootContext()->setContextProperty("settings", settings);
+}
+
+void PfdQmlGadgetWidget::mouseReleaseEvent(QMouseEvent *event)
+{
+    // Reload the schene on the middle mouse button click.
+    if (event->button() == Qt::MiddleButton) {
+        setQmlFile(m_qmlFileName);
+    }
+
+    QQuickView::mouseReleaseEvent(event);
 }
 
 void PfdQmlGadgetWidget::setLatitude(double arg)
@@ -234,7 +223,7 @@ void PfdQmlGadgetWidget::hideEvent(QHideEvent *event)
         resetUAVOExport(objectName, 0);
     }
 
-    QWidget::hideEvent(event);
+    QWindow::hideEvent(event);
 }
 
 
@@ -252,5 +241,5 @@ void PfdQmlGadgetWidget::showEvent(QShowEvent *event)
         exportUAVOInstance(objectName, 0);
     }
 
-    QWidget::showEvent(event);
+    QWindow::showEvent(event);
 }

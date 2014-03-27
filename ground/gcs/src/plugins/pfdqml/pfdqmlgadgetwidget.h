@@ -18,11 +18,11 @@
 #define PFDQMLGADGETWIDGET_H_
 
 #include "pfdqmlgadgetconfiguration.h"
-#include <QtDeclarative/qdeclarativeview.h>
+#include <QQuickView>
 
 class UAVObjectManager;
 
-class PfdQmlGadgetWidget : public QDeclarativeView
+class PfdQmlGadgetWidget : public QQuickView
 {
     Q_OBJECT
     Q_PROPERTY(QString earthFile READ earthFile WRITE setEarthFile NOTIFY earthFileChanged)
@@ -36,7 +36,7 @@ class PfdQmlGadgetWidget : public QDeclarativeView
     Q_PROPERTY(double altitude READ altitude WRITE setAltitude NOTIFY altitudeChanged)
 
 public:
-    PfdQmlGadgetWidget(QWidget *parent = 0);
+    PfdQmlGadgetWidget(QWindow *parent = 0);
    ~PfdQmlGadgetWidget();
     void setQmlFile(QString fn);
 
@@ -68,6 +68,9 @@ signals:
     void latitudeChanged(double arg);
     void longitudeChanged(double arg);
     void altitudeChanged(double arg);
+
+protected:
+    void mouseReleaseEvent(QMouseEvent *event);
 
 private:
     QStringList objectsToExport;
