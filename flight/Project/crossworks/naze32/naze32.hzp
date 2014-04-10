@@ -1,0 +1,513 @@
+<!DOCTYPE CrossStudio_Project_File>
+<solution Name="naze32" target="8" version="2">
+  <project Name="naze32">
+    <configuration
+      Name="Common"
+      Placement="Flash"
+      Target="STM32F103CB"
+      arm_architecture="v7M"
+      arm_core_type="Cortex-M3"
+      arm_fpu_type="None"
+      arm_gcc_target="arm-unknown-eabi"
+      arm_linker_heap_size="0"
+      arm_linker_jtag_pad_pre_dr="1"
+      arm_linker_jtag_pad_pre_ir="5"
+      arm_linker_process_stack_size="0"
+      arm_linker_stack_size="0"
+      arm_simulator_memory_simulation_filename="$(TargetsDir)/STM32/STM32SimulatorMemory.dll"
+      arm_simulator_memory_simulation_parameter="STM32F103CB;0x20000;0x5000"
+      arm_target_connect_with_reset="No"
+      arm_target_debug_interface_type="ADIv5"
+      arm_target_interface_type="SWD"
+      arm_target_loader_applicable_loaders="Flash"
+      arm_target_loader_default_loader="Flash"
+      arm_target_restrict_memory_accesses="Yes"
+      build_intermediate_directory="build/fw_naze32/$(Configuration)"
+      build_output_directory="build/fw_naze32/$(Configuration)"
+      c_only_additional_options="-Wall;-fomit-frame-pointer"
+      c_only_additional_options_from_file="$(ProjectDir)/flight/Project/crossworks/naze32/compiler.def"
+      gcc_c_language_standard="gnu99"
+      gcc_entry_point="Reset_Handler"
+      gcc_optimization_level="Level 1"
+      link_IOLibraryName="none"
+      linker_DebugIO_enabled="No"
+      linker_additional_options="-T./flight/targets/naze32/link_STM32103CB_Naze32_memory.ld"
+      linker_additional_options_from_file="$(ProjectDir)/flight/Project/crossworks/naze32/linker.def"
+      linker_memory_map_file="$(TargetsDir)/STM32/STM32F103CB_MemoryMap.xml"
+      linker_output_format="bin"
+      linker_scanf_enabled="No"
+      linker_section_placement_file=""
+      project_directory="../../../.."
+      project_type="Executable"
+      property_groups_file_path="$(TargetsDir)/STM32/propertyGroups.xml"
+      target_get_partname_script="GetPartName()"
+      target_match_partname_script="MatchPartName(&quot;$(Target)&quot;)"
+      target_reset_script="Reset()"
+      target_trace_initialize_script="EnableTrace(&quot;$(TraceInterfaceType)&quot;)" />
+    <configuration
+      Name="Flash"
+      arm_target_flash_loader_file_path="$(TargetsDir)/STM32/Release/Loader_rpc.elf"
+      arm_target_flash_loader_type="LIBMEM RPC Loader"
+      arm_target_loader_can_erase_all="Yes"
+      arm_target_loader_can_lock_all="No"
+      arm_target_loader_can_lock_range="No"
+      arm_target_loader_can_unlock_all="No"
+      arm_target_loader_can_unlock_range="No"
+      target_reset_script="FLASHReset()" />
+    <folder Name="Source Files">
+      <configuration Name="Common" filter="c;cpp;cxx;cc;h;s;asm;inc" />
+      <folder Name="naze32">
+        <file file_name="flight/targets/naze32/link_STM32103CB_Naze32_sections.ld">
+          <configuration Name="Common" file_type="Linker Script" />
+        </file>
+        <file file_name="flight/targets/naze32/link_STM32103CB_Naze32_memory.ld" />
+        <file file_name="build/fw_naze32/fw_naze32.bin.firmwareinfo.c" />
+        <folder Name="fw">
+          <file file_name="flight/targets/naze32/fw/main.c" />
+          <file file_name="flight/targets/naze32/fw/pios_board.c" />
+          <file file_name="flight/targets/naze32/fw/pios_config.h" />
+          <file file_name="flight/targets/naze32/fw/FreeRTOSConfig.h" />
+          <file file_name="flight/targets/naze32/fw/Makefile" />
+        </folder>
+        <folder Name="board-info">
+          <file file_name="flight/targets/naze32/board-info/system_stm32f10x.c" />
+          <file file_name="flight/targets/naze32/board-info/board_hw_defs.c">
+            <configuration Name="Common" build_exclude_from_build="Yes" />
+          </file>
+          <file file_name="flight/targets/naze32/board-info/board-info.mk" />
+          <file file_name="flight/targets/naze32/board-info/pios_board.h" />
+        </folder>
+      </folder>
+      <folder Name="Libraries">
+        <file file_name="flight/Libraries/alarms.c" />
+        <file file_name="flight/Libraries/fifo_buffer.c" />
+        <file file_name="flight/Libraries/taskmonitor.c" />
+        <file file_name="flight/Libraries/sanitycheck.c" />
+        <file file_name="flight/Libraries/math/coordinate_conversions.c" />
+        <file file_name="flight/Libraries/math/sin_lookup.c" />
+        <file file_name="flight/Libraries/math/misc_math.c" />
+        <file file_name="flight/Libraries/math/pid.c" />
+        <folder Name="mavlink">
+          <file file_name="flight/Libraries/mavlink/v1.0/checksum.h" />
+          <file file_name="flight/Libraries/mavlink/v1.0/mavlink_helpers.h" />
+          <file file_name="flight/Libraries/mavlink/v1.0/mavlink_types.h" />
+          <file file_name="flight/Libraries/mavlink/v1.0/protocol.h" />
+          <folder Name="common">
+            <file file_name="flight/Libraries/mavlink/v1.0/common/common.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_attitude.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_attitude_quaternion.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_auth_key.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_change_operator_control.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_change_operator_control_ack.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_command_ack.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_command_long.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_data_stream.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_debug.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_debug_vect.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_global_position_int.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_global_position_setpoint_int.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_global_vision_position_estimate.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_gps_global_origin.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_gps_raw_int.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_gps_status.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_heartbeat.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_hil_controls.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_hil_rc_inputs_raw.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_hil_state.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_local_position_ned.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_local_position_ned_system_global_offset.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_local_position_setpoint.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_manual_control.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_memory_vect.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_mission_ack.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_mission_clear_all.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_mission_count.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_mission_current.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_mission_item.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_mission_item_reached.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_mission_request.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_mission_request_list.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_mission_request_partial_list.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_mission_set_current.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_mission_write_partial_list.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_named_value_float.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_named_value_int.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_nav_controller_output.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_optical_flow.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_param_request_list.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_param_request_read.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_param_set.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_param_value.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_ping.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_raw_imu.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_raw_pressure.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_rc_channels_override.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_rc_channels_raw.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_rc_channels_scaled.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_request_data_stream.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_roll_pitch_yaw_speed_thrust_setpoint.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_roll_pitch_yaw_thrust_setpoint.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_safety_allowed_area.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_safety_set_allowed_area.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_scaled_imu.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_scaled_pressure.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_servo_output_raw.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_set_global_position_setpoint_int.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_set_gps_global_origin.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_set_local_position_setpoint.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_set_mode.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_set_quad_motors_setpoint.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_set_quad_swarm_led_roll_pitch_yaw_thrust.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_set_quad_swarm_roll_pitch_yaw_thrust.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_set_roll_pitch_yaw_speed_thrust.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_set_roll_pitch_yaw_thrust.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_state_correction.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_statustext.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_sys_status.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_system_time.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_vfr_hud.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_vicon_position_estimate.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_vision_position_estimate.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/mavlink_msg_vision_speed_estimate.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/testsuite.h" />
+            <file file_name="flight/Libraries/mavlink/v1.0/common/version.h" />
+          </folder>
+        </folder>
+      </folder>
+      <folder Name="Modules">
+        <folder Name="Attitude">
+          <file file_name="flight/Modules/Attitude/naze32/attitude.c" />
+        </folder>
+        <folder Name="Actuator">
+          <file file_name="flight/Modules/Actuator/actuator.c" />
+        </folder>
+        <folder Name="ManualControl">
+          <file file_name="flight/Modules/ManualControl/failsafe_control.c" />
+          <file file_name="flight/Modules/ManualControl/manualcontrol.c" />
+          <file file_name="flight/Modules/ManualControl/tablet_control.c" />
+          <file file_name="flight/Modules/ManualControl/transmitter_control.c" />
+        </folder>
+        <folder Name="Stabilization">
+          <file file_name="flight/Modules/Stabilization/relay_tuning.c" />
+          <file file_name="flight/Modules/Stabilization/stabilization.c" />
+          <file file_name="flight/Modules/Stabilization/virtualflybar.c" />
+        </folder>
+        <folder Name="FirmwareIAP">
+          <file file_name="flight/Modules/FirmwareIAP/firmwareiap.c" />
+        </folder>
+        <folder Name="Telemetry">
+          <file file_name="flight/Modules/Telemetry/telemetry.c" />
+        </folder>
+        <folder Name="GPS">
+          <file file_name="flight/Modules/GPS/GPS.c">
+            <configuration Name="Common" build_exclude_from_build="Yes" />
+          </file>
+          <file file_name="flight/Modules/GPS/NMEA.c" />
+          <file file_name="flight/Modules/GPS/UBX.c" />
+          <file file_name="flight/Modules/GPS/ubx_cfg.c" />
+        </folder>
+        <folder Name="CameraStab">
+          <file file_name="flight/Modules/CameraStab/camerastab.c" />
+        </folder>
+        <folder Name="Autotune">
+          <file file_name="flight/Modules/Autotune/autotune.c" />
+        </folder>
+        <folder Name="TxPID">
+          <file file_name="flight/Modules/TxPID/txpid.c" />
+        </folder>
+        <folder Name="UAVOMavlinkBridge">
+          <file file_name="flight/Modules/UAVOMavlinkBridge/UAVOMavlinkBridge.c" />
+        </folder>
+        <folder Name="UAVOFrSKYSensorHubBridge">
+          <file file_name="flight/Modules/UAVOFrSKYSensorHubBridge/UAVOFrSKYSensorHubBridge.c" />
+        </folder>
+        <folder Name="System">
+          <file file_name="flight/Modules/System/systemmod.c" />
+        </folder>
+      </folder>
+      <folder Name="UAV">
+        <file file_name="flight/UAVTalk/uavtalk.c" />
+        <file file_name="flight/UAVObjects/uavobjectmanager.c" />
+        <file file_name="flight/UAVObjects/eventdispatcher.c" />
+      </folder>
+      <folder Name="PiOS">
+        <folder Name="STM32F10x">
+          <folder Name="STM32F10x_StdPeriph_Driver">
+            <file file_name="flight/PiOS/STM32F10x/Libraries/STM32F10x_StdPeriph_Driver/src/stm32f10x_adc.c" />
+            <file file_name="flight/PiOS/STM32F10x/Libraries/STM32F10x_StdPeriph_Driver/src/stm32f10x_bkp.c" />
+            <file file_name="flight/PiOS/STM32F10x/Libraries/STM32F10x_StdPeriph_Driver/src/stm32f10x_crc.c" />
+            <file file_name="flight/PiOS/STM32F10x/Libraries/STM32F10x_StdPeriph_Driver/src/stm32f10x_dac.c" />
+            <file file_name="flight/PiOS/STM32F10x/Libraries/STM32F10x_StdPeriph_Driver/src/stm32f10x_dma.c" />
+            <file file_name="flight/PiOS/STM32F10x/Libraries/STM32F10x_StdPeriph_Driver/src/stm32f10x_exti.c" />
+            <file file_name="flight/PiOS/STM32F10x/Libraries/STM32F10x_StdPeriph_Driver/src/stm32f10x_flash.c" />
+            <file file_name="flight/PiOS/STM32F10x/Libraries/STM32F10x_StdPeriph_Driver/src/stm32f10x_gpio.c" />
+            <file file_name="flight/PiOS/STM32F10x/Libraries/STM32F10x_StdPeriph_Driver/src/stm32f10x_i2c.c" />
+            <file file_name="flight/PiOS/STM32F10x/Libraries/STM32F10x_StdPeriph_Driver/src/stm32f10x_pwr.c" />
+            <file file_name="flight/PiOS/STM32F10x/Libraries/STM32F10x_StdPeriph_Driver/src/stm32f10x_rcc.c" />
+            <file file_name="flight/PiOS/STM32F10x/Libraries/STM32F10x_StdPeriph_Driver/src/stm32f10x_rtc.c" />
+            <file file_name="flight/PiOS/STM32F10x/Libraries/STM32F10x_StdPeriph_Driver/src/stm32f10x_spi.c" />
+            <file file_name="flight/PiOS/STM32F10x/Libraries/STM32F10x_StdPeriph_Driver/src/stm32f10x_tim.c" />
+            <file file_name="flight/PiOS/STM32F10x/Libraries/STM32F10x_StdPeriph_Driver/src/stm32f10x_usart.c" />
+            <file file_name="flight/PiOS/STM32F10x/Libraries/STM32F10x_StdPeriph_Driver/src/stm32f10x_iwdg.c" />
+            <file file_name="flight/PiOS/STM32F10x/Libraries/STM32F10x_StdPeriph_Driver/src/stm32f10x_dbgmcu.c" />
+            <file file_name="flight/PiOS/STM32F10x/Libraries/STM32F10x_StdPeriph_Driver/src/misc.c" />
+          </folder>
+          <folder Name="FreeRTOS-portable">
+            <file file_name="flight/PiOS/STM32F10x/Libraries/FreeRTOS/Source/portable/GCC/ARM_CM3/port.c" />
+          </folder>
+          <file file_name="flight/PiOS/STM32F10x/pios_sys.c" />
+          <file file_name="flight/PiOS/STM32F10x/pios_led.c" />
+          <file file_name="flight/PiOS/STM32F10x/pios_usart.c" />
+          <file file_name="flight/PiOS/STM32F10x/pios_irq.c" />
+          <file file_name="flight/PiOS/STM32F10x/pios_internal_adc.c">
+            <configuration Name="Common" build_exclude_from_build="Yes" />
+          </file>
+          <file file_name="flight/PiOS/STM32F10x/pios_servo.c" />
+          <file file_name="flight/PiOS/STM32F10x/pios_i2c.c">
+            <configuration Name="Common" build_exclude_from_build="Yes" />
+          </file>
+          <file file_name="flight/PiOS/STM32F10x/pios_i2c_alt.c" />
+          <file file_name="flight/PiOS/STM32F10x/pios_spi.c" />
+          <file file_name="flight/PiOS/STM32F10x/pios_ppm.c" />
+          <file file_name="flight/PiOS/STM32F10x/pios_pwm.c" />
+          <file file_name="flight/PiOS/STM32F10x/pios_dsm.c" />
+          <file file_name="flight/PiOS/STM32F10x/pios_debug.c" />
+          <file file_name="flight/PiOS/STM32F10x/pios_gpio.c" />
+          <file file_name="flight/PiOS/STM32F10x/pios_exti.c" />
+          <file file_name="flight/PiOS/STM32F10x/pios_rtc.c" />
+          <file file_name="flight/PiOS/STM32F10x/pios_wdg.c" />
+          <file file_name="flight/PiOS/STM32F10x/pios_iap.c" />
+          <file file_name="flight/PiOS/STM32F10x/pios_tim.c" />
+          <file file_name="flight/PiOS/STM32F10x/pios_bl_helper.c" />
+          <file file_name="flight/PiOS/STM32F10x/startup_stm32f10x_MD_CC.S" />
+          <file file_name="flight/PiOS/STM32F10x/pios_flash_internal.c" />
+        </folder>
+        <folder Name="Common">
+          <folder Name="FreeRTOS">
+            <file file_name="flight/PiOS/Common/Libraries/FreeRTOS/Source/list.c" />
+            <file file_name="flight/PiOS/Common/Libraries/FreeRTOS/Source/queue.c" />
+            <file file_name="flight/PiOS/Common/Libraries/FreeRTOS/Source/tasks.c" />
+          </folder>
+          <file file_name="flight/PiOS/Common/pios_delay.c" />
+          <file file_name="flight/PiOS/Common/pios_crc.c" />
+          <file file_name="flight/PiOS/Common/pios_flashfs_logfs.c" />
+          <file file_name="flight/PiOS/Common/pios_ms5611.c" />
+          <file file_name="flight/PiOS/Common/pios_mpu6050.c" />
+          <file file_name="flight/PiOS/Common/pios_com.c" />
+          <file file_name="flight/PiOS/Common/pios_rcvr.c" />
+          <file file_name="flight/PiOS/Common/pios_sensors.c" />
+          <file file_name="flight/PiOS/Common/pios_gcsrcvr.c" />
+          <file file_name="flight/PiOS/Common/printf-stdarg.c">
+            <configuration Name="Common" build_exclude_from_build="Yes" />
+          </file>
+          <file file_name="flight/PiOS/Common/pios_adc.c">
+            <configuration Name="Common" build_exclude_from_build="Yes" />
+          </file>
+          <file file_name="flight/PiOS/Common/pios_flash.c" />
+          <file file_name="flight/PiOS/Common/pios_heap.c" />
+          <file file_name="flight/PiOS/Common/pios_semaphore.c" />
+          <file file_name="flight/PiOS/Common/pios_board_info.c" />
+        </folder>
+      </folder>
+      <folder Name="uavobject-synthetics">
+        <file file_name="build/uavobject-synthetics/flight/accessorydesired.c" />
+        <file file_name="build/uavobject-synthetics/flight/objectpersistence.c" />
+        <file file_name="build/uavobject-synthetics/flight/gcstelemetrystats.c" />
+        <file file_name="build/uavobject-synthetics/flight/flighttelemetrystats.c" />
+        <file file_name="build/uavobject-synthetics/flight/faultsettings.c" />
+        <file file_name="build/uavobject-synthetics/flight/flightstatus.c" />
+        <file file_name="build/uavobject-synthetics/flight/systemstats.c" />
+        <file file_name="build/uavobject-synthetics/flight/systemalarms.c" />
+        <file file_name="build/uavobject-synthetics/flight/systemsettings.c" />
+        <file file_name="build/uavobject-synthetics/flight/stabilizationdesired.c" />
+        <file file_name="build/uavobject-synthetics/flight/stabilizationsettings.c" />
+        <file file_name="build/uavobject-synthetics/flight/actuatorcommand.c" />
+        <file file_name="build/uavobject-synthetics/flight/actuatordesired.c" />
+        <file file_name="build/uavobject-synthetics/flight/actuatorsettings.c" />
+        <file file_name="build/uavobject-synthetics/flight/accels.c" />
+        <file file_name="build/uavobject-synthetics/flight/gyros.c" />
+        <file file_name="build/uavobject-synthetics/flight/attitudeactual.c" />
+        <file file_name="build/uavobject-synthetics/flight/manualcontrolcommand.c" />
+        <file file_name="build/uavobject-synthetics/flight/watchdogstatus.c" />
+        <file file_name="build/uavobject-synthetics/flight/manualcontrolsettings.c" />
+        <file file_name="build/uavobject-synthetics/flight/mixersettings.c" />
+        <file file_name="build/uavobject-synthetics/flight/firmwareiapobj.c" />
+        <file file_name="build/uavobject-synthetics/flight/attitudesettings.c" />
+        <file file_name="build/uavobject-synthetics/flight/camerastabsettings.c" />
+        <file file_name="build/uavobject-synthetics/flight/cameradesired.c" />
+        <file file_name="build/uavobject-synthetics/flight/gpsposition.c" />
+        <file file_name="build/uavobject-synthetics/flight/gpsvelocity.c" />
+        <file file_name="build/uavobject-synthetics/flight/hwcoptercontrol.c" />
+        <file file_name="build/uavobject-synthetics/flight/modulesettings.c" />
+        <file file_name="build/uavobject-synthetics/flight/gcsreceiver.c" />
+        <file file_name="build/uavobject-synthetics/flight/receiveractivity.c" />
+        <file file_name="build/uavobject-synthetics/flight/relaytuningsettings.c" />
+        <file file_name="build/uavobject-synthetics/flight/relaytuning.c" />
+        <file file_name="build/uavobject-synthetics/flight/taskinfo.c" />
+        <file file_name="build/uavobject-synthetics/flight/mixerstatus.c" />
+        <file file_name="build/uavobject-synthetics/flight/ratedesired.c" />
+        <file file_name="build/uavobject-synthetics/flight/baroaltitude.c" />
+        <file file_name="build/uavobject-synthetics/flight/txpidsettings.c" />
+        <file file_name="build/uavobject-synthetics/flight/fixedwingairspeeds.c" />
+        <file file_name="build/uavobject-synthetics/flight/fixedwingpathfollowerstatus.c" />
+        <file file_name="build/uavobject-synthetics/flight/fixedwingpathfollowersettingscc.c" />
+        <file file_name="build/uavobject-synthetics/flight/pathstatus.c" />
+        <file file_name="build/uavobject-synthetics/flight/pathdesired.c" />
+        <file file_name="build/uavobject-synthetics/flight/homelocation.c" />
+        <file file_name="build/uavobject-synthetics/flight/poilocation.c" />
+        <file file_name="build/uavobject-synthetics/flight/positionactual.c" />
+        <file file_name="build/uavobject-synthetics/flight/tabletinfo.c" />
+        <file file_name="build/uavobject-synthetics/flight/velocityactual.c" />
+        <file file_name="build/uavobject-synthetics/flight/airspeedactual.c" />
+        <file file_name="build/uavobject-synthetics/flight/sensorsettings.c" />
+        <file file_name="build/uavobject-synthetics/flight/flightbatterystate.c" />
+        <file file_name="build/uavobject-synthetics/flight/flightbatterysettings.c" />
+        <file file_name="build/uavobject-synthetics/flight/trimanglessettings.c" />
+        <file file_name="build/uavobject-synthetics/flight/trimangles.c" />
+        <file file_name="build/uavobject-synthetics/flight/ubloxinfo.c" />
+        <folder Name="inc">
+          <file file_name="build/uavobject-synthetics/flight/acceldesired.h" />
+          <file file_name="build/uavobject-synthetics/flight/accels.h" />
+          <file file_name="build/uavobject-synthetics/flight/accessorydesired.h" />
+          <file file_name="build/uavobject-synthetics/flight/actuatorcommand.h" />
+          <file file_name="build/uavobject-synthetics/flight/actuatordesired.h" />
+          <file file_name="build/uavobject-synthetics/flight/actuatorsettings.h" />
+          <file file_name="build/uavobject-synthetics/flight/airspeedactual.h" />
+          <file file_name="build/uavobject-synthetics/flight/airspeedsettings.h" />
+          <file file_name="build/uavobject-synthetics/flight/altitudeholddesired.h" />
+          <file file_name="build/uavobject-synthetics/flight/altitudeholdsettings.h" />
+          <file file_name="build/uavobject-synthetics/flight/attitudeactual.h" />
+          <file file_name="build/uavobject-synthetics/flight/attitudesettings.h" />
+          <file file_name="build/uavobject-synthetics/flight/attitudesimulated.h" />
+          <file file_name="build/uavobject-synthetics/flight/baroairspeed.h" />
+          <file file_name="build/uavobject-synthetics/flight/baroaltitude.h" />
+          <file file_name="build/uavobject-synthetics/flight/brushlessgimbalsettings.h" />
+          <file file_name="build/uavobject-synthetics/flight/cameradesired.h" />
+          <file file_name="build/uavobject-synthetics/flight/camerastabsettings.h" />
+          <file file_name="build/uavobject-synthetics/flight/faultsettings.h" />
+          <file file_name="build/uavobject-synthetics/flight/firmwareiapobj.h" />
+          <file file_name="build/uavobject-synthetics/flight/fixedwingairspeeds.h" />
+          <file file_name="build/uavobject-synthetics/flight/fixedwingpathfollowersettings.h" />
+          <file file_name="build/uavobject-synthetics/flight/fixedwingpathfollowersettingscc.h" />
+          <file file_name="build/uavobject-synthetics/flight/fixedwingpathfollowerstatus.h" />
+          <file file_name="build/uavobject-synthetics/flight/flightbatterysettings.h" />
+          <file file_name="build/uavobject-synthetics/flight/flightbatterystate.h" />
+          <file file_name="build/uavobject-synthetics/flight/flightplancontrol.h" />
+          <file file_name="build/uavobject-synthetics/flight/flightplansettings.h" />
+          <file file_name="build/uavobject-synthetics/flight/flightplanstatus.h" />
+          <file file_name="build/uavobject-synthetics/flight/flightstatus.h" />
+          <file file_name="build/uavobject-synthetics/flight/flighttelemetrystats.h" />
+          <file file_name="build/uavobject-synthetics/flight/gcsreceiver.h" />
+          <file file_name="build/uavobject-synthetics/flight/gcstelemetrystats.h" />
+          <file file_name="build/uavobject-synthetics/flight/gpsposition.h" />
+          <file file_name="build/uavobject-synthetics/flight/gpssatellites.h" />
+          <file file_name="build/uavobject-synthetics/flight/gpstime.h" />
+          <file file_name="build/uavobject-synthetics/flight/gpsvelocity.h" />
+          <file file_name="build/uavobject-synthetics/flight/groundpathfollowersettings.h" />
+          <file file_name="build/uavobject-synthetics/flight/groundtruth.h" />
+          <file file_name="build/uavobject-synthetics/flight/gyros.h" />
+          <file file_name="build/uavobject-synthetics/flight/gyrosbias.h" />
+          <file file_name="build/uavobject-synthetics/flight/homelocation.h" />
+          <file file_name="build/uavobject-synthetics/flight/hottsettings.h" />
+          <file file_name="build/uavobject-synthetics/flight/hwcoptercontrol.h" />
+          <file file_name="build/uavobject-synthetics/flight/hwdiscoveryf4.h" />
+          <file file_name="build/uavobject-synthetics/flight/hwflyingf3.h" />
+          <file file_name="build/uavobject-synthetics/flight/hwflyingf4.h" />
+          <file file_name="build/uavobject-synthetics/flight/hwfreedom.h" />
+          <file file_name="build/uavobject-synthetics/flight/hwquanton.h" />
+          <file file_name="build/uavobject-synthetics/flight/hwrevolution.h" />
+          <file file_name="build/uavobject-synthetics/flight/hwrevomini.h" />
+          <file file_name="build/uavobject-synthetics/flight/hwsparky.h" />
+          <file file_name="build/uavobject-synthetics/flight/i2cvm.h" />
+          <file file_name="build/uavobject-synthetics/flight/i2cvmuserprogram.h" />
+          <file file_name="build/uavobject-synthetics/flight/inssettings.h" />
+          <file file_name="build/uavobject-synthetics/flight/insstate.h" />
+          <file file_name="build/uavobject-synthetics/flight/loitercommand.h" />
+          <file file_name="build/uavobject-synthetics/flight/magbias.h" />
+          <file file_name="build/uavobject-synthetics/flight/magnetometer.h" />
+          <file file_name="build/uavobject-synthetics/flight/manualcontrolcommand.h" />
+          <file file_name="build/uavobject-synthetics/flight/manualcontrolsettings.h" />
+          <file file_name="build/uavobject-synthetics/flight/mixersettings.h" />
+          <file file_name="build/uavobject-synthetics/flight/mixerstatus.h" />
+          <file file_name="build/uavobject-synthetics/flight/modulesettings.h" />
+          <file file_name="build/uavobject-synthetics/flight/nedaccel.h" />
+          <file file_name="build/uavobject-synthetics/flight/nedposition.h" />
+          <file file_name="build/uavobject-synthetics/flight/objectpersistence.h" />
+          <file file_name="build/uavobject-synthetics/flight/oplinksettings.h" />
+          <file file_name="build/uavobject-synthetics/flight/oplinkstatus.h" />
+          <file file_name="build/uavobject-synthetics/flight/overosyncsettings.h" />
+          <file file_name="build/uavobject-synthetics/flight/overosyncstats.h" />
+          <file file_name="build/uavobject-synthetics/flight/pathdesired.h" />
+          <file file_name="build/uavobject-synthetics/flight/pathplannersettings.h" />
+          <file file_name="build/uavobject-synthetics/flight/pathstatus.h" />
+          <file file_name="build/uavobject-synthetics/flight/poilocation.h" />
+          <file file_name="build/uavobject-synthetics/flight/positionactual.h" />
+          <file file_name="build/uavobject-synthetics/flight/ratedesired.h" />
+          <file file_name="build/uavobject-synthetics/flight/receiveractivity.h" />
+          <file file_name="build/uavobject-synthetics/flight/relaytuning.h" />
+          <file file_name="build/uavobject-synthetics/flight/relaytuningsettings.h" />
+          <file file_name="build/uavobject-synthetics/flight/sensorsettings.h" />
+          <file file_name="build/uavobject-synthetics/flight/sonaraltitude.h" />
+          <file file_name="build/uavobject-synthetics/flight/stabilizationdesired.h" />
+          <file file_name="build/uavobject-synthetics/flight/stabilizationsettings.h" />
+          <file file_name="build/uavobject-synthetics/flight/stateestimation.h" />
+          <file file_name="build/uavobject-synthetics/flight/systemalarms.h" />
+          <file file_name="build/uavobject-synthetics/flight/systemsettings.h" />
+          <file file_name="build/uavobject-synthetics/flight/systemstats.h" />
+          <file file_name="build/uavobject-synthetics/flight/tabletinfo.h" />
+          <file file_name="build/uavobject-synthetics/flight/taskinfo.h" />
+          <file file_name="build/uavobject-synthetics/flight/trimangles.h" />
+          <file file_name="build/uavobject-synthetics/flight/trimanglessettings.h" />
+          <file file_name="build/uavobject-synthetics/flight/txpidsettings.h" />
+          <file file_name="build/uavobject-synthetics/flight/uavobjectsinit.h" />
+          <file file_name="build/uavobject-synthetics/flight/ubloxinfo.h" />
+          <file file_name="build/uavobject-synthetics/flight/velocityactual.h" />
+          <file file_name="build/uavobject-synthetics/flight/velocitydesired.h" />
+          <file file_name="build/uavobject-synthetics/flight/vibrationanalysisoutput.h" />
+          <file file_name="build/uavobject-synthetics/flight/vibrationanalysissettings.h" />
+          <file file_name="build/uavobject-synthetics/flight/vtolpathfollowersettings.h" />
+          <file file_name="build/uavobject-synthetics/flight/vtolpathfollowerstatus.h" />
+          <file file_name="build/uavobject-synthetics/flight/watchdogstatus.h" />
+          <file file_name="build/uavobject-synthetics/flight/waypoint.h" />
+          <file file_name="build/uavobject-synthetics/flight/waypointactive.h" />
+          <file file_name="build/uavobject-synthetics/flight/windvelocityactual.h" />
+        </folder>
+      </folder>
+      <file file_name="flight/Project/crossworks/naze32/crossworks_arm.c" />
+    </folder>
+    <folder Name="System Files">
+      <file file_name="$(TargetsDir)/STM32/STM32_Target.js">
+        <configuration Name="Common" file_type="Reset Script" />
+      </file>
+    </folder>
+    <folder Name="Compiler Defs">
+      <file file_name="flight/Project/crossworks/naze32/build.def" />
+      <file file_name="flight/Project/crossworks/naze32/compiler.def" />
+      <file file_name="flight/Project/crossworks/naze32/board-info.def" />
+    </folder>
+  </project>
+  <configuration Name="THUMB Debug" inherited_configurations="THUMB;Debug" />
+  <configuration
+    Name="THUMB"
+    Platform="ARM"
+    arm_instruction_set="Thumb"
+    arm_library_instruction_set="Thumb"
+    c_preprocessor_definitions="__THUMB"
+    hidden="Yes" />
+  <configuration
+    Name="Debug"
+    c_preprocessor_definitions="DEBUG"
+    gcc_debugging_level="Level 3"
+    gcc_optimization_level="None"
+    hidden="Yes" />
+  <configuration
+    Name="THUMB Release"
+    inherited_configurations="THUMB;Release" />
+  <configuration
+    Name="Release"
+    c_preprocessor_definitions="NDEBUG"
+    gcc_debugging_level="Level 1"
+    gcc_optimization_level="Level 1"
+    hidden="Yes" />
+</solution>

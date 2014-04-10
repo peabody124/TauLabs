@@ -219,24 +219,24 @@ static void go_write_byte(struct pios_i2c_adapter *i2c_adapter, bool *woken)
 {
 	PIOS_DEBUG_Assert(i2c_adapter->active_txn);
 	PIOS_DEBUG_Assert(i2c_adapter->active_txn <= i2c_adapter->last_txn);
+	PIOS_DEBUG_Assert(i2c_adapter->active_byte <= i2c_adapter->last_byte);
 
 	I2C_SendData(i2c_adapter->cfg->regs, *(i2c_adapter->active_byte));
 
 	/* Move to the next byte */
 	i2c_adapter->active_byte++;
-	PIOS_DEBUG_Assert(i2c_adapter->active_byte <= i2c_adapter->last_byte);
 }
 
 static void go_read_byte(struct pios_i2c_adapter *i2c_adapter, bool *woken)
 {
 	PIOS_DEBUG_Assert(i2c_adapter->active_txn);
 	PIOS_DEBUG_Assert(i2c_adapter->active_txn <= i2c_adapter->last_txn);
+	PIOS_DEBUG_Assert(i2c_adapter->active_byte <= i2c_adapter->last_byte);
 
 	*(i2c_adapter->active_byte) = I2C_ReceiveData(i2c_adapter->cfg->regs);
 
 	/* Move to the next byte */
 	i2c_adapter->active_byte++;
-	PIOS_DEBUG_Assert(i2c_adapter->active_byte <= i2c_adapter->last_byte);
 }
 
 static void go_transfer_complete(struct pios_i2c_adapter *i2c_adapter, bool *woken)

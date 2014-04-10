@@ -39,7 +39,7 @@
 /* Private constants */
 #define PIOS_MS5611_OVERSAMPLING oversampling
 #define MS5611_TASK_PRIORITY	(tskIDLE_PRIORITY + configMAX_PRIORITIES - 1)	// max priority
-#define MS5611_TASK_STACK		(512 / 4)
+#define MS5611_TASK_STACK		(560 / 4)
 
 /* MS5611 Addresses */
 #define MS5611_I2C_ADDR	        0x77

@@ -1,0 +1,8 @@
+MEMORY
+{
+    FLASH (rx)    : ORIGIN = 0x08000000,        LENGTH = 0x037F9C
+    VERSION (rx)  : ORIGIN = 0x08037F9C,        LENGTH = 0x000064
+    EEPROM (rx)   : ORIGIN = 0x08038000,        LENGTH = 0x008000
+    SRAM (rwx)    : ORIGIN = 0x20000000,        LENGTH = 0x00A000
+    CCSRAM (rw)   : ORIGIN = 0x10000000,        LENGTH = 0x002000
+}

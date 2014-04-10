@@ -1,0 +1,398 @@
+<!DOCTYPE CrossStudio_Project_File>
+<solution Name="sparky" target="8" version="2">
+  <project Name="sparky">
+    <configuration
+      Name="Common"
+      Placement="Flash"
+      Target="STM32F303CC"
+      arm_architecture="v7EM"
+      arm_core_type="Cortex-M4"
+      arm_fp_abi="Hard"
+      arm_fpu_type="FPv4-SP-D16"
+      arm_gcc_target="arm-unknown-eabi"
+      arm_linker_heap_size="0"
+      arm_linker_jtag_pad_pre_dr="1"
+      arm_linker_jtag_pad_pre_ir="5"
+      arm_linker_process_stack_size="0"
+      arm_linker_stack_size="0"
+      arm_simulator_memory_simulation_filename="$(TargetsDir)/STM32/STM32SimulatorMemory.dll"
+      arm_simulator_memory_simulation_parameter="STM32F303CC;0x40000;0xA000"
+      arm_target_connect_with_reset="No"
+      arm_target_debug_interface_type="ADIv5"
+      arm_target_interface_type="SWD"
+      arm_target_loader_applicable_loaders="Flash"
+      arm_target_loader_default_loader="Flash"
+      arm_target_restrict_memory_accesses="Yes"
+      build_intermediate_directory="build/fw_sparkyclone/$(Configuration)"
+      build_output_directory="build/fw_sparkyclone/$(Configuration)"
+      c_only_additional_options="-Wall;-fomit-frame-pointer"
+      c_only_additional_options_from_file="$(ProjectDir)/flight/Project/crossworks/sparkyclone/compiler.def"
+      gcc_c_language_standard="gnu99"
+      gcc_entry_point="_main"
+      gcc_optimization_level="Level 1"
+      link_IOLibraryName="none"
+      linker_DebugIO_enabled="No"
+      linker_additional_options="-T./flight/targets/sparkyclone/link_STM32F30x_FW_memory.ld"
+      linker_additional_options_from_file="$(ProjectDir)/flight/Project/crossworks/sparkyclone/linker.def"
+      linker_memory_map_file="$(TargetsDir)/STM32/STM32F303CC_MemoryMap.xml"
+      linker_output_format="bin"
+      linker_scanf_enabled="No"
+      linker_section_placement_file=""
+      project_directory="../../../.."
+      project_type="Executable"
+      property_groups_file_path="$(TargetsDir)/STM32/propertyGroups.xml"
+      target_get_partname_script="GetPartName()"
+      target_match_partname_script="MatchPartName(&quot;$(Target)&quot;)"
+      target_reset_script="Reset()"
+      target_trace_initialize_script="EnableTrace(&quot;$(TraceInterfaceType)&quot;)" />
+    <configuration
+      Name="Flash"
+      arm_target_flash_loader_file_path="$(TargetsDir)/STM32/Release/Loader_rpc.elf"
+      arm_target_flash_loader_type="LIBMEM RPC Loader"
+      arm_target_loader_can_erase_all="Yes"
+      arm_target_loader_can_lock_all="No"
+      arm_target_loader_can_lock_range="No"
+      arm_target_loader_can_unlock_all="No"
+      arm_target_loader_can_unlock_range="No"
+      target_reset_script="FLASHReset()" />
+    <folder Name="Source Files">
+      <configuration Name="Common" filter="c;cpp;cxx;cc;h;s;asm;inc" />
+      <folder Name="Sparkyclone">
+        <file file_name="flight/targets/sparkyclone/link_STM32F30x_sections.ld">
+          <configuration Name="Common" file_type="Linker Script" />
+        </file>
+        <file file_name="flight/targets/sparkyclone/link_STM32F30x_FW_memory.ld" />
+        <file file_name="build/fw_sparkyclone/fw_sparkyclone.bin.firmwareinfo.c" />
+        <folder Name="fw">
+          <file file_name="flight/targets/sparkyclone/fw/main.c" />
+          <file file_name="flight/targets/sparkyclone/fw/pios_board.c" />
+          <file file_name="flight/targets/sparkyclone/fw/pios_config.h" />
+          <file file_name="flight/targets/sparkyclone/fw/FreeRTOSConfig.h" />
+          <file file_name="flight/targets/sparkyclone/fw/Makefile" />
+          <file file_name="flight/targets/sparkyclone/fw/UAVObjects.inc" />
+        </folder>
+        <folder Name="board-info">
+          <file file_name="flight/targets/sparkyclone/board-info/cmsis_system.c" />
+          <file file_name="flight/targets/sparkyclone/board-info/board_hw_defs.c">
+            <configuration Name="Common" build_exclude_from_build="Yes" />
+          </file>
+          <file file_name="flight/targets/sparkyclone/board-info/board-info.mk" />
+          <file file_name="flight/targets/sparkyclone/board-info/pios_board.h" />
+        </folder>
+      </folder>
+      <folder Name="Libraries">
+        <folder Name="CMSIS3">
+          <file file_name="flight/Libraries/CMSIS3/DSP_Lib/Source/TransformFunctions/arm_cfft_radix4_init_q15.c" />
+          <file file_name="flight/Libraries/CMSIS3/DSP_Lib/Source/TransformFunctions/arm_cfft_radix4_q15.c" />
+          <file file_name="flight/Libraries/CMSIS3/DSP_Lib/Source/BasicMathFunctions/arm_shift_q15.c" />
+          <file file_name="flight/Libraries/CMSIS3/DSP_Lib/Source/ComplexMathFunctions/arm_cmplx_mag_q15.c" />
+          <file file_name="flight/Libraries/CMSIS3/DSP_Lib/Source/FastMathFunctions/arm_sqrt_q15.c" />
+          <file file_name="flight/Libraries/CMSIS3/DSP_Lib/Source/CommonTables/arm_common_tables.c" />
+          <file file_name="flight/Libraries/CMSIS3/DSP_Lib/Source/TransformFunctions/arm_bitreversal.c" />
+        </folder>
+        <file file_name="flight/Libraries/alarms.c" />
+        <file file_name="flight/Libraries/paths.c" />
+        <file file_name="flight/Libraries/fifo_buffer.c" />
+        <file file_name="flight/Libraries/WorldMagModel.c" />
+        <file file_name="flight/Libraries/insgps13state.c" />
+        <file file_name="flight/Libraries/taskmonitor.c" />
+        <file file_name="flight/Libraries/sanitycheck.c" />
+        <file file_name="flight/Libraries/math/coordinate_conversions.c" />
+        <file file_name="flight/Libraries/math/sin_lookup.c" />
+        <file file_name="flight/Libraries/math/misc_math.c" />
+        <file file_name="flight/Libraries/math/pid.c" />
+        <file file_name="flight/Libraries/math/atmospheric_math.c" />
+      </folder>
+      <folder Name="Modules">
+        <folder Name="Sensors">
+          <file file_name="flight/Modules/Sensors/sensors.c" />
+        </folder>
+        <folder Name="Attitude">
+          <file file_name="flight/Modules/Attitude/attitude.c" />
+        </folder>
+        <folder Name="Actuator">
+          <file file_name="flight/Modules/Actuator/actuator.c" />
+        </folder>
+        <folder Name="ManualControl">
+          <file file_name="flight/Modules/ManualControl/failsafe_control.c" />
+          <file file_name="flight/Modules/ManualControl/manualcontrol.c" />
+          <file file_name="flight/Modules/ManualControl/tablet_control.c" />
+          <file file_name="flight/Modules/ManualControl/transmitter_control.c" />
+        </folder>
+        <folder Name="Stabilization">
+          <file file_name="flight/Modules/Stabilization/relay_tuning.c" />
+          <file file_name="flight/Modules/Stabilization/stabilization.c" />
+          <file file_name="flight/Modules/Stabilization/virtualflybar.c" />
+        </folder>
+        <folder Name="FirmwareIAP">
+          <file file_name="flight/Modules/FirmwareIAP/firmwareiap.c" />
+        </folder>
+        <folder Name="Telemetry">
+          <file file_name="flight/Modules/Telemetry/telemetry.c" />
+        </folder>
+        <folder Name="GPS">
+          <file file_name="flight/Modules/GPS/GPS.c" />
+          <file file_name="flight/Modules/GPS/NMEA.c" />
+          <file file_name="flight/Modules/GPS/UBX.c" />
+          <file file_name="flight/Modules/GPS/ubx_cfg.c" />
+        </folder>
+        <folder Name="CameraStab">
+          <file file_name="flight/Modules/CameraStab/camerastab.c" />
+        </folder>
+        <folder Name="Autotune">
+          <file file_name="flight/Modules/Autotune/autotune.c" />
+        </folder>
+        <folder Name="TxPID">
+          <file file_name="flight/Modules/TxPID/txpid.c" />
+        </folder>
+        <folder Name="AltitudeHold">
+          <file file_name="flight/Modules/AltitudeHold/altitudehold.c" />
+        </folder>
+        <folder Name="PathPlanner">
+          <file file_name="flight/Modules/PathPlanner/path_saving.c" />
+          <file file_name="flight/Modules/PathPlanner/pathplanner.c" />
+        </folder>
+        <folder Name="VtolPathFollower">
+          <file file_name="flight/Modules/VtolPathFollower/vtol_follower_control.c" />
+          <file file_name="flight/Modules/VtolPathFollower/vtol_follower_fsm.c" />
+          <file file_name="flight/Modules/VtolPathFollower/vtolpathfollower.c" />
+        </folder>
+        <folder Name="FixedWingPathFollower">
+          <file file_name="flight/Modules/FixedWingPathFollower/fixedwingpathfollower.c" />
+        </folder>
+        <folder Name="VibrationAnalysis">
+          <file file_name="flight/Modules/VibrationAnalysis/vibrationanalysis.c" />
+        </folder>
+        <folder Name="UAVOMavlinkBridge">
+          <file file_name="flight/Modules/UAVOMavlinkBridge/UAVOMavlinkBridge.c" />
+        </folder>
+        <folder Name="UAVOLighttelemetryBridge">
+          <file file_name="flight/Modules/UAVOLighttelemetryBridge/UAVOLighttelemetryBridge.c" />
+        </folder>
+        <folder Name="Battery">
+          <file file_name="flight/Modules/Battery/battery.c" />
+        </folder>
+        <folder Name="Airspeed">
+          <file file_name="flight/Modules/Airspeed/revolution/airspeed.c" />
+          <file file_name="flight/Modules/Airspeed/revolution/baro_airspeed_analog.c" />
+          <file file_name="flight/Modules/Airspeed/revolution/baro_airspeed_etasv3.c" />
+          <file file_name="flight/Modules/Airspeed/revolution/gps_airspeed.c" />
+        </folder>
+        <folder Name="System">
+          <file file_name="flight/Modules/System/systemmod.c" />
+        </folder>
+      </folder>
+      <folder Name="UAV">
+        <file file_name="flight/UAVTalk/uavtalk.c" />
+        <file file_name="flight/UAVObjects/uavobjectmanager.c" />
+        <file file_name="flight/UAVObjects/eventdispatcher.c" />
+      </folder>
+      <folder Name="PiOS">
+        <folder Name="STM32F30x">
+          <folder Name="STM32F30x_StdPeriph_Driver">
+            <file file_name="flight/PiOS/STM32F30x/Libraries/STM32F30x_StdPeriph_Driver/src/stm32f30x_adc.c" />
+            <file file_name="flight/PiOS/STM32F30x/Libraries/STM32F30x_StdPeriph_Driver/src/stm32f30x_can.c" />
+            <file file_name="flight/PiOS/STM32F30x/Libraries/STM32F30x_StdPeriph_Driver/src/stm32f30x_comp.c" />
+            <file file_name="flight/PiOS/STM32F30x/Libraries/STM32F30x_StdPeriph_Driver/src/stm32f30x_crc.c" />
+            <file file_name="flight/PiOS/STM32F30x/Libraries/STM32F30x_StdPeriph_Driver/src/stm32f30x_dac.c" />
+            <file file_name="flight/PiOS/STM32F30x/Libraries/STM32F30x_StdPeriph_Driver/src/stm32f30x_dbgmcu.c" />
+            <file file_name="flight/PiOS/STM32F30x/Libraries/STM32F30x_StdPeriph_Driver/src/stm32f30x_dma.c" />
+            <file file_name="flight/PiOS/STM32F30x/Libraries/STM32F30x_StdPeriph_Driver/src/stm32f30x_exti.c" />
+            <file file_name="flight/PiOS/STM32F30x/Libraries/STM32F30x_StdPeriph_Driver/src/stm32f30x_flash.c" />
+            <file file_name="flight/PiOS/STM32F30x/Libraries/STM32F30x_StdPeriph_Driver/src/stm32f30x_gpio.c" />
+            <file file_name="flight/PiOS/STM32F30x/Libraries/STM32F30x_StdPeriph_Driver/src/stm32f30x_i2c.c" />
+            <file file_name="flight/PiOS/STM32F30x/Libraries/STM32F30x_StdPeriph_Driver/src/stm32f30x_iwdg.c" />
+            <file file_name="flight/PiOS/STM32F30x/Libraries/STM32F30x_StdPeriph_Driver/src/stm32f30x_misc.c" />
+            <file file_name="flight/PiOS/STM32F30x/Libraries/STM32F30x_StdPeriph_Driver/src/stm32f30x_opamp.c" />
+            <file file_name="flight/PiOS/STM32F30x/Libraries/STM32F30x_StdPeriph_Driver/src/stm32f30x_pwr.c" />
+            <file file_name="flight/PiOS/STM32F30x/Libraries/STM32F30x_StdPeriph_Driver/src/stm32f30x_rcc.c" />
+            <file file_name="flight/PiOS/STM32F30x/Libraries/STM32F30x_StdPeriph_Driver/src/stm32f30x_rtc.c" />
+            <file file_name="flight/PiOS/STM32F30x/Libraries/STM32F30x_StdPeriph_Driver/src/stm32f30x_spi.c" />
+            <file file_name="flight/PiOS/STM32F30x/Libraries/STM32F30x_StdPeriph_Driver/src/stm32f30x_syscfg.c" />
+            <file file_name="flight/PiOS/STM32F30x/Libraries/STM32F30x_StdPeriph_Driver/src/stm32f30x_tim.c" />
+            <file file_name="flight/PiOS/STM32F30x/Libraries/STM32F30x_StdPeriph_Driver/src/stm32f30x_usart.c" />
+            <file file_name="flight/PiOS/STM32F30x/Libraries/STM32F30x_StdPeriph_Driver/src/stm32f30x_wwdg.c" />
+          </folder>
+          <folder Name="FreeRTOS-portable">
+            <file file_name="flight/PiOS/STM32F30x/Libraries/FreeRTOS/Source/portable/GCC/ARM_CM4F/port.c" />
+          </folder>
+          <file file_name="flight/PiOS/STM32F30x/pios_bl_helper.c" />
+          <file file_name="flight/PiOS/STM32F30x/pios_brushless.c" />
+          <file file_name="flight/PiOS/STM32F30x/pios_debug.c" />
+          <file file_name="flight/PiOS/STM32F30x/pios_dma_hooks.c" />
+          <file file_name="flight/PiOS/STM32F30x/pios_exti.c" />
+          <file file_name="flight/PiOS/STM32F30x/pios_flash_internal.c" />
+          <file file_name="flight/PiOS/STM32F30x/pios_gpio.c" />
+          <file file_name="flight/PiOS/STM32F30x/pios_i2c.c" />
+          <file file_name="flight/PiOS/STM32F30x/pios_iap.c" />
+          <file file_name="flight/PiOS/STM32F30x/pios_internal_adc.c" />
+          <file file_name="flight/PiOS/STM32F30x/pios_irq.c" />
+          <file file_name="flight/PiOS/STM32F30x/pios_led.c" />
+          <file file_name="flight/PiOS/STM32F30x/pios_ppm.c" />
+          <file file_name="flight/PiOS/STM32F30x/pios_pwm.c" />
+          <file file_name="flight/PiOS/STM32F30x/pios_rtc.c" />
+          <file file_name="flight/PiOS/STM32F30x/pios_servo.c" />
+          <file file_name="flight/PiOS/STM32F30x/pios_spi.c" />
+          <file file_name="flight/PiOS/STM32F30x/pios_sys.c" />
+          <file file_name="flight/PiOS/STM32F30x/pios_tim.c" />
+          <file file_name="flight/PiOS/STM32F30x/pios_usart.c" />
+          <file file_name="flight/PiOS/STM32F30x/pios_wdg.c" />
+          <file file_name="flight/PiOS/STM32F30x/startup.c" />
+          <file file_name="flight/PiOS/STM32F30x/vectors_stm32f30x.c" />
+        </folder>
+        <folder Name="Common">
+          <folder Name="FreeRTOS">
+            <file file_name="flight/PiOS/Common/Libraries/FreeRTOS/Source/croutine.c" />
+            <file file_name="flight/PiOS/Common/Libraries/FreeRTOS/Source/list.c" />
+            <file file_name="flight/PiOS/Common/Libraries/FreeRTOS/Source/queue.c" />
+            <file file_name="flight/PiOS/Common/Libraries/FreeRTOS/Source/tasks.c" />
+            <file file_name="flight/PiOS/Common/Libraries/FreeRTOS/Source/timers.c" />
+          </folder>
+          <file file_name="flight/PiOS/Common/pios_delay.c" />
+          <file file_name="flight/PiOS/Common/pios_mpu6050.c" />
+          <file file_name="flight/PiOS/Common/pios_mpu9150.c" />
+          <file file_name="flight/PiOS/Common/pios_ms5611.c" />
+          <file file_name="flight/PiOS/Common/pios_hmc5883.c" />
+          <file file_name="flight/PiOS/Common/pios_crc.c" />
+          <file file_name="flight/PiOS/Common/pios_com.c" />
+          <file file_name="flight/PiOS/Common/pios_rcvr.c" />
+          <file file_name="flight/PiOS/Common/pios_sensors.c" />
+          <file file_name="flight/PiOS/Common/pios_gcsrcvr.c" />
+          <file file_name="flight/PiOS/Common/pios_flash.c" />
+          <file file_name="flight/PiOS/Common/pios_flashfs_logfs.c" />
+          <file file_name="flight/PiOS/Common/printf-stdarg.c">
+            <configuration Name="Common" build_exclude_from_build="Yes" />
+          </file>
+          <file file_name="flight/PiOS/Common/pios_dma.c" />
+          <file file_name="flight/PiOS/Common/pios_adc.c" />
+          <file file_name="flight/PiOS/Common/pios_heap.c" />
+          <file file_name="flight/PiOS/Common/pios_semaphore.c" />
+          <file file_name="flight/PiOS/Common/pios_board_info.c" />
+        </folder>
+      </folder>
+      <folder Name="uavobject-synthetics">
+        <file file_name="build/uavobject-synthetics/flight/acceldesired.c" />
+        <file file_name="build/uavobject-synthetics/flight/accessorydesired.c" />
+        <file file_name="build/uavobject-synthetics/flight/actuatorcommand.c" />
+        <file file_name="build/uavobject-synthetics/flight/actuatordesired.c" />
+        <file file_name="build/uavobject-synthetics/flight/actuatorsettings.c" />
+        <file file_name="build/uavobject-synthetics/flight/attitudesettings.c" />
+        <file file_name="build/uavobject-synthetics/flight/insstate.c" />
+        <file file_name="build/uavobject-synthetics/flight/inssettings.c" />
+        <file file_name="build/uavobject-synthetics/flight/attitudeactual.c" />
+        <file file_name="build/uavobject-synthetics/flight/gyros.c" />
+        <file file_name="build/uavobject-synthetics/flight/gyrosbias.c" />
+        <file file_name="build/uavobject-synthetics/flight/sensorsettings.c" />
+        <file file_name="build/uavobject-synthetics/flight/accels.c" />
+        <file file_name="build/uavobject-synthetics/flight/magnetometer.c" />
+        <file file_name="build/uavobject-synthetics/flight/magbias.c" />
+        <file file_name="build/uavobject-synthetics/flight/baroaltitude.c" />
+        <file file_name="build/uavobject-synthetics/flight/baroairspeed.c" />
+        <file file_name="build/uavobject-synthetics/flight/airspeedsettings.c" />
+        <file file_name="build/uavobject-synthetics/flight/airspeedactual.c" />
+        <file file_name="build/uavobject-synthetics/flight/fixedwingairspeeds.c" />
+        <file file_name="build/uavobject-synthetics/flight/fixedwingpathfollowersettings.c" />
+        <file file_name="build/uavobject-synthetics/flight/fixedwingpathfollowerstatus.c" />
+        <file file_name="build/uavobject-synthetics/flight/flightbatterysettings.c" />
+        <file file_name="build/uavobject-synthetics/flight/firmwareiapobj.c" />
+        <file file_name="build/uavobject-synthetics/flight/flightbatterystate.c" />
+        <file file_name="build/uavobject-synthetics/flight/flightplancontrol.c" />
+        <file file_name="build/uavobject-synthetics/flight/flightplansettings.c" />
+        <file file_name="build/uavobject-synthetics/flight/flightplanstatus.c" />
+        <file file_name="build/uavobject-synthetics/flight/flighttelemetrystats.c" />
+        <file file_name="build/uavobject-synthetics/flight/gcstelemetrystats.c" />
+        <file file_name="build/uavobject-synthetics/flight/gcsreceiver.c" />
+        <file file_name="build/uavobject-synthetics/flight/gpsposition.c" />
+        <file file_name="build/uavobject-synthetics/flight/gpssatellites.c" />
+        <file file_name="build/uavobject-synthetics/flight/gpstime.c" />
+        <file file_name="build/uavobject-synthetics/flight/gpsvelocity.c" />
+        <file file_name="build/uavobject-synthetics/flight/loitercommand.c" />
+        <file file_name="build/uavobject-synthetics/flight/vtolpathfollowersettings.c" />
+        <file file_name="build/uavobject-synthetics/flight/vtolpathfollowerstatus.c" />
+        <file file_name="build/uavobject-synthetics/flight/homelocation.c" />
+        <file file_name="build/uavobject-synthetics/flight/manualcontrolcommand.c" />
+        <file file_name="build/uavobject-synthetics/flight/manualcontrolsettings.c" />
+        <file file_name="build/uavobject-synthetics/flight/mixersettings.c" />
+        <file file_name="build/uavobject-synthetics/flight/mixerstatus.c" />
+        <file file_name="build/uavobject-synthetics/flight/nedaccel.c" />
+        <file file_name="build/uavobject-synthetics/flight/nedposition.c" />
+        <file file_name="build/uavobject-synthetics/flight/objectpersistence.c" />
+        <file file_name="build/uavobject-synthetics/flight/overosyncstats.c" />
+        <file file_name="build/uavobject-synthetics/flight/overosyncsettings.c" />
+        <file file_name="build/uavobject-synthetics/flight/pathdesired.c" />
+        <file file_name="build/uavobject-synthetics/flight/pathplannersettings.c" />
+        <file file_name="build/uavobject-synthetics/flight/pathstatus.c" />
+        <file file_name="build/uavobject-synthetics/flight/poilocation.c" />
+        <file file_name="build/uavobject-synthetics/flight/positionactual.c" />
+        <file file_name="build/uavobject-synthetics/flight/ratedesired.c" />
+        <file file_name="build/uavobject-synthetics/flight/relaytuning.c" />
+        <file file_name="build/uavobject-synthetics/flight/relaytuningsettings.c" />
+        <file file_name="build/uavobject-synthetics/flight/stateestimation.c" />
+        <file file_name="build/uavobject-synthetics/flight/sonaraltitude.c" />
+        <file file_name="build/uavobject-synthetics/flight/stabilizationdesired.c" />
+        <file file_name="build/uavobject-synthetics/flight/stabilizationsettings.c" />
+        <file file_name="build/uavobject-synthetics/flight/systemalarms.c" />
+        <file file_name="build/uavobject-synthetics/flight/systemsettings.c" />
+        <file file_name="build/uavobject-synthetics/flight/systemstats.c" />
+        <file file_name="build/uavobject-synthetics/flight/tabletinfo.c" />
+        <file file_name="build/uavobject-synthetics/flight/taskinfo.c" />
+        <file file_name="build/uavobject-synthetics/flight/velocityactual.c" />
+        <file file_name="build/uavobject-synthetics/flight/velocitydesired.c" />
+        <file file_name="build/uavobject-synthetics/flight/vibrationanalysissettings.c" />
+        <file file_name="build/uavobject-synthetics/flight/vibrationanalysisoutput.c" />
+        <file file_name="build/uavobject-synthetics/flight/watchdogstatus.c" />
+        <file file_name="build/uavobject-synthetics/flight/flightstatus.c" />
+        <file file_name="build/uavobject-synthetics/flight/hwsparky.c" />
+        <file file_name="build/uavobject-synthetics/flight/modulesettings.c" />
+        <file file_name="build/uavobject-synthetics/flight/receiveractivity.c" />
+        <file file_name="build/uavobject-synthetics/flight/cameradesired.c" />
+        <file file_name="build/uavobject-synthetics/flight/camerastabsettings.c" />
+        <file file_name="build/uavobject-synthetics/flight/altitudeholdsettings.c" />
+        <file file_name="build/uavobject-synthetics/flight/altitudeholddesired.c" />
+        <file file_name="build/uavobject-synthetics/flight/waypoint.c" />
+        <file file_name="build/uavobject-synthetics/flight/waypointactive.c" />
+        <file file_name="build/uavobject-synthetics/flight/hottsettings.c" />
+        <file file_name="build/uavobject-synthetics/flight/ubloxinfo.c" />
+        <file file_name="build/uavobject-synthetics/flight/txpidsettings.c" />
+        <file file_name="build/uavobject-synthetics/flight/i2cvm.c" />
+        <file file_name="build/uavobject-synthetics/flight/i2cvmuserprogram.c" />
+        <file file_name="build/uavobject-synthetics/flight/trimangles.c" />
+        <file file_name="build/uavobject-synthetics/flight/trimanglessettings.c" />
+      </folder>
+      <file file_name="flight/Project/crossworks/sparkyclone/crossworks_arm.c" />
+    </folder>
+    <folder Name="System Files">
+      <file file_name="$(TargetsDir)/STM32/STM32_Target.js">
+        <configuration Name="Common" file_type="Reset Script" />
+      </file>
+    </folder>
+    <folder Name="Compiler Defs">
+      <file file_name="flight/Project/crossworks/sparkyclone/build.def" />
+      <file file_name="flight/Project/crossworks/sparkyclone/compiler.def" />
+      <file file_name="flight/Project/crossworks/sparkyclone/board-info.def" />
+    </folder>
+  </project>
+  <configuration Name="THUMB Debug" inherited_configurations="THUMB;Debug" />
+  <configuration
+    Name="THUMB"
+    Platform="ARM"
+    arm_instruction_set="Thumb"
+    arm_library_instruction_set="Thumb"
+    c_preprocessor_definitions="__THUMB"
+    hidden="Yes" />
+  <configuration
+    Name="Debug"
+    c_preprocessor_definitions="DEBUG"
+    gcc_debugging_level="Level 3"
+    gcc_optimization_level="None"
+    hidden="Yes" />
+  <configuration
+    Name="THUMB Release"
+    inherited_configurations="THUMB;Release" />
+  <configuration
+    Name="Release"
+    c_preprocessor_definitions="NDEBUG"
+    gcc_debugging_level="Level 1"
+    gcc_optimization_level="Level 1"
+    hidden="Yes" />
+</solution>
