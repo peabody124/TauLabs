@@ -42,7 +42,7 @@ Colibri::Colibri(void)
 {
     // Initialize our USB Structure definition here:
     USBInfo board;
-    board.vendorID = 0x0fda;
+    board.vendorID = 0x4235;
     board.productID = 0x0100;
 
     setUSBInfo(board);
