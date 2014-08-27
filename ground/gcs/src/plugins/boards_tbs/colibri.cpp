@@ -47,7 +47,7 @@ Colibri::Colibri(void)
 
     setUSBInfo(board);
 
-    boardType = 0x86;
+    boardType = 0x91;
 
     // Define the bank of channels that are connected to a given timer
     channelBanks.resize(6);
