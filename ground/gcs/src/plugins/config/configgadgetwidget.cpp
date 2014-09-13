@@ -51,7 +51,7 @@
 
 
 
-ConfigGadgetWidget::ConfigGadgetWidget(QWidget *parent) : QWidget(parent)
+ConfigGadgetWidget::ConfigGadgetWidget(QWidget *parent) : QWidget(parent), lastTabIndex(ConfigGadgetWidget::hardware)
 {
     setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
 
