@@ -44,9 +44,6 @@
 #include "../../../../../build/ground/gcs/gcsversioninfo.h"
 #include <coreplugin/coreconstants.h>
 
-#define META_SEND_TIMEOUT   1500
-#define META_SEND_RETRIES   3
-
 // ******************************
 // constructor/destructor
 
@@ -71,9 +68,6 @@ UAVObjectUtilManager::UAVObjectUtilManager()
     }
 
     incompatibleMsg = new QErrorMessage();
-
-    metadataSendTimeout.setSingleShot(true);
-    metadataSendTimeout.setInterval(META_SEND_TIMEOUT);
 }
 
 UAVObjectUtilManager::~UAVObjectUtilManager()
@@ -159,11 +153,11 @@ void UAVObjectUtilManager::saveNextObject()
     // Since its metadata state that it should be ACK'ed on flight telemetry, the transactionCompleted signal
     // will be triggered once the GCS telemetry manager receives an ACK from the flight controller, or times
     // out. the success value will reflect success or failure.
-    connect(objectPersistence, SIGNAL(transactionCompleted(UAVObject*,bool)), this, SLOT(objectPersistenceTransactionCompleted(UAVObject*,bool)));
+    connect(objectPersistence, SIGNAL(transactionCompleted(UAVObject*,bool)), this, SLOT(objectPersistenceTransactionCompleted(UAVObject*,bool)), Qt::UniqueConnection);
     // After we update the objectPersistence UAVO, we need to listen to its "objectUpdated" event, which will occur
     // once the flight controller sends this object back to the GCS, with the "Operation" field set to "Completed"
     // or "Error".
-    connect(objectPersistence, SIGNAL(objectUpdated(UAVObject*)), this, SLOT(objectPersistenceUpdated(UAVObject *)));
+    connect(objectPersistence, SIGNAL(objectUpdated(UAVObject*)), this, SLOT(objectPersistenceUpdated(UAVObject *)), Qt::UniqueConnection);
     saveState = AWAITING_ACK;
     qDebug() << "[saveObjectToFlash] Moving on to AWAITING_ACK";
 
@@ -183,12 +177,6 @@ void UAVObjectUtilManager::saveNextObject()
     //  - Last we will get one last "objectUpdated" message coming from flight side, where we'll get the results of
     //    the objectPersistence operation we asked for (saved, other).
 }
-
-void UAVObjectUtilManager::onMetadataSendTimeout()
-{
-    metadataTransactionCompleted(NULL, false);
-}
-
 
 /**
   * @brief Process the transactionCompleted message from Telemetry indicating request sent successfully
@@ -402,16 +390,12 @@ bool UAVObjectUtilManager::setMetadata(QMap<QString, UAVObject::Metadata> metaDa
             metadataSendlist.insert(obj, metaDataSetList.value(str));
         }
     }
-    metadataSendRetries = 0;
     metadataSendSuccess = true;
     UAVDataObject *obj = metadataSendlist.keys().first();
 
     // Connect transaction and timeout timers before making the request
-    connect(&metadataSendTimeout, SIGNAL(timeout()),this, SLOT(onMetadataSendTimeout()), Qt::UniqueConnection);
-    connect(obj, SIGNAL(transactionCompleted(UAVObject*,bool)), this, SLOT(metadataTransactionCompleted(UAVObject*,bool)));
-
+    connect(obj->getMetaObject(), SIGNAL(transactionCompleted(UAVObject*,bool)), this, SLOT(metadataTransactionCompleted(UAVObject*,bool)), Qt::UniqueConnection);
     obj->setMetadata(metadataSendlist.value(obj));
-    metadataSendTimeout.start();
 
     return true;
 }
@@ -449,66 +433,35 @@ bool UAVObjectUtilManager::resetMetadataToDefaults()
  */
 void UAVObjectUtilManager::metadataTransactionCompleted(UAVObject* uavoObject, bool success)
 {
-    Q_UNUSED(success);
-    metadataSendTimeout.stop();
-    bool retry = false;
-    if (uavoObject && success)
+    UAVMetaObject *mobj = dynamic_cast<UAVMetaObject*>(uavoObject);
+    UAVDataObject *dobj = dynamic_cast<UAVDataObject*>(mobj->getParentObject());
+    Q_ASSERT(mobj);
+    Q_ASSERT(dobj);
+    if (metadataSendlist.contains(dobj))
     {
-        UAVDataObject *dobj = dynamic_cast<UAVDataObject*>(uavoObject);
-        Q_ASSERT(dobj);
-        // If the UAVO is on the list, check that the data was set correctly
-        if (metadataSendlist.contains(dobj))
+        if (success)
         {
-            UAVObject::Metadata mdata = metadataSendlist.value(dobj);
-            if ( uavoObject->getMetadata().flags == mdata.flags &&
-                 uavoObject->getMetadata().flightTelemetryUpdatePeriod == mdata.flightTelemetryUpdatePeriod &&
-                 uavoObject->getMetadata().gcsTelemetryUpdatePeriod == mdata.gcsTelemetryUpdatePeriod &&
-                 uavoObject->getMetadata().loggingUpdatePeriod == mdata.loggingUpdatePeriod)
-            {
-                qDebug() << "Writing metadata succeded on " << uavoObject->getName();
-                metadataSendRetries = 0;
-            }
-            else{
-                ++metadataSendRetries;
-                if(metadataSendRetries < META_SEND_RETRIES)
-                    retry = true;
-                else
-                {
-                    metadataSendSuccess = false;
-                    metadataSendRetries = 0;
-                }
-                qDebug() << "Writing metadata failed on " << uavoObject->getName()<< "Retry?" << retry;
-            }
+            qDebug() << "Writing metadata succeded on " << uavoObject->getName();
         }
-    } else {
-        // If unsuccessful
-        ++metadataSendRetries;
-        if(metadataSendRetries < META_SEND_RETRIES)
-            retry = true;
         else
         {
+            // If unsuccessful
             metadataSendSuccess = false;
-            metadataSendRetries = 0;
+            qDebug()<<metadataSendlist.keys().first()<<"metadata send failed";
         }
-        qDebug()<<metadataSendlist.keys().first()<<"metadata send timeout Retry? "<< retry;
-    }
-    UAVDataObject *dobj = dynamic_cast<UAVDataObject*>(metadataSendlist.keys().first());
-    disconnect(dobj, SIGNAL(transactionCompleted(UAVObject*,bool)), this, SLOT(metadataTransactionCompleted(UAVObject*,bool)));
-    if(!retry)
+        disconnect(mobj, SIGNAL(transactionCompleted(UAVObject*,bool)), this, SLOT(metadataTransactionCompleted(UAVObject*,bool)));
         metadataSendlist.take(dobj);
-    if(!metadataSendlist.keys().isEmpty())
-    {
-        metadataSendlist.keys().first()->setMetadata(metadataSendlist.value(metadataSendlist.keys().first()));
-        connect(metadataSendlist.keys().first(), SIGNAL(transactionCompleted(UAVObject*,bool)), this, SLOT(metadataTransactionCompleted(UAVObject*,bool)));
-        metadataSendTimeout.start();
-        metadataSendlist.keys().first()->requestUpdate();
-        return;
-    }
-    else{
-        emit completedMetadataWrite(metadataSendSuccess);
+        if(!metadataSendlist.keys().isEmpty())
+        {
+            metadataSendlist.keys().first()->setMetadata(metadataSendlist.value(metadataSendlist.keys().first()));
+            connect(metadataSendlist.keys().first()->getMetaObject(), SIGNAL(transactionCompleted(UAVObject*,bool)), this, SLOT(metadataTransactionCompleted(UAVObject*,bool)), Qt::UniqueConnection);
+            return;
+        }
+        else {
+            emit completedMetadataWrite(metadataSendSuccess);
+        }
     }
 }
-
 
 /**
   * Helper function that makes sure FirmwareIAP is updated and then returns the data
