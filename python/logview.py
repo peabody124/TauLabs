@@ -173,7 +173,6 @@ def main():
             pickle_fd = open(pickle_name, 'wb')
             pickle.dump(githash, pickle_fd)
             pickle.dump(uavo_parsed, pickle_fd)
-            pickle.dump(uavo_defs, pickle_fd)
             pickle_fd.close()
 
         print "Converting log records into python objects"
