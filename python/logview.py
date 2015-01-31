@@ -108,6 +108,7 @@ def main():
         parser = taulabs.uavtalk.UavTalk(uavo_defs)
 
         base_time = None
+        log_hdr = None
 
         if not pickle_data_loaded:
             print "Parsing using the LogFormat: " + `args.timestamped`
@@ -136,7 +137,13 @@ def main():
                             break
 
                         # Got a log record header.  Unpack it.
-                        log_hdr = LogHeader._make(struct.unpack(log_hdr_fmt, log_hdr_data))
+                        new_log_hdr = LogHeader._make(struct.unpack(log_hdr_fmt, log_hdr_data))
+
+                        if log_hdr is None:
+                            log_hdr = new_log_hdr
+                        elif (new_log_hdr.time > base_time) and (new_log_hdr.time < (base_time + 600*60*1000)):
+                            # expect log files to last less than 10 hours
+                            log_hdr = new_log_hdr
 
                         # Set the baseline timestamp from the first record in the log file
                         if base_time is None:
