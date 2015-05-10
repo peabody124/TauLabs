@@ -247,6 +247,9 @@ static void holdCurrentPosition()
 	pathDesired.End[PATHDESIRED_END_EAST] = position.East;
 	pathDesired.End[PATHDESIRED_END_DOWN] = position.Down;
 	pathDesired.Mode = PATHDESIRED_MODE_HOLDPOSITION;
+	pathDesired.StartingVelocity = 5; // This will be the max velocity it uses to try and hold
+	pathDesired.EndingVelocity = 5;
+	pathDesired.ModeParameters = 0;
 	PathDesiredSet(&pathDesired);
 }
 
