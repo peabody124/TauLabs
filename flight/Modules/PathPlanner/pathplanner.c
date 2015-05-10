@@ -488,7 +488,7 @@ static void createPathLogo()
 	waypoint.Velocity = 5; // Since for now this isn't directional just set a mag
 	waypoint.Mode = WAYPOINT_MODE_FLYVECTOR;
 	waypoint.ModeParameters = 0;
-	waypoint.Position[2] = -50;
+	waypoint.Position[2] = -20;
 
 	waypoint.Position[0] = 6.49;
 	waypoint.Position[1] = -9.52;
