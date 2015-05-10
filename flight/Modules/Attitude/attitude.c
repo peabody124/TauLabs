@@ -1104,7 +1104,7 @@ static int32_t updateAttitudeINSGPS(bool first_run, bool outdoor_mode)
 			getNED(&gpsData, NED);
 
 			// Initialize barometric offset to current GPS NED coordinate
-			baro_offset = -NED[2] - baroData.Altitude;
+			baro_offset = -baroData.Altitude;
 
 			INSSetState(NED, zeros, q, zeros, zeros);
 		} 
