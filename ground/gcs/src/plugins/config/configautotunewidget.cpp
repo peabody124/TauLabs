@@ -286,6 +286,14 @@ void ConfigAutotuneWidget::recomputeStabilization()
     const double zeta_o = 1.3;
     const double kp_o = 1 / 4.0 / (zeta_o * zeta_o) / (1/wn);
 
+    // Calculate the settings for yaw. This uses the tau_d calculated on just roll/pitch
+    // becaues of this, there is no high frequency gain setting for yaw
+    const double damp_yaw = m_autotune->yawRateDamp->value() / 100.0;
+    double beta_yaw = systemIdentData.Beta[SystemIdent::BETA_YAW];
+    const double wn_yaw = (tau + tau_d) / (tau*tau_d) / (2 * damp_yaw + 2);
+    const double a_yaw = ((tau+tau_d) / tau / tau_d - 2 * damp_yaw * wn_yaw) / 20.0;
+    const double b_yaw = ((tau+tau_d) / tau / tau_d - 2 * damp_yaw * wn_yaw - a_yaw);
+
     // For now just run over roll and pitch
     for (int i = 0; i < 2; i++) {
         double beta = exp(systemIdentData.Beta[i]);
@@ -309,6 +317,13 @@ void ConfigAutotuneWidget::recomputeStabilization()
             stabSettings.PitchPI[StabilizationSettings::PITCHPI_KP] = kp_o;
             stabSettings.PitchPI[StabilizationSettings::PITCHPI_KI] = 0;
             break;
+        case 2: // Yaw
+            double ki_yaw = a * b * wn_yaw * wn_yaw * tau * tau_d / beta;
+            double kp_yaw = tau * tau_d * ((a_yaw+b_yaw)*wn_yaw*wn_yaw + 2*a_yaw*b_yaw*damp_yaw*wn_yaw) / beta_yaw - ki_yaw * tau_d;
+            double kd_yaw = (tau * tau_d * (a_yaw*b_yaw + wn_yaw*wn_yaw + (a_yaw+b_yaw)*2*damp_yaw*wn_yaw) - 1) / beta_yaw - kp_yaw * tau_d;
+            stabSettings.YawRatePID[StabilizationSettings::YAWRATEPID_KP] = kp_yaw;
+            stabSettings.YawRatePID[StabilizationSettings::YAWRATEPID_KI] = ki_yaw;
+            stabSettings.YawRatePID[StabilizationSettings::YAWRATEPID_KD] = kd_yaw;
         }
     }
     stabSettings.DerivativeCutoff = 1 / (2*M_PI*tau_d);
@@ -320,12 +335,16 @@ void ConfigAutotuneWidget::recomputeStabilization()
     m_autotune->pitchRateKp->setText(QString::number(stabSettings.PitchRatePID[StabilizationSettings::PITCHRATEPID_KP]));
     m_autotune->pitchRateKi->setText(QString::number(stabSettings.PitchRatePID[StabilizationSettings::PITCHRATEPID_KI]));
     m_autotune->pitchRateKd->setText(QString::number(stabSettings.PitchRatePID[StabilizationSettings::PITCHRATEPID_KD]));
+    m_autotune->yawRateKp->setText(QString::number(stabSettings.YawRatePID[StabilizationSettings::YAWRATEPID_KP]));
+    m_autotune->yawRateKi->setText(QString::number(stabSettings.YawRatePID[StabilizationSettings::YAWRATEPID_KI]));
+    m_autotune->yawRateKd->setText(QString::number(stabSettings.YawRatePID[StabilizationSettings::YAWRATEPID_KD]));
     m_autotune->lblOuterKp->setText(QString::number(stabSettings.RollPI[StabilizationSettings::ROLLPI_KP]));
 
     m_autotune->derivativeCutoff->setText(QString::number(stabSettings.DerivativeCutoff));
     m_autotune->rollTau->setText(QString::number(tau,'g',3));
     m_autotune->pitchTau->setText(QString::number(tau,'g',3));
     m_autotune->wn->setText(QString::number(wn / 2 / M_PI, 'f', 1));
+    m_autotune->yawWn->setText(QString::number(wn_yaw / 2 / M_PI, 'f', 1));
     m_autotune->lblDamp->setText(QString::number(damp, 'g', 2));
     m_autotune->lblNoise->setText(QString::number(ghf * 100, 'g', 2) + " %");
 
