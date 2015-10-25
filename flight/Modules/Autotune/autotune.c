@@ -59,6 +59,9 @@ enum AUTOTUNE_STATE {AT_INIT, AT_START, AT_RUN, AT_FINISHED, AT_SET};
 static struct pios_thread *taskHandle;
 static bool module_enabled;
 
+static float DT_s_sum = 0.0f;
+static uint32_t DT_s_count = 0;
+
 // Private functions
 static void AutotuneTask(void *parameters);
 static void af_predict(float X[AF_NUMX], float P[AF_NUMP], const float u_in[3], const float gyro[3], const float dT_s);
@@ -123,6 +126,8 @@ static void UpdateSystemIdent(const float *X, const float *noise,
 		relay.Noise[SYSTEMIDENT_NOISE_YAW]   = noise[2];
 	}
 	relay.Period = dT_s * 1000.0f;
+	relay.AverageDt = 1000.0f * DT_s_sum / DT_s_count;
+
 	SystemIdentSet(&relay);
 }
 
@@ -233,6 +238,9 @@ static void AutotuneTask(void *parameters)
 					lastUpdateTime = PIOS_Thread_Systime();
 				}
 
+				DT_s_sum = 0;
+				DT_s_count = 0;
+
 
 				last_time = PIOS_DELAY_GetRaw();
 
@@ -258,6 +266,8 @@ static void AutotuneTask(void *parameters)
 					ActuatorDesiredYawGet(u+2);
 
 					float dT_s = PIOS_DELAY_DiffuS(last_time) * 1.0e-6f;
+					DT_s_sum += dT_s;
+					DT_s_count++;
 
 					af_predict(X,P,u,y, DT_MS * 0.001f);
 					for (uint32_t i = 0; i < 3; i++) {
