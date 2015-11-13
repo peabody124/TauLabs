@@ -33,11 +33,11 @@ include $(BOARD_INFO_DIR)/board-info.mk
 DEBUG ?= NO
 
 # @optbrief Include objects that are just nice information to show
-STACK_DIAGNOSTICS ?= NO
+STACK_DIAGNOSTICS ?= YES
 MIXERSTATUS_DIAGNOSTICS ?= NO
 RATEDESIRED_DIAGNOSTICS ?= NO
 WDG_STATS_DIAGNOSTICS ?= NO
-DIAG_TASKS ?= NO
+DIAG_TASKS ?= YES
 
 #Or just turn on all the above diagnostics. WARNING: This consumes massive amounts of memory.
 ALL_DIGNOSTICS ?=NO
