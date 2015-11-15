@@ -37,7 +37,7 @@ STACK_DIAGNOSTICS ?= NO
 MIXERSTATUS_DIAGNOSTICS ?= NO
 RATEDESIRED_DIAGNOSTICS ?= NO
 WDG_STATS_DIAGNOSTICS ?= NO
-DIAG_TASKS ?= NO
+DIAG_TASKS ?= YES
 
 #Or just turn on all the above diagnostics. WARNING: This consumes massive amounts of memory.
 ALL_DIGNOSTICS ?=NO
