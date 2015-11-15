@@ -182,7 +182,7 @@ static void AutotuneTask(void *parameters)
 	af_init(X,P);
 
 	uint32_t last_time = 0.0f;
-	const uint32_t DT_MS = 3;
+	const uint32_t DT_MS = 1;
 
 	while(1) {
 
