@@ -276,8 +276,8 @@ static void msp_send_comp_gps(struct msp_bridge *m)
 //			data.comp_gps.distance_to_home  = (uint16_t)(sqrtf(delta_x * delta_x + delta_y * delta_y) * 1e-4f);  // meters
 			data.comp_gps.distance_to_home  = (uint16_t)(sqrtf(deltas[0] * deltas [0] + deltas[1] * deltas[1]));  // meters
 
-	
-			if ((delta_lon == 0) && (delta_lat == 0))
+//			if ((delta_lon == 0) && (delta_lat == 0))
+			if ((deltas[0] == 0) && (deltas[1] == 0))
 			   data.comp_gps.direction_to_home = 0;
 			else
 			   data.comp_gps.direction_to_home = (int16_t)(atan2f(deltas[1], deltas[0]) * RAD2DEG + 0.5f); // degrees;
