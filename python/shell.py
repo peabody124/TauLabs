@@ -26,6 +26,7 @@ def main():
         'githash'   : uavo_list.githash,
         'uavo_defs' : uavo_list.uavo_defs,
         'uavo_list' : uavo_list,
+        '__name__'  : 'taulabs'
         }
 
     # Extend the shell environment to include all of the uavo.UAVO_* classes that were
