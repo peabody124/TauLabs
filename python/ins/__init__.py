@@ -7,4 +7,5 @@ from . import cins
 from . import pyins
 from . import test
 from . import replay_log
+from . import quaternions
 
