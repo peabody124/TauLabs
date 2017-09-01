@@ -170,35 +170,86 @@ advance(PyObject* self, PyObject* args)
 }
 
 static PyObject*
-correct(PyObject* self, PyObject* args)
+correct(PyObject* self, PyObject* args, PyObject *kwarg)
 {
-	PyArrayObject *vec_gyros;
-	PyArrayObject *vec_accels;
-	float gyros[3];
-	float accels[3];
+	PyArrayObject *vec_gyros, *vec_accels, *vec_mag = NULL;
+	float gyros[3], accels[3], mag[3];
+	float baro = NAN;
 
-	if (!PyArg_ParseTuple(args, "O!O!", &PyArray_Type, &vec_gyros, &PyArray_Type, &vec_accels))  return NULL;
+	static char *kwlist[] = {"gyro", "accel", "mag", "baro", NULL};
+
+	if (!PyArg_ParseTupleAndKeywords(args, kwarg, "O!O!|O!f", kwlist,
+		&PyArray_Type, &vec_gyros,
+		&PyArray_Type, &vec_accels,
+		&PyArray_Type, &vec_mag,
+		&baro))  return NULL;
+
 	if (NULL == vec_gyros)  return NULL;
 	if (NULL == vec_accels)  return NULL;
 
+	// Get data for accel/gyro correction
 	if (!parseFloatVec3(vec_gyros, gyros))
 		return NULL;
 	if (!parseFloatVec3(vec_accels, accels))
 		return NULL;
-
 	qcins_correct_accel_gyro(qcins_handle, accels, gyros);
+
+	// Get data for mag correction
+	if (vec_mag != NULL) {
+		if (!parseFloatVec3(vec_mag, mag))
+			return NULL;
+		qcins_correct_mag(qcins_handle, mag);
+	}
+
+	// Get d ata for baro correction
+	if (!isnan(baro)) {
+		qcins_correct_baro(qcins_handle, baro);
+	}
 	
 	return pack_state(self);
+}
+
+static PyObject*
+configure(PyObject* self, PyObject* args, PyObject *kwarg)
+{
+	static char *kwlist[] = {"gains", "tau", "mu", NULL};
+
+	PyArrayObject *vec_gains = NULL;
+	float tau_var = NAN;
+	float mu_var = NAN;
+	
+	if (!PyArg_ParseTupleAndKeywords(args, kwarg, "|Off", kwlist,
+		 &vec_gains, &tau_var, &mu_var)) {
+		return NULL;
+	}
+
+	if (vec_gains) {
+		float gain_new[4];
+		if (!parseFloatVecN(vec_gains, gain_new, 4))
+			return NULL;
+		qcins_set_gains(qcins_handle, gain_new);
+	}
+
+	if (!isnan(tau_var)) {
+		qcins_set_tau(qcins_handle, tau_var);
+	}
+
+	if (!isnan(mu_var)) {
+		qcins_set_tau(qcins_handle, mu_var);
+	}
+
+	return Py_None;
 }
 
 static PyMethodDef QcInsMethods[] =
 {
 	{"init", init, METH_VARARGS, "Reset QC INS state."},
 	{"advance", advance, METH_VARARGS, "advance(u, dT) - Advance state 1 time step."},
-	{"correct", correct, METH_VARARGS, "correct(g, a) - Correct based on gyro and accel data."},
+	{"correct", (PyCFunction)correct, METH_VARARGS|METH_KEYWORDS, "correct(g, a) - Correct based on gyro and accel data."},
+	{"configure", (PyCFunction)configure, METH_VARARGS|METH_KEYWORDS, "configure - Set the parameters."},
 	{NULL, NULL, 0, NULL}
 };
- 
+
 PyMODINIT_FUNC
 initqc_ins(void)
 {
