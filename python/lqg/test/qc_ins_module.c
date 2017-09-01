@@ -186,7 +186,7 @@ correct(PyObject* self, PyObject* args)
 	if (!parseFloatVec3(vec_accels, accels))
 		return NULL;
 
-	qcins_correct_accel_gyro(qcins_handle, gyros, accels);
+	qcins_correct_accel_gyro(qcins_handle, accels, gyros);
 	
 	return pack_state(self);
 }
