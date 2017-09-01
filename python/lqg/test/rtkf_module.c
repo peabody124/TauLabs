@@ -181,7 +181,7 @@ configure(PyObject* self, PyObject* args, PyObject *kwarg)
 	}
 
 	if (!isnan(tau_var)) {
-		rtkf_set_tau(rtkf_handle, tau_var);
+		//rtkf_set_tau(rtkf_handle, tau_var);
 		//printf("Setting tau\r\n");
 	}
 
