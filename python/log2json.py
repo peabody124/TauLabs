@@ -83,10 +83,13 @@ for i in range(STEPS):
             gps_vel_val = [gps_vel['North'][gps_vel_idx,0], gps_vel['East'][gps_vel_idx,0], gps_vel['Down'][gps_vel_idx,0]]
             last_gps_vel_idx = gps_vel_idx
 
-
     log.append({'t': t, 'gyros': g, 'accels': a, 'u': u, 'baro': baro, 'mag': mag, 'pos': gps_pos_val, 'vel': gps_vel_val, 'rpy': rpy})
 
-filename = "temp.JSON"
+import sys
+import os
+
+filename = os.path.splitext(sys.argv[-1])[0]+".JSON"
+print("Outputting to {}".format(filename))
 
 import io
 import json
