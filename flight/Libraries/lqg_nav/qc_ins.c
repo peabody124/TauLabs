@@ -143,6 +143,31 @@ bool qcins_alloc(uintptr_t *qcins_handle)
 	return true;
 }
 
+// Ideally these should be good defaults and not need adjusting
+bool qcins_set_sensor_noise(uintptr_t qcins_handle, const float noises[9])
+{
+   struct qcins_state *qcins_state = (struct qcins_state *) qcins_handle;
+   if (!qcins_validate(qcins_state))
+      return false;
+
+   for (int i = 0; i < NUMO; i++)
+      qcins_state->R[i] = noises[i];
+   return true;
+}
+
+// Ideally these should be good defaults and not need adjusting
+bool qcins_set_process_noise(uintptr_t qcins_handle, const float noises[15])
+{
+   struct qcins_state *qcins_state = (struct qcins_state *) qcins_handle;
+   if (!qcins_validate(qcins_state))
+      return false;
+
+   for (int i = 0; i < NUMX; i++)
+      qcins_state->Q[i] = noises[i];
+   return true;
+}
+
+
 bool qcins_set_gains(uintptr_t qcins_handle, const float gains_new[4])
 {
 	struct qcins_state *qcins_state = (struct qcins_state *) qcins_handle;
