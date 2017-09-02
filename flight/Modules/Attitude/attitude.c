@@ -55,9 +55,11 @@
 #include "physical_constants.h"
 #include "coordinate_conversions.h"
 #include "WorldMagModel.h"
+#include "qc_ins.h"
 
 // UAVOs
 #include "accels.h"
+#include "actuatordesired.h"
 #include "attitudeactual.h"
 #include "attitudesettings.h"
 #include "baroaltitude.h"
@@ -143,6 +145,7 @@ static struct pios_queue *baroQueue;
 static struct pios_queue *gpsQueue;
 static struct pios_queue *gpsVelQueue;
 
+static 	uintptr_t qcins_handle;
 static AttitudeSettingsData attitudeSettings;
 static HomeLocationData homeLocation;
 static INSSettingsData insSettings;
@@ -183,6 +186,8 @@ static int32_t setAttitudeINSGPS(AttitudeActualData *attitudeActual);
 static int32_t setNavigationINSGPS();
 static void updateNedAccel();
 static void settingsUpdatedCb(UAVObjEvent * objEv);
+
+static int32_t updateQcIns(uintptr_t qcins_handle, bool first_run);
 
 //! A low pass filter on the accels which helps with vibration resistance
 static void apply_accel_filter(const float * raw, float * filtered);
@@ -285,6 +290,9 @@ int32_t AttitudeStart(void)
 	// Watchdog must be registered before starting task
 	PIOS_WDG_RegisterFlag(PIOS_WDG_ATTITUDE);
 
+	qcins_alloc(&qcins_handle);
+	qcins_init(qcins_handle);
+
 	// Start main task
 	attitudeTaskHandle = PIOS_Thread_Create(AttitudeTask, "Attitude", STACK_SIZE_BYTES, NULL, TASK_PRIORITY);
 	TaskMonitorAdd(TASKINFO_RUNNING_ATTITUDE, attitudeTaskHandle);
@@ -344,11 +352,15 @@ static void AttitudeTask(void *parameters)
 		               ((stateEstimation.AttitudeFilter == STATEESTIMATION_ATTITUDEFILTER_COMPLEMENTARY) &&
 		                (stateEstimation.NavigationFilter == STATEESTIMATION_NAVIGATIONFILTER_INS));
 
+      	bool qcins = (stateEstimation.AttitudeFilter == STATEESTIMATION_NAVIGATIONFILTER_QCINS);
+
 		// Complementary filter only needed when used for attitude
 		bool complementary = stateEstimation.AttitudeFilter == STATEESTIMATION_ATTITUDEFILTER_COMPLEMENTARY;
 
 		// Update one or both filters
-		if (ins) {
+		if (qcins) {
+			ret_val = updateQcIns(qcins_handle, first_run);
+		} else if (ins) {
 			ret_val = updateAttitudeINSGPS(first_run, outdoor);
 			if (complementary)
 				 updateAttitudeComplementary(first_run || complementary != last_complementary,
@@ -372,6 +384,9 @@ static void AttitudeTask(void *parameters)
 		case STATEESTIMATION_ATTITUDEFILTER_INSINDOOR:
 			setAttitudeINSGPS(&attitudeActual);
 			break;
+		case STATEESTIMATION_ATTITUDEFILTER_QCINS:
+			// Do nothing, it sets this itself
+			break;
 		}
 
 		// Use the selected source for position and velocity
@@ -383,6 +398,9 @@ static void AttitudeTask(void *parameters)
 			break;
 		case STATEESTIMATION_NAVIGATIONFILTER_RAW:
 			setNavigationRaw();
+			break;
+		case STATEESTIMATION_NAVIGATIONFILTER_QCINS:
+			// Do nothing. QC INS sets the objects itself.
 			break;
 		case STATEESTIMATION_NAVIGATIONFILTER_NONE:
 		default:
@@ -1338,6 +1356,217 @@ static int32_t setAttitudeINSGPS(AttitudeActualData *attitudeActual)
 
 	return 0;
 }
+
+/******* Code for QC INS *********/
+
+static int32_t updateQcIns(uintptr_t qcins_handle, bool first_run)
+{
+	UAVObjEvent ev;
+	GyrosData gyrosData;
+	AccelsData accelsData;
+	MagnetometerData magData;
+	GPSVelocityData gpsVelData;
+	GyrosBiasData gyrosBias;
+	static uint32_t ins_last_time = 0;
+
+	// These should be static as their values are checked multiple times per update
+	static BaroAltitudeData baroData;
+	static GPSPositionData  gpsPosition;
+
+	static bool mag_updated = false;
+	static bool baro_updated;
+	static bool gps_updated;
+	static bool gps_vel_updated;
+
+	mag_updated = mag_updated || PIOS_Queue_Receive(magQueue, &ev, 0);
+	baro_updated = baro_updated || PIOS_Queue_Receive(baroQueue, &ev, 0);
+	gps_updated = gps_updated || PIOS_Queue_Receive(gpsQueue, &ev, 0);
+	gps_vel_updated = gps_vel_updated || PIOS_Queue_Receive(gpsVelQueue, &ev, 0);
+
+	// Wait until the gyro and accel object is updated, if a timeout then go to failsafe
+	if (PIOS_Queue_Receive(gyroQueue, &ev, FAILSAFE_TIMEOUT_MS) != true ||
+		PIOS_Queue_Receive(accelQueue, &ev, 1) != true)
+	{
+		return -1;
+	}
+
+	// Get most recent data
+	GyrosGet(&gyrosData);
+	AccelsGet(&accelsData);
+	GyrosBiasGet(&gyrosBias);
+
+	// Need to get these values before initializing
+	if(baro_updated)
+		BaroAltitudeGet(&baroData);
+
+	if (mag_updated)
+       MagnetometerGet(&magData);
+
+	if (gps_updated)
+		GPSPositionGet(&gpsPosition);
+
+	if (gps_vel_updated)
+		GPSVelocityGet(&gpsVelData);
+
+	// Discard mag if it has NAN (normally from bad calibration)
+	mag_updated &= !(IS_NOT_FINITE(magData.x) || IS_NOT_FINITE(magData.y) || IS_NOT_FINITE(magData.z));
+
+	// Indoor mode will fall back to reasonable Be and that is ok. For outdoor make sure home
+	// Be is set and a good value
+	//mag_updated &= !outdoor_mode || (homeLocation.Be[0] != 0 || homeLocation.Be[1] != 0 || homeLocation.Be[2]);
+
+        // A more stringent requirement for GPS to initialize the filter
+	bool gps_init_usable = gps_updated &&
+	      (gpsPosition.Satellites >= insSettings.MinRNAVSatellites+1) &&
+	      (gpsPosition.PDOP <= insSettings.MinRNAVPDOP*.9f) &&
+	      (homeLocation.Set == HOMELOCATION_SET_TRUE);
+
+
+	// TODO: handle any true initialization here
+	// When the home location is adjusted the filter should be
+	// reinitialized to correctly offset the baro and make sure it 
+	// does not blow up.  This flag should only be set when not armed.
+	if (first_run || home_location_updated) {
+
+		mag_updated = false;
+		baro_updated = false;
+		gps_updated = false;
+		gps_vel_updated = false;
+
+		home_location_updated = false;
+
+		ins_last_time = PIOS_DELAY_GetRaw();
+
+		gps_init_usable &= FALSE; // Might use this variable later
+
+		qcins_init(qcins_handle);
+
+		return 0;
+	}
+
+
+	// Let the filter know when we are armed (if it starts taking this)
+	uint8_t armed;
+	FlightStatusArmedGet(&armed);
+	//INSSetArmed (armed == FLIGHTSTATUS_ARMED_ARMED);
+	
+	// Have a minimum requirement for gps usage a little more liberal than during initialization
+	gps_updated &= (gpsPosition.Satellites >= insSettings.MinRNAVSatellites) &&
+		      (gpsPosition.PDOP <= insSettings.MinRNAVPDOP) &&
+		      (homeLocation.Set == HOMELOCATION_SET_TRUE);
+
+	float dT = PIOS_DELAY_DiffuS(ins_last_time) / 1.0e6f;
+	ins_last_time = PIOS_DELAY_GetRaw();
+
+	// This should only happen at start up or at mode switches
+	if(dT > 0.01f)
+		dT = 0.01f;
+	else if(dT <= 0.001f)
+		dT = 0.001f;
+
+
+	// Because the sensor module remove the bias we need to add it
+	// back in here so that the INS algorithm can track it correctly
+	// this effectively means the INS is observing the "raw" data.
+	float gyros[3];
+	if (attitudeSettings.BiasCorrectGyro == ATTITUDESETTINGS_BIASCORRECTGYRO_TRUE) {
+		gyros[0] = (gyrosData.x + gyrosBias.x) * DEG2RAD;
+		gyros[1] = (gyrosData.y + gyrosBias.y) * DEG2RAD;
+		gyros[2] = (gyrosData.z + gyrosBias.z) * DEG2RAD;
+	} else {
+		gyros[0] = gyrosData.x * DEG2RAD;
+		gyros[1] = gyrosData.y * DEG2RAD;
+		gyros[2] = gyrosData.z * DEG2RAD;
+	}
+
+	// Get the most recent control inputs
+	ActuatorDesiredData actuatorData;
+	ActuatorDesiredGet(&actuatorData);
+
+	// When disarmed we are probably sitting on ground. In this case the model makes most sense if we 
+	// pass in throttle for 1g of thrust. If throttle is < -1 also threshold at 0 (will not work for
+	// reversible motors).
+	float throttle = (armed == FLIGHTSTATUS_ARMED_ARMED) ? ((actuatorData.Throttle < 0) ? 0 : actuatorData.Throttle) : 1.0f;
+
+	// Predict state forward based on control outputs previous time step
+	qcins_predict(qcins_handle, actuatorData.Roll, actuatorData.Pitch, actuatorData.Yaw, throttle, dT);
+
+	const float accels[3] = {accelsData.x, accelsData.y, accelsData.z};
+	qcins_correct_accel_gyro(qcins_handle, accels, gyros);
+
+	if(mag_updated) {
+		// qcins_correct_mag()
+		mag_updated = false;
+	}
+	
+	if(baro_updated) {
+		// TODO: if using GPS position track an offset for baro
+		qcins_correct_baro(qcins_handle, -baroData.Altitude);
+		baro_updated = false;
+	}
+
+	// GPS Position update
+	if (gps_updated) { // only sets during outdoor mode
+		float NED[3];
+
+		// Transform the GPS position into NED coordinates
+		get_linearized_3D_transformation(gpsPosition.Latitude,  gpsPosition.Longitude, gpsPosition.Altitude,
+		                                 homeLocation.Latitude, homeLocation.Longitude,  homeLocation.Altitude,
+		                                 linearized_conversion_factor_f, NED);
+
+		// Store this for inspecting offline
+		NEDPositionData nedPos;
+		nedPos.North = NED[0];
+		nedPos.East = NED[1];
+		nedPos.Down = NED[2];
+		NEDPositionSet(&nedPos);
+
+		// TODO: start consuming position data
+
+		gps_updated = false;
+	}
+
+	// GPS Velocity update
+	if (gps_vel_updated) { // only sets during outdoor mode
+		/*float vel[3];
+
+		vel[0] = gpsVelData.North;
+		vel[1] = gpsVelData.East;
+		vel[2] = gpsVelData.Down; */
+
+		// TODO: start consuming GPS velocity data
+
+		gps_vel_updated = false;
+	}
+
+	// Update attitude from state
+	AttitudeActualData attitudeActual;
+	AttitudeActualGet(&attitudeActual);
+	qcins_get_attitude(qcins_handle, &attitudeActual.q1);
+	Quaternion2RPY(&attitudeActual.q1, &attitudeActual.Roll);
+	AttitudeActualSet(&attitudeActual);
+
+	VelocityActualData velocityActual;
+	VelocityActualGet(&velocityActual);
+	qcins_get_velocity(qcins_handle, &velocityActual.North);
+	VelocityActualSet(&velocityActual);
+
+	PositionActualData positionActual;
+	PositionActualGet(&positionActual);
+	qcins_get_altitude(qcins_handle, &positionActual.Down);
+	positionActual.North = 0;
+	positionActual.East = 0;
+	PositionActualSet(&positionActual);
+
+	// TODO: get cleaned up rates and torques and store in the LQR object
+	//bool qcins_get_rate(uintptr_t qcins_handle, float rate[3]);
+	//bool qcins_get_torque(uintptr_t qcins_handle, float torque[4]);
+
+	set_state_estimation_error(SYSTEMALARMS_STATEESTIMATION_NONE);
+
+	return 0;
+}
+/******* End code for QC INS *****/
 
 //! Set the navigation to the current INSGPS estimate
 static int32_t setNavigationINSGPS()
