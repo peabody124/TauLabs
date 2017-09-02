@@ -212,14 +212,14 @@ correct(PyObject* self, PyObject* args, PyObject *kwarg)
 static PyObject*
 configure(PyObject* self, PyObject* args, PyObject *kwarg)
 {
-	static char *kwlist[] = {"gains", "tau", "mu", NULL};
+	static char *kwlist[] = {"gains", "tau", "mu", "process_noise", "sensor_noise", NULL};
 
-	PyArrayObject *vec_gains = NULL;
+	PyArrayObject *vec_gains = NULL, *vec_process_noise = NULL, *vec_sensor_noise = NULL;
 	float tau_var = NAN;
 	float mu_var = NAN;
 	
-	if (!PyArg_ParseTupleAndKeywords(args, kwarg, "|Off", kwlist,
-		 &vec_gains, &tau_var, &mu_var)) {
+	if (!PyArg_ParseTupleAndKeywords(args, kwarg, "|OffOO", kwlist,
+		 &vec_gains, &tau_var, &mu_var, &vec_process_noise, &vec_sensor_noise)) {
 		return NULL;
 	}
 
@@ -236,6 +236,20 @@ configure(PyObject* self, PyObject* args, PyObject *kwarg)
 
 	if (!isnan(mu_var)) {
 		qcins_set_tau(qcins_handle, mu_var);
+	}
+
+	if (vec_process_noise) {
+		float process_noise[15];
+		if (!parseFloatVecN(vec_process_noise, process_noise, 15))
+			return NULL;
+		qcins_set_process_noise(qcins_handle, process_noise);
+	}
+
+	if (vec_sensor_noise) {
+		float sensor_noise[9];
+		if (!parseFloatVecN(vec_sensor_noise, sensor_noise, 9))
+			return NULL;
+		qcins_set_sensor_noise(qcins_handle, sensor_noise);
 	}
 
 	return Py_None;
