@@ -64,6 +64,7 @@
 				<option>No home</option>
 				<option>Too few satellites</option>
 				<option>PDOP too high</option>
+				<option>Need valid system identification</option>
 				<option>Undefined</option>
 				<option>None</option>
 			</options>

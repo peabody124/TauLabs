@@ -4,6 +4,8 @@
 	<field name="Tau" units="s" type="float" elements="1" defaultvalue="0"/>
 	<field name="Beta" units="" type="float" elementnames="Roll,Pitch,Yaw,YawDirect" defaultvalue="0"/>
 	<field name="Bias" units="" type="float" elementnames="Roll,Pitch,Yaw" defaultvalue="0"/>
+	<field name="Thrust" units="" type="float" elementnames="1" defaultvalue="1"/>        <!-- Thrust to weight ratio -->
+	<field name="Mu" units="" type="float" elementnames="1" defaultvalue="1"/>            <!-- Air friction coefficient -->
 	<field name="Noise" units="(deg/s)^2" type="float" elementnames="Roll,Pitch,Yaw" defaultvalue="0"/>
 	<field name="Period" units="ms" type="float" elements="1" defaultvalue="0"/>
 	<field name="NumAfPredicts" units="" type="uint32" elements="1" defaultvalue="0"/>

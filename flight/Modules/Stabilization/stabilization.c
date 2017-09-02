@@ -866,12 +866,18 @@ static void update_rtkf(float throttle, const float gyro[3], const float u[3], f
 	// Advance KF
 	rtkf_predict(rtkf_handle, throttle, u, gyro, dT);
 
+	/*
+	// TODO:
+	// This data is now populated from the QC INS filter. This whole block of
+	// code should be removed once the rtlqr controller can source the data from
+	// that instead of this filter.
 	RateTorqueKFData rateTorque;
 	RateTorqueKFGet(&rateTorque);
 	rtkf_get_rate(rtkf_handle, rateTorque.Rate);
 	rtkf_get_torque(rtkf_handle, rateTorque.Torque);
 	rtkf_get_bias(rtkf_handle, rateTorque.Bias);
 	RateTorqueKFSet(&rateTorque);
+	*/
 
 	LQRSolutionData lqrSolution;
 	LQRSolutionGet(&lqrSolution);

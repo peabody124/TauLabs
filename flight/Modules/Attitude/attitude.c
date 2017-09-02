@@ -77,8 +77,10 @@
 #include "nedaccel.h"
 #include "nedposition.h"
 #include "positionactual.h"
+#include "ratetorquekf.h"
 #include "stateestimation.h"
 #include "systemalarms.h"
+#include "systemident.h"
 #include "velocityactual.h"
 
 // Private constants
@@ -230,7 +232,9 @@ int32_t AttitudeInitialize(void)
 	NedAccelInitialize();
 	NEDPositionInitialize();
 	PositionActualInitialize();
+	RateTorqueKFInitialize();
 	StateEstimationInitialize();
+	SystemIdentInitialize();
 	VelocityActualInitialize();
 
 	// Initialize this here while we aren't setting the homelocation in GPS
@@ -1441,6 +1445,25 @@ static int32_t updateQcIns(uintptr_t qcins_handle, bool first_run)
 
 		qcins_init(qcins_handle);
 
+		SystemIdentData systemIdent;
+		SystemIdentGet(&systemIdent);
+
+		if (systemIdent.Tau == 0 || systemIdent.Beta[0] == 0 || systemIdent.Beta[1] == 0) {
+			set_state_estimation_error(SYSTEMALARMS_STATEESTIMATION_NEEDVALIDSYSTEMIDENTIFICATION);
+			return -1;
+		}
+
+		// Set parameters
+		qcins_set_tau(qcins_handle, systemIdent.Tau);
+		qcins_set_gains(qcins_handle, (const float *) systemIdent.Beta);
+		
+		// TODO: handle bias
+		// qcins_set_gains(qcins_handle, systemIdent.Bias);
+
+		// TODO: should estimate this parameter
+		qcins_set_mu(qcins_handle, systemIdent.Mu);
+
+
 		return 0;
 	}
 
@@ -1561,6 +1584,19 @@ static int32_t updateQcIns(uintptr_t qcins_handle, bool first_run)
 	// TODO: get cleaned up rates and torques and store in the LQR object
 	//bool qcins_get_rate(uintptr_t qcins_handle, float rate[3]);
 	//bool qcins_get_torque(uintptr_t qcins_handle, float torque[4]);
+
+	RateTorqueKFData rateTorque;
+	RateTorqueKFGet(&rateTorque);
+	qcins_get_rate(qcins_handle, rateTorque.Rate);
+	float torque[4];
+	qcins_get_torque(qcins_handle, torque);
+	rateTorque.Torque[0] = torque[0];
+	rateTorque.Torque[1] = torque[1];
+	rateTorque.Torque[2] = torque[2];
+	rateTorque.Thrust = torque[3];
+	// TODO: implement bias estimation
+	//rtkf_get_bias(rtkf_handle, rateTorque.Bias);
+	RateTorqueKFSet(&rateTorque);
 
 	set_state_estimation_error(SYSTEMALARMS_STATEESTIMATION_NONE);
 
