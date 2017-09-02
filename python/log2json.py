@@ -50,7 +50,7 @@ for i in range(STEPS):
     a_idx = find(accels['time'] < t)[-1]    # find index for the most recent accel before this gyro
     att_idx = find(attitude['time'] < t)[-1]
     
-    g = [gyros['x'][i,0], gyros['y'][i,0], gyros['z'][i,0]]
+    g = [gyros['x'][idx,0], gyros['y'][idx,0], gyros['z'][idx,0]]
     a = [accels['x'][a_idx,0], accels['y'][a_idx,0], accels['z'][a_idx,0]]
     u = [actuator['Roll'][u_idx,0], actuator['Pitch'][u_idx,0], actuator['Yaw'][u_idx,0], actuator['Throttle'][u_idx,0]]
     rpy = [attitude['Roll'][att_idx,0], attitude['Pitch'][att_idx,0], attitude['Yaw'][att_idx,0]]
