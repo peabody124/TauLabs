@@ -31,7 +31,7 @@
 bool qcins_alloc(uintptr_t *qcins_handle);
 bool qcins_init(uintptr_t qcins_handle);
 
-bool qcins_predict(uintptr_t qcins_handle, const float roll, const float pitch, const float yaw, const float throttle, double Ts);
+bool qcins_predict(uintptr_t qcins_handle, const float roll, const float pitch, const float yaw, const float throttle, float Ts);
 
 bool qcins_correct_accel_gyro(uintptr_t qcins_handle, const float accels[3], const float gyros[3]);
 bool qcins_correct_accel_gyro(uintptr_t qcins_handle, const float accels[3], const float gyros[3]);
