@@ -30,6 +30,7 @@
 
 #include "pios_heap.h"
 #include "math.h"
+#include "physical_constants.h"
 #include "stdint.h"
 
 #include "stdio.h"
@@ -174,7 +175,7 @@ bool qcins_set_gains(uintptr_t qcins_handle, const float gains_new[4])
 	if (!qcins_validate(qcins_state))
 		return false;
 
-	qcins_state->params.beta1 = gains_new[0];
+	qcins_state->params.beta1 = expf(gains_new[0]) * DEG2RAD;
 	// TODO: expand to have beta for each axis
 	return true;
 }
@@ -185,7 +186,8 @@ bool qcins_set_tau(uintptr_t qcins_handle, const float tau_new)
 	if (!qcins_validate(qcins_state))
 		return false;
 
-	qcins_state->params.tau = tau_new;
+	// Expects to use the tau from system ident which is in log representation
+	qcins_state->params.tau = expf(tau_new);
 	return true;
 }
 
