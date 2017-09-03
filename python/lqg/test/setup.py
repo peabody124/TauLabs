@@ -27,7 +27,7 @@ module4 = Extension('dare',
 
 module5 = Extension('qc_ins',
 	sources = ['qc_ins_module.c', 'pios_heap.c',  '../../../flight/Libraries/lqg_nav/qc_ins.c'],
-	include_dirs=['../../../flight/Libraries/lqg_nav', '../../../flight/PiOS/inc', numpy.get_include()],)
+	include_dirs=['../../../shared/api/', '../../../flight/Libraries/lqg_nav', '../../../flight/PiOS/inc', numpy.get_include()],)
  
 setup (name = 'RateTorqueLQG',
         version = '1.0',
