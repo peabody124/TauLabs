@@ -1372,6 +1372,7 @@ static int32_t updateQcIns(uintptr_t qcins_handle, bool first_run)
 	GPSVelocityData gpsVelData;
 	GyrosBiasData gyrosBias;
 	static uint32_t ins_last_time = 0;
+	static bool on_ground;
 
 	// These should be static as their values are checked multiple times per update
 	static BaroAltitudeData baroData;
@@ -1453,6 +1454,8 @@ static int32_t updateQcIns(uintptr_t qcins_handle, bool first_run)
 			return -1;
 		}
 
+		on_ground = true;
+
 		// Set parameters
 		qcins_set_tau(qcins_handle, systemIdent.Tau);
 		qcins_set_gains(qcins_handle, (const float *) systemIdent.Beta);
@@ -1506,13 +1509,28 @@ static int32_t updateQcIns(uintptr_t qcins_handle, bool first_run)
 	ActuatorDesiredData actuatorData;
 	ActuatorDesiredGet(&actuatorData);
 
-	// When disarmed we are probably sitting on ground. In this case the model makes most sense if we 
-	// pass in throttle for 1g of thrust. If throttle is < -1 also threshold at 0 (will not work for
-	// reversible motors).
-	float throttle = (armed == FLIGHTSTATUS_ARMED_ARMED) ? ((actuatorData.Throttle < 0) ? 0 : actuatorData.Throttle) : 1.0f;
+	if (armed == FLIGHTSTATUS_ARMED_ARMED) {
+		// Once armed and throttle has gone up, remove this check
+		on_ground &= !(actuatorData.Throttle > 0);
+	} else {
+		on_ground = true;
+	}
 
-	// Predict state forward based on control outputs previous time step
-	qcins_predict(qcins_handle, actuatorData.Roll, actuatorData.Pitch, actuatorData.Yaw, throttle, dT);
+	if (on_ground) {
+		// Predict state forward based on control outputs previous time step
+		qcins_predict(qcins_handle, 0.0f, 0.0f, 0.0f, 1.0f, dT);
+	} else {
+		// TODO: this should come from system identification
+		const float beta_throttle = 2.f;
+
+		// When disarmed we are probably sitting on ground. In this case the model makes most sense if we
+		// pass in throttle for 1g of thrust. If throttle is < -1 also threshold at 0 (will not work for
+		// reversible motors).
+		float throttle = (actuatorData.Throttle < 0) ? 0 : actuatorData.Throttle * beta_throttle;
+
+		// Predict state forward based on control outputs previous time step
+		qcins_predict(qcins_handle, actuatorData.Roll, actuatorData.Pitch, actuatorData.Yaw, throttle, dT);
+	}ß
 
 	const float accels[3] = {accelsData.x, accelsData.y, accelsData.z};
 	qcins_correct_accel_gyro(qcins_handle, accels, gyros);
