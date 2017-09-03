@@ -105,21 +105,32 @@ bool qcins_init(uintptr_t qcins_handle)
 	for (uint32_t i = 0; i < NUMX; i++)
 		qcins_state->x[i] = 0;
 	qcins_state->x[4] = 1.0f;
+
 	covariance_init(qcins_state->P);
 
 	// Store the process noises. Very low except for drift in torques
+	float *Q = qcins_state->Q;
 	for (uint32_t i = 0; i < NUMX; i++)
-		qcins_state->Q[i] = 1e-4;
-	qcins_state->Q[NUMX-1] = 1;
-	qcins_state->Q[NUMX-2] = 1;
-	qcins_state->Q[NUMX-3] = 1;
-	qcins_state->Q[NUMX-4] = 1;
+		Q[i] = 1e-4;
+	Q[0] = 1e-3;                        // Position
+	Q[1] = Q[2] = 1e-3;                 // Horizontal velocity
+	Q[3] = 1e-4;                        // Vertical velocity
+	Q[4] = Q[5] = Q[6] = Q[7] = 1e-3;   // Quaternion
+	Q[8] = Q[9] = Q[10] = 1e-1;         // Rotation rates
+	Q[11] = Q[12] = Q[13] = 1;          // Torques
+	Q[14] = 1e-1;                       // Thrust
 
 	// Store the observation noises
 	qcins_state->R[0] = 100;
 	qcins_state->R[1] = qcins_state->R[2] = qcins_state->R[3] = 1e6;
-	qcins_state->R[4] = qcins_state->R[5] = qcins_state->R[6] = 1000;
-	qcins_state->R[7] = qcins_state->R[8] = 200;
+	qcins_state->R[4] = qcins_state->R[5] = qcins_state->R[6] = 1e3;
+	qcins_state->R[7] = qcins_state->R[8] = 1e3;
+
+	// Defaults for the parameters
+	qcins_state->params.g = 9.81f;
+	qcins_state->params.beta1 = 10000.0f / 180.0f * 3.1415f;
+	qcins_state->params.tau = 0.050f;
+	qcins_state->params.mu = 1;
 	
 	return true;
 }
@@ -131,11 +142,6 @@ bool qcins_alloc(uintptr_t *qcins_handle)
 		return false;
 
 	qcins_state->magic = QCINS_STATE_MAGIC;
-
-	qcins_state->params.g = 9.81f;
-	qcins_state->params.beta1 = 10000.0f / 180.0f * 3.1415f;
-	qcins_state->params.tau = 0.050f;
-	qcins_state->params.mu = 1;
 
 	qcins_init((uintptr_t) qcins_state);
 
