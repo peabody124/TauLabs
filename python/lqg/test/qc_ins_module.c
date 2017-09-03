@@ -235,7 +235,7 @@ configure(PyObject* self, PyObject* args, PyObject *kwarg)
 	}
 
 	if (!isnan(mu_var)) {
-		qcins_set_tau(qcins_handle, mu_var);
+		qcins_set_mu(qcins_handle, mu_var);
 	}
 
 	if (vec_process_noise) {
