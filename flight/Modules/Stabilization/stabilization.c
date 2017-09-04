@@ -53,7 +53,6 @@
 #include "mwratesettings.h"
 #include "ratedesired.h"
 #include "ratetorquekf.h"
-#include "ratetorquekfgains.h"
 #include "systemident.h"
 #include "stabilizationdesired.h"
 #include "stabilizationsettings.h"
@@ -66,7 +65,6 @@
 #include "misc_math.h"
 
 #ifdef INCLUDE_LQG
-#include "rate_torque_kf.h"
 #include "rate_torque_lqr.h"
 #endif
 
@@ -138,8 +136,8 @@ static void calculate_pids(void);
 static void SettingsUpdatedCb(UAVObjEvent * ev);
 
 #ifdef INCLUDE_LQG
-static uintptr_t rtkf_handle;;
-static void update_rtkf(float throttle, const float gyro[3], const float u[3], float dT);
+// BAD DESIGN. EXPOSING THIS HANDLE FROM ATTITUDE
+extern uintptr_t qcins_handle;
 #endif
 
 /**
@@ -160,7 +158,7 @@ int32_t StabilizationStart()
 	StabilizationSettingsConnectCallback(SettingsUpdatedCb);
 	TrimAnglesSettingsConnectCallback(SettingsUpdatedCb);
 #ifdef INCLUDE_LQG
-	RateTorqueKFGainsConnectCallback(SettingsUpdatedCb);
+	LQRSolutionConnectCallback(SettingsUpdatedCb);
 #endif
 
 	// Watchdog must be registered before starting task
@@ -188,10 +186,8 @@ int32_t StabilizationInitialize()
 	RateDesiredInitialize();
 #endif
 #ifdef INCLUDE_LQG
-	RateTorqueKFInitialize();
-	RateTorqueKFGainsInitialize();
-#endif
 	LQRSolutionInitialize();
+#endif
 
 	return 0;
 }
@@ -228,11 +224,6 @@ static void stabilizationTask(void* parameters)
 	uint32_t system_ident_timeval = PIOS_DELAY_GetRaw();
 
 	float dT_filtered = 0;
-
-#ifdef INCLUDE_LQG
-	rtkf_alloc(&rtkf_handle);
-	rtkf_init(rtkf_handle);
-#endif
 
 	// Main task loop
 	zero_pids();
@@ -365,12 +356,6 @@ static void stabilizationTask(void* parameters)
 		static uint8_t previous_mode[MAX_AXES] = {255,255,255};
 		bool error = false;
 
-#ifdef INCLUDE_LQG
-		// Update the RTKF. Uses the actuator from the previous step and the
-		// latest gyro data
-		update_rtkf( stabDesired.Throttle, (const float *) &gyrosData.x, (const float *) actuatorDesiredAxis, dT);
-#endif
-
 		//Run the selected stabilization algorithm on each axis:
 		for(uint8_t i=0; i< MAX_AXES; i++)
 		{
@@ -403,7 +388,7 @@ static void stabilizationTask(void* parameters)
 					rateDesiredAxis[i] = bound_sym(stabDesiredAxis[i], settings.ManualRate[i]);
 
 					// Compute the inner loop
-					actuatorDesiredAxis[i] = rtlqr_rate_calculate_axis(rtkf_handle, rateDesiredAxis[i], i, dT);
+					actuatorDesiredAxis[i] = rtlqr_rate_calculate_axis(qcins_handle, rateDesiredAxis[i], i, dT);
 					actuatorDesiredAxis[i] = bound_sym(actuatorDesiredAxis[i],1.0f);
 #endif
 					break;
@@ -452,7 +437,7 @@ static void stabilizationTask(void* parameters)
 					if(reinit)
 						rtlqr_init();
 
-					actuatorDesiredAxis[i] = rtlqr_angle_calculate_axis(rtkf_handle, local_attitude_error[i], i, dT);
+					actuatorDesiredAxis[i] = rtlqr_angle_calculate_axis(qcins_handle, local_attitude_error[i], i, dT);
 					actuatorDesiredAxis[i] = bound_sym(actuatorDesiredAxis[i],1.0f);
 #endif /* INCLUDE_LQG */
 					break;
@@ -849,47 +834,6 @@ static void stabilizationTask(void* parameters)
 	}
 }
 
-#ifdef INCLUDE_LQG
-static void update_rtkf(float throttle, const float gyro[3], const float u[3], float dT)
-{
-	if (SystemIdentHandle() == NULL)
-		return;
-
-	SystemIdentData systemIdent;
-	SystemIdentGet(&systemIdent);
-
-	// Set parameters
-	rtkf_set_tau(rtkf_handle, systemIdent.Tau, dT);
-	rtkf_set_gains(rtkf_handle, (const float *) systemIdent.Beta);
-	rtkf_set_init_bias(rtkf_handle, systemIdent.Bias);
-
-	// Advance KF
-	rtkf_predict(rtkf_handle, throttle, u, gyro, dT);
-
-	/*
-	// TODO:
-	// This data is now populated from the QC INS filter. This whole block of
-	// code should be removed once the rtlqr controller can source the data from
-	// that instead of this filter.
-	RateTorqueKFData rateTorque;
-	RateTorqueKFGet(&rateTorque);
-	rtkf_get_rate(rtkf_handle, rateTorque.Rate);
-	rtkf_get_torque(rtkf_handle, rateTorque.Torque);
-	rtkf_get_bias(rtkf_handle, rateTorque.Bias);
-	RateTorqueKFSet(&rateTorque);
-	*/
-
-	LQRSolutionData lqrSolution;
-	LQRSolutionGet(&lqrSolution);
-	rtlqr_rate_set_roll_gains(lqrSolution.RollRate);
-	rtlqr_rate_set_pitch_gains(lqrSolution.PitchRate);
-	rtlqr_rate_set_yaw_gains(lqrSolution.YawRate);
-	rtlqr_angle_set_roll_gains(lqrSolution.RollAngle);
-	rtlqr_angle_set_pitch_gains(lqrSolution.PitchAngle);
-	rtlqr_angle_set_yaw_gains(lqrSolution.YawAngle);
-}
-#endif /* INCLUDE_LQG */
-
 /**
  * Clear the accumulators and derivatives for all the axes
  */
@@ -1099,16 +1043,19 @@ static void SettingsUpdatedCb(UAVObjEvent * ev)
 	}
 
 #ifdef INCLUDE_LQG
-	if (ev == NULL || ev->obj == RateTorqueKFGainsHandle())
+
+	if (ev == NULL || ev->obj == LQRSolutionHandle())
 	{
-		if (rtkf_handle != 0) {
-			RateTorqueKFGainsData kf_gains;
-			RateTorqueKFGainsGet(&kf_gains);
-			rtkf_set_roll_kalman_gain(rtkf_handle, kf_gains.Roll);
-			rtkf_set_pitch_kalman_gain(rtkf_handle, kf_gains.Pitch);
-			rtkf_set_yaw_kalman_gain(rtkf_handle, kf_gains.Yaw);
-		}
+		LQRSolutionData lqrSolution;
+		LQRSolutionGet(&lqrSolution);
+		rtlqr_rate_set_roll_gains(lqrSolution.RollRate);
+		rtlqr_rate_set_pitch_gains(lqrSolution.PitchRate);
+		rtlqr_rate_set_yaw_gains(lqrSolution.YawRate);
+		rtlqr_angle_set_roll_gains(lqrSolution.RollAngle);
+		rtlqr_angle_set_pitch_gains(lqrSolution.PitchAngle);
+		rtlqr_angle_set_yaw_gains(lqrSolution.YawAngle);
 	}
+
 #endif
 
 	if (ev == NULL || ev->obj == MWRateSettingsHandle()) {

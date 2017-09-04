@@ -147,7 +147,7 @@ static struct pios_queue *baroQueue;
 static struct pios_queue *gpsQueue;
 static struct pios_queue *gpsVelQueue;
 
-static 	uintptr_t qcins_handle;
+uintptr_t qcins_handle;
 static AttitudeSettingsData attitudeSettings;
 static HomeLocationData homeLocation;
 static INSSettingsData insSettings;
