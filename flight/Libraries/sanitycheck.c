@@ -269,10 +269,6 @@ static int32_t check_safe_to_arm()
 			case FLIGHTSTATUS_FLIGHTMODE_MANUAL:
 			case FLIGHTSTATUS_FLIGHTMODE_ACRO:
 			case FLIGHTSTATUS_FLIGHTMODE_ACROPLUS:
-#if defined(INCLUDE_LQG)
-			case FLIGHTSTATUS_FLIGHTMODE_LQGRATE:
-			case FLIGHTSTATUS_FLIGHTMODE_LQGANGLE:
-#endif
 			case FLIGHTSTATUS_FLIGHTMODE_LEVELING:
 			case FLIGHTSTATUS_FLIGHTMODE_MWRATE:
 			case FLIGHTSTATUS_FLIGHTMODE_HORIZON:
@@ -283,6 +279,18 @@ static int32_t check_safe_to_arm()
 			case FLIGHTSTATUS_FLIGHTMODE_STABILIZED3:
 			case FLIGHTSTATUS_FLIGHTMODE_ALTITUDEHOLD:
 				break;
+#if defined(INCLUDE_LQG)
+			case FLIGHTSTATUS_FLIGHTMODE_LQGRATE:
+			case FLIGHTSTATUS_FLIGHTMODE_LQGANGLE:
+			{
+				StateEstimationData stateEstimation;
+				StateEstimationGet(&stateEstimation);
+
+				if (stateEstimation.AttitudeFilter != STATEESTIMATION_ATTITUDEFILTER_QCINS)
+					return SYSTEMALARMS_CONFIGERROR_STABILIZATION;
+			}
+				break;
+#endif
 			default:
 				// Any mode not specifically allowed prevents arming
 				return SYSTEMALARMS_CONFIGERROR_UNSAFETOARM;
