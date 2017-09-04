@@ -28,6 +28,12 @@
  * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
+#ifndef QC_INS_H
+#define QC_INS_H
+
+#include "stdint.h"
+#include "stdbool.h"
+
 bool qcins_alloc(uintptr_t *qcins_handle);
 bool qcins_init(uintptr_t qcins_handle);
 
@@ -51,6 +57,9 @@ bool qcins_get_velocity(uintptr_t qcins_handle, float v[3]);
 bool qcins_get_attitude(uintptr_t qcins_handle, float q[4]);
 bool qcins_get_rate(uintptr_t qcins_handle, float rate[3]);
 bool qcins_get_torque(uintptr_t qcins_handle, float torque[4]);
+
+
+#endif /* QC_INS_H */
 
 /**
  * @}
