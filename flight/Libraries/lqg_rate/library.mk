@@ -4,14 +4,12 @@ LQGINC = $(FLIGHTLIB)/lqg_rate
 
 ifeq ($(INCLUDE_RT_LQG), YES)
 CDEFS += -DINCLUDE_LQG
-SRC += $(LQGLIB)/rate_torque_kf.c
 SRC += $(LQGLIB)/rate_torque_lqr.c
 endif
 
 ifeq ($(INCLUDE_RT_LQR_SOLVER), YES)
 CDEFS += -DINCLUDE_LQG_SOLVER
 CPPSRC += $(LQGLIB)/rate_torque_lqr_optimize.cpp
-CPPSRC += $(LQGLIB)/rate_torque_kf_optimize.cpp
 CPPSRC += $(LQGLIB)/dare.cpp
 endif
 
