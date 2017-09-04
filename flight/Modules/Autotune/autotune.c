@@ -120,7 +120,7 @@ int32_t AutotuneStart(void)
 
 MODULE_INITCALL(AutotuneInitialize, AutotuneStart)
 
-static void UpdateSystemIdent(uintptr_t rtsi_handle, const float *noise,
+static void UpdateSystemIdent(uintptr_t rtsi_handle, const float *noise, const float throttle_accumulation,
 		float dT_s, uint32_t predicts) {
 	SystemIdentData relay;
 	rtsi_get_gains(rtsi_handle, relay.Beta);
@@ -132,6 +132,10 @@ static void UpdateSystemIdent(uintptr_t rtsi_handle, const float *noise,
 		relay.Noise[SYSTEMIDENT_NOISE_YAW]   = noise[2];
 	}
 	relay.Period = dT_s * 1000.0f;
+	relay.Thrust = 1.0f / (throttle_accumulation / predicts);
+
+	// TODO. need to estimate this
+	relay.Mu = 1.0f;
 
 	relay.NumAfPredicts = predicts;
 	SystemIdentSet(&relay);
@@ -216,6 +220,8 @@ static void AutotuneTask(void *parameters)
 		float throttle;
 
 		ManualControlCommandThrottleGet(&throttle);
+
+		static float throttle_accumulation;
 				
 		switch(state) {
 			case AT_INIT:
@@ -226,7 +232,7 @@ static void AutotuneTask(void *parameters)
 				if (flightStatus.Armed == FLIGHTSTATUS_ARMED_ARMED && throttle > 0) {
 
 					rtsi_init(rtsi_handle);
-					UpdateSystemIdent(rtsi_handle, NULL, 0.0f, 0);
+					UpdateSystemIdent(rtsi_handle, NULL, 0.0f, 0.0f, 0);
 
 					state = AT_START;
 
@@ -240,9 +246,9 @@ static void AutotuneTask(void *parameters)
 				// Spend the first block of time in normal rate mode to get airborne
 				if (diffTime > PREPARE_TIME) {
 					state = AT_RUN;
+					throttle_accumulation = 0.f;
 					lastUpdateTime = PIOS_Thread_Systime();
 				}
-
 
 				last_time = PIOS_DELAY_GetRaw();
 
@@ -285,8 +291,10 @@ static void AutotuneTask(void *parameters)
 					// Update uavo every 256 cycles to avoid
 					// telemetry spam
 					if (!((updateCounter++) & 0xff)) {
-						UpdateSystemIdent(rtsi_handle, noise, dT_s, updateCounter);
+						UpdateSystemIdent(rtsi_handle, noise, throttle_accumulation, dT_s, updateCounter);
 					}
+
+					throttle_accumulation += throttle;
 				}
 
 				if (diffTime > MEASURE_TIME) { // Move on to next state
@@ -302,7 +310,7 @@ static void AutotuneTask(void *parameters)
 
 				// Wait until disarmed and landed before saving the settings
 
-				UpdateSystemIdent(rtsi_handle, noise, 0, updateCounter);
+				UpdateSystemIdent(rtsi_handle, noise, throttle_accumulation, 0, updateCounter);
 				if (flightStatus.Armed == FLIGHTSTATUS_ARMED_DISARMED && throttle <= 0)
 					state = AT_SET;
 

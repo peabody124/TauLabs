@@ -1382,6 +1382,7 @@ static int32_t updateQcIns(uintptr_t qcins_handle, bool first_run)
 	static bool baro_updated;
 	static bool gps_updated;
 	static bool gps_vel_updated;
+	static float beta_throttle;
 
 	mag_updated = mag_updated || PIOS_Queue_Receive(magQueue, &ev, 0);
 	baro_updated = baro_updated || PIOS_Queue_Receive(baroQueue, &ev, 0);
@@ -1463,6 +1464,9 @@ static int32_t updateQcIns(uintptr_t qcins_handle, bool first_run)
 		// TODO: handle bias
 		// qcins_set_gains(qcins_handle, systemIdent.Bias);
 
+		// TODO: this should be a parameter in the qcins
+		beta_throttle = systemIdent.Thrust;
+
 		// TODO: should estimate this parameter
 		qcins_set_mu(qcins_handle, systemIdent.Mu);
 
@@ -1520,9 +1524,6 @@ static int32_t updateQcIns(uintptr_t qcins_handle, bool first_run)
 		// Predict state forward based on control outputs previous time step
 		qcins_predict(qcins_handle, 0.0f, 0.0f, 0.0f, 1.0f, dT);
 	} else {
-		// TODO: this should come from system identification
-		const float beta_throttle = 2.f;
-
 		// When disarmed we are probably sitting on ground. In this case the model makes most sense if we
 		// pass in throttle for 1g of thrust. If throttle is < -1 also threshold at 0 (will not work for
 		// reversible motors).
@@ -1530,7 +1531,7 @@ static int32_t updateQcIns(uintptr_t qcins_handle, bool first_run)
 
 		// Predict state forward based on control outputs previous time step
 		qcins_predict(qcins_handle, actuatorData.Roll, actuatorData.Pitch, actuatorData.Yaw, throttle, dT);
-	}ß
+	}
 
 	const float accels[3] = {accelsData.x, accelsData.y, accelsData.z};
 	qcins_correct_accel_gyro(qcins_handle, accels, gyros);
