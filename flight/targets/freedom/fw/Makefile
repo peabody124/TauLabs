@@ -99,7 +99,7 @@ include $(FLIGHTLIB)/CMSIS3/DSP_Lib/library.mk
 INCLUDE_RT_LQG=YES
 INCLUDE_RT_LQR_SOLVER=YES
 include $(FLIGHTLIB)/lqg_rate/library.mk
-
+include $(FLIGHTLIB)/lqg_nav/library.mk
 
 # List C source files here. (C dependencies are automatically generated.)
 # use file-extension c for "c-only"-files
