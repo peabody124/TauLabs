@@ -28,7 +28,7 @@
  * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-#include "rate_torque_kf.h"
+#include "qc_ins.h"
 #include "rate_torque_lqr.h"
 
 // This is the LQR tuning matrix. This is currently calculated statically
@@ -49,27 +49,28 @@ static float La[3][3] = {
 
 /**
  * @brief LQR based attitude controller using
- * @param[in] rtkf_X the state estimate (from kalman filter)
+ * @param[in] qcins_handle handle to QC INS state estimate
  * @param[in] angle_desired the desired rate
  * @param[in] axis which axis to control
  * @returns the control signal for this axis
  */
-float rtlqr_angle_calculate_axis(uintptr_t rtkf_handle, float angle_error, uint32_t axis, float dT)
+float rtlqr_angle_calculate_axis(uintptr_t qcins_handle, float angle_error, uint32_t axis, float dT)
 {
 	const float * axis_L = La[axis];
 
 	float rates[3];
 	float torques[3];
-	float bias[3];
-	rtkf_get_rate(rtkf_handle, rates);
-	rtkf_get_torque(rtkf_handle, torques);
-	rtkf_get_bias(rtkf_handle, bias);
+	float bias[3] = {0.0f, 0.0f, 0.0f};
+	qcins_get_rate(qcins_handle, rates);
+	qcins_get_torque(qcins_handle, torques);
+	// TODO: make QCINS estimate bias.
+	// qcins_get_bias(qcins_handle, bias);
 
 	// calculate the desired control signal. Note that there is a negative
 	// sign on the state through the rate_error calculation, but this is
 	// added explicitly for the torque component (analogous to normal
 	// derivative).
-	float desired = axis_L[0] * angle_error                             // "Proportional"
+	float desired = axis_L[0] * angle_error                         // "Proportional"
 	              - axis_L[1] * rates[axis]                         // "Rate"
 	              - axis_L[2] * torques[axis]                       // "Derivative"
 	              + bias[axis];     // Add estimated bias so calculated output has desired influence
@@ -84,16 +85,17 @@ float rtlqr_angle_calculate_axis(uintptr_t rtkf_handle, float angle_error, uint3
  * @param[in] axis which axis to control
  * @returns the control signal for this axis
  */
-float rtlqr_rate_calculate_axis(uintptr_t rtkf_handle, float rate_desired, uint32_t axis, float dT)
+float rtlqr_rate_calculate_axis(uintptr_t qcins_handle, float rate_desired, uint32_t axis, float dT)
 {
 	const float * axis_L = Lr[axis];
 
 	float rates[3];
 	float torques[3];
-	float bias[3];
-	rtkf_get_rate(rtkf_handle, rates);
-	rtkf_get_torque(rtkf_handle, torques);
-	rtkf_get_bias(rtkf_handle, bias);
+	float bias[3] = {0.0f, 0.0f, 0.0f};
+	qcins_get_rate(qcins_handle, rates);
+	qcins_get_torque(qcins_handle, torques);
+	// TODO: make QCINS estimate bias.
+	// qcins_get_bias(qcins_handle, bias);
 
 	float rate_error = rate_desired - rates[axis];
 
