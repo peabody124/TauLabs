@@ -212,14 +212,15 @@ correct(PyObject* self, PyObject* args, PyObject *kwarg)
 static PyObject*
 configure(PyObject* self, PyObject* args, PyObject *kwarg)
 {
-	static char *kwlist[] = {"gains", "tau", "mu", "process_noise", "sensor_noise", NULL};
+	static char *kwlist[] = {"gains", "tau", "mu", "beta_t", "process_noise", "sensor_noise", NULL};
 
 	PyArrayObject *vec_gains = NULL, *vec_process_noise = NULL, *vec_sensor_noise = NULL;
 	float tau_var = NAN;
 	float mu_var = NAN;
+	float beta_t_var = NAN;
 	
-	if (!PyArg_ParseTupleAndKeywords(args, kwarg, "|OffOO", kwlist,
-		 &vec_gains, &tau_var, &mu_var, &vec_process_noise, &vec_sensor_noise)) {
+	if (!PyArg_ParseTupleAndKeywords(args, kwarg, "|OfffOO", kwlist,
+		 &vec_gains, &tau_var, &mu_var, &beta_t_var, &vec_process_noise, &vec_sensor_noise)) {
 		return NULL;
 	}
 
@@ -236,6 +237,10 @@ configure(PyObject* self, PyObject* args, PyObject *kwarg)
 
 	if (!isnan(mu_var)) {
 		qcins_set_mu(qcins_handle, mu_var);
+	}
+
+	if (!isnan(beta_t_var)) {
+		qcins_set_thrust(qcins_handle, beta_t_var);
 	}
 
 	if (vec_process_noise) {
