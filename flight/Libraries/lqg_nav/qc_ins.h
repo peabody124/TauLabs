@@ -48,6 +48,7 @@ bool qcins_correct_mag(uintptr_t qcins_handle, const float mag[3]);
 bool qcins_set_sensor_noise(uintptr_t qcins_handle, const float noises[9]);
 bool qcins_set_process_noise(uintptr_t qcins_handle, const float noises[15]);
 
+bool qcins_set_thrust(uintptr_t qcins_handle, const float beta_t_new);
 bool qcins_set_gains(uintptr_t qcins_handle, const float gains_new[4]);
 bool qcins_set_tau(uintptr_t qcins_handle, const float tau_new);
 bool qcins_set_mu(uintptr_t qcins_handle, const float mu_new);
