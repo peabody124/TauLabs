@@ -1382,7 +1382,6 @@ static int32_t updateQcIns(uintptr_t qcins_handle, bool first_run)
 	static bool baro_updated;
 	static bool gps_updated;
 	static bool gps_vel_updated;
-	static float beta_throttle;
 
 	mag_updated = mag_updated || PIOS_Queue_Receive(magQueue, &ev, 0);
 	baro_updated = baro_updated || PIOS_Queue_Receive(baroQueue, &ev, 0);
@@ -1465,7 +1464,8 @@ static int32_t updateQcIns(uintptr_t qcins_handle, bool first_run)
 		// qcins_set_gains(qcins_handle, systemIdent.Bias);
 
 		// TODO: this should be a parameter in the qcins
-		beta_throttle = systemIdent.Thrust;
+		qcins_set_init_thrust(qcins_handle, systemIdent.Thrust);
+		qcins_set_init_bias(qcins_handle, systemIdent.Bias);
 
 		// TODO: should estimate this parameter
 		qcins_set_mu(qcins_handle, systemIdent.Mu);
@@ -1527,7 +1527,7 @@ static int32_t updateQcIns(uintptr_t qcins_handle, bool first_run)
 		// When disarmed we are probably sitting on ground. In this case the model makes most sense if we
 		// pass in throttle for 1g of thrust. If throttle is < -1 also threshold at 0 (will not work for
 		// reversible motors).
-		float throttle = (actuatorData.Throttle < 0) ? 0 : actuatorData.Throttle * beta_throttle;
+		float throttle = (actuatorData.Throttle < 0) ? 0 : actuatorData.Throttle;
 
 		// Predict state forward based on control outputs previous time step
 		qcins_predict(qcins_handle, actuatorData.Roll, actuatorData.Pitch, actuatorData.Yaw, throttle, dT);
@@ -1613,8 +1613,7 @@ static int32_t updateQcIns(uintptr_t qcins_handle, bool first_run)
 	rateTorque.Torque[1] = torque[1];
 	rateTorque.Torque[2] = torque[2];
 	rateTorque.Thrust = torque[3];
-	// TODO: implement bias estimation
-	//rtkf_get_bias(rtkf_handle, rateTorque.Bias);
+	qcins_get_bias(qcins_handle, rateTorque.Bias);
 	RateTorqueKFSet(&rateTorque);
 
 	set_state_estimation_error(SYSTEMALARMS_STATEESTIMATION_NONE);
