@@ -48,7 +48,9 @@ bool qcins_correct_mag(uintptr_t qcins_handle, const float mag[3]);
 bool qcins_set_sensor_noise(uintptr_t qcins_handle, const float noises[9]);
 bool qcins_set_process_noise(uintptr_t qcins_handle, const float noises[15]);
 
-bool qcins_set_thrust(uintptr_t qcins_handle, const float beta_t_new);
+bool qcins_set_init_thrust(uintptr_t qcins_handle, const float beta_t_new);
+bool qcins_set_init_bias(uintptr_t qcins_handle, const float bias_new[3]);
+
 bool qcins_set_gains(uintptr_t qcins_handle, const float gains_new[4]);
 bool qcins_set_tau(uintptr_t qcins_handle, const float tau_new);
 bool qcins_set_mu(uintptr_t qcins_handle, const float mu_new);
@@ -58,6 +60,9 @@ bool qcins_get_velocity(uintptr_t qcins_handle, float v[3]);
 bool qcins_get_attitude(uintptr_t qcins_handle, float q[4]);
 bool qcins_get_rate(uintptr_t qcins_handle, float rate[3]);
 bool qcins_get_torque(uintptr_t qcins_handle, float torque[4]);
+bool qcins_get_bias(uintptr_t qcins_handle, float bias[3]);
+bool qcins_get_thrust(uintptr_t qcins_handle, float thrust[1]);
+
 
 
 #endif /* QC_INS_H */
