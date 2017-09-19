@@ -100,7 +100,7 @@ static bool parseFloatVec3(PyArrayObject *vec_in, float *vec_out)
 static PyObject*
 pack_state(PyObject* self)
 {
-	const int N = 15;
+	const int N = 19;
 	const int nd = 1;
 	npy_intp dims[nd] = {N};
 	PyArrayObject *state;
@@ -112,6 +112,8 @@ pack_state(PyObject* self)
 	float q[4];
 	float rate[3];
 	float torque[4];
+	float bias[3];
+	float thrust[1];
 
 	bool success = true;
 	success &= qcins_get_altitude(qcins_handle, p);
@@ -119,6 +121,8 @@ pack_state(PyObject* self)
 	success &= qcins_get_attitude(qcins_handle, q);
 	success &= qcins_get_rate(qcins_handle, rate);
 	success &= qcins_get_torque(qcins_handle, torque);
+	success &= qcins_get_bias(qcins_handle, bias);
+	success &= qcins_get_thrust(qcins_handle, thrust);
 
 	if (!success)
 		return Py_None;
@@ -138,6 +142,10 @@ pack_state(PyObject* self)
 	s[12] = torque[1];
 	s[13] = torque[2];
 	s[14] = torque[3];
+	s[15] = bias[0];
+	s[16] = bias[1];
+	s[17] = bias[2];
+	s[18] = thrust[0];
 
 	return Py_BuildValue("O", state);
 }
@@ -212,15 +220,15 @@ correct(PyObject* self, PyObject* args, PyObject *kwarg)
 static PyObject*
 configure(PyObject* self, PyObject* args, PyObject *kwarg)
 {
-	static char *kwlist[] = {"gains", "tau", "mu", "beta_t", "process_noise", "sensor_noise", NULL};
+	static char *kwlist[] = {"gains", "tau", "mu", "init_thrust", "init_bias", "process_noise", "sensor_noise", NULL};
 
-	PyArrayObject *vec_gains = NULL, *vec_process_noise = NULL, *vec_sensor_noise = NULL;
+	PyArrayObject *vec_gains = NULL, *vec_process_noise = NULL, *vec_sensor_noise = NULL, *vec_init_bias = NULL;
 	float tau_var = NAN;
 	float mu_var = NAN;
-	float beta_t_var = NAN;
+	float init_thrust_var = NAN;
 	
-	if (!PyArg_ParseTupleAndKeywords(args, kwarg, "|OfffOO", kwlist,
-		 &vec_gains, &tau_var, &mu_var, &beta_t_var, &vec_process_noise, &vec_sensor_noise)) {
+	if (!PyArg_ParseTupleAndKeywords(args, kwarg, "|OfffOOO", kwlist,
+		 &vec_gains, &tau_var, &mu_var, &init_thrust_var, &vec_init_bias, &vec_process_noise, &vec_sensor_noise)) {
 		return NULL;
 	}
 
@@ -239,8 +247,15 @@ configure(PyObject* self, PyObject* args, PyObject *kwarg)
 		qcins_set_mu(qcins_handle, mu_var);
 	}
 
-	if (!isnan(beta_t_var)) {
-		qcins_set_thrust(qcins_handle, beta_t_var);
+	if (!isnan(init_thrust_var)) {
+		qcins_set_init_thrust(qcins_handle, init_thrust_var);
+	}
+
+	if (vec_init_bias) {
+		float init_bias[15];
+		if (!parseFloatVecN(vec_init_bias, init_bias, 3))
+			return NULL;
+		qcins_set_init_bias(qcins_handle, init_bias);
 	}
 
 	if (vec_process_noise) {
