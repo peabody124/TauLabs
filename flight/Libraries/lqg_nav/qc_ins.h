@@ -51,6 +51,8 @@ bool qcins_set_process_noise(uintptr_t qcins_handle, const float noises[15]);
 bool qcins_set_init_thrust(uintptr_t qcins_handle, const float beta_t_new);
 bool qcins_set_init_bias(uintptr_t qcins_handle, const float bias_new[3]);
 
+bool qcins_set_armed(uintptr_t qcins_handle, bool armed);
+
 bool qcins_set_gains(uintptr_t qcins_handle, const float gains_new[4]);
 bool qcins_set_tau(uintptr_t qcins_handle, const float tau_new);
 bool qcins_set_mu(uintptr_t qcins_handle, const float mu_new);

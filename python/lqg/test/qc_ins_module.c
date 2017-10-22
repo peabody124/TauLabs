@@ -156,6 +156,7 @@ init(PyObject* self, PyObject* args)
 	if (qcins_handle == 0)
 		qcins_alloc(&qcins_handle);
 	qcins_init(qcins_handle);
+	qcins_set_armed(qcins_handle, true);
 	return pack_state(self);
 }
 

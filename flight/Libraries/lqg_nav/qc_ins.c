@@ -83,6 +83,8 @@ struct qcins_state {
 		float bias[3];
 	} __attribute__((__packed__)) init;
 
+	bool armed;
+
 	float x[NUMX]; // buffer to store the current state
 	float P[NUMP]; // buffer to store the covariance
 	float F[NUMF]; // buffer to store the state dynamics derivatives
@@ -115,10 +117,8 @@ bool qcins_init(uintptr_t qcins_handle)
 	for (uint32_t i = 0; i < NUMX; i++)
 		qcins_state->x[i] = 0;
 	qcins_state->x[4] = 1.0f;
-	qcins_state->x[15] = qcins_state->init.bias[0];
-	qcins_state->x[16] = qcins_state->init.bias[1];
-	qcins_state->x[17] = qcins_state->init.bias[2];
-	qcins_state->x[18] = qcins_state->init.beta_t; // thrust to weight ratio
+	qcins_state->x[14] = 1.0f; // Initial thrust 1
+	qcins_state->x[18] = 2.0f; // Initial thrust to weight ratio 2:1
 
 	covariance_init(qcins_state->P);
 
@@ -136,11 +136,18 @@ bool qcins_init(uintptr_t qcins_handle)
 	Q[15] = Q[16] = Q[17] = 1e-5f;      // Bias states
 	Q[18] = 1e-5f;                      // Thrust gain
 
+	qcins_state->armed = false;
+
 	// Store the observation noises
 	qcins_state->R[0] = 100;
 	qcins_state->R[1] = qcins_state->R[2] = qcins_state->R[3] = 1e6;
 	qcins_state->R[4] = qcins_state->R[5] = qcins_state->R[6] = 1e3;
 	qcins_state->R[7] = qcins_state->R[8] = qcins_state->R[9] = 1e3;
+
+	qcins_state->init.bias[0] = 0.0f;
+	qcins_state->init.bias[1] = 0.0f;
+	qcins_state->init.bias[2] = 0.0f;
+	qcins_state->init.beta_t = 2.0f; // thrust to weight ratio 2:1
 
 	// Defaults for the parameters
 	qcins_state->params.g = 9.81f;
@@ -218,6 +225,16 @@ bool qcins_set_init_bias(uintptr_t qcins_handle, const float bias_new[3])
 	return true;
 }
 
+bool qcins_set_armed(uintptr_t qcins_handle, bool armed)
+{
+	struct qcins_state *qcins_state = (struct qcins_state *) qcins_handle;
+	if (!qcins_validate(qcins_state))
+		return false;
+
+	qcins_state->armed = armed;
+	return true;
+}
+
 bool qcins_set_gains(uintptr_t qcins_handle, const float gains_new[4])
 {
 	struct qcins_state *qcins_state = (struct qcins_state *) qcins_handle;
@@ -253,6 +270,21 @@ bool qcins_set_mu(uintptr_t qcins_handle, const float mu_new)
 	return true;
 }
 
+static void qcins_unarmed_state(struct qcins_state *qcins_state)
+{
+	// Set the torques to zero
+	qcins_state->x[11] = 0.0f;
+	qcins_state->x[12] = 0.0f;
+	qcins_state->x[13] = 0.0f;
+	// qcins_state->x[14] = 1.0f;
+
+	// Set these system parameters to their initial values
+	qcins_state->x[15] = qcins_state->init.bias[0];
+	qcins_state->x[16] = qcins_state->init.bias[1];
+	qcins_state->x[17] = qcins_state->init.bias[2];
+	qcins_state->x[18] = qcins_state->init.beta_t; // thrust to weight ratio
+}
+
 bool qcins_predict(uintptr_t qcins_handle, const float roll, const float pitch, const float yaw, const float throttle, float Ts)
 {
 	struct qcins_state *qcins_state = (struct qcins_state *) qcins_handle;
@@ -269,12 +301,17 @@ bool qcins_predict(uintptr_t qcins_handle, const float roll, const float pitch, 
 
 	const float u[4] = {roll, pitch, yaw, throttle};
 
+	if (!qcins_state->armed) {
+		qcins_unarmed_state(qcins_state);
+	}
+
 	// Take the state and covariance forward one time step
 	linearize_FH(qcins_state->x, Ts, &qcins_state->params.g, qcins_state->F, qcins_state->H);
 	state_prediction(qcins_state->x, u, Ts, &qcins_state->params.g, qcins_state->xnew);
 	covariance_prediction(qcins_state->P, qcins_state->F, qcins_state->Q, qcins_state->Pnew);
 	update_state(qcins_state->xnew, qcins_state->Pnew, qcins_state->x, qcins_state->P);
 	normalize_state(qcins_state->x);
+
 	return true;
 }
 

@@ -1459,11 +1459,7 @@ static int32_t updateQcIns(uintptr_t qcins_handle, bool first_run)
 		// Set parameters
 		qcins_set_tau(qcins_handle, systemIdent.Tau);
 		qcins_set_gains(qcins_handle, (const float *) systemIdent.Beta);
-		
-		// TODO: handle bias
-		// qcins_set_gains(qcins_handle, systemIdent.Bias);
 
-		// TODO: this should be a parameter in the qcins
 		qcins_set_init_thrust(qcins_handle, systemIdent.Thrust);
 		qcins_set_init_bias(qcins_handle, systemIdent.Bias);
 
@@ -1520,9 +1516,13 @@ static int32_t updateQcIns(uintptr_t qcins_handle, bool first_run)
 		on_ground = true;
 	}
 
+	qcins_set_armed(qcins_handle, armed);
+
 	if (on_ground) {
 		// Predict state forward based on control outputs previous time step
-		qcins_predict(qcins_handle, 0.0f, 0.0f, 0.0f, 1.0f, dT);
+		float thrust_ratio;
+		qcins_get_thrust(qcins_handle, &thrust_ratio);
+		qcins_predict(qcins_handle, 0.0f, 0.0f, 0.0f, 1.0f / thrust_ratio, dT);
 	} else {
 		// When disarmed we are probably sitting on ground. In this case the model makes most sense if we
 		// pass in throttle for 1g of thrust. If throttle is < -1 also threshold at 0 (will not work for
