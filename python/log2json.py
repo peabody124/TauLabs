@@ -20,6 +20,7 @@ actuator = uavo_list.as_numpy_array(uavo.UAVO_ActuatorDesired)
 attitude = uavo_list.as_numpy_array(uavo.UAVO_AttitudeActual)
 gps_vel = uavo_list.as_numpy_array(uavo.UAVO_GPSVelocity)
 gps_pos = uavo_list.as_numpy_array(uavo.UAVO_GPSVelocity)
+rate_torque = uavo_list.as_numpy_array(uavo.UAVO_RateTorqueKF)
 
 import numpy as np
 from matplotlib.mlab import find
@@ -39,6 +40,7 @@ last_b_idx = -1
 last_m_idx = -1
 last_gps_vel_idx = -1
 last_gps_pos_idx = -1
+last_rate_torque_idx = -1
 
 log = []
 
@@ -83,7 +85,16 @@ for i in range(STEPS):
             gps_vel_val = [gps_vel['North'][gps_vel_idx,0], gps_vel['East'][gps_vel_idx,0], gps_vel['Down'][gps_vel_idx,0]]
             last_gps_vel_idx = gps_vel_idx
 
-    log.append({'t': t, 'gyros': g, 'accels': a, 'u': u, 'baro': baro, 'mag': mag, 'pos': gps_pos_val, 'vel': gps_vel_val, 'rpy': rpy})
+    rate_torque_val = None
+    if rate_torque is not None and len(rate_torque) > 0 and any(rate_torque['time'] < t):
+        rate_torque_idx = find(rate_torque['time'] < t)[-1]
+        if rate_torque_idx > last_rate_torque_idx:
+            rate_torque_val = [rate_torque['Rate'][rate_torque_idx,0], rate_torque['Rate'][rate_torque_idx,1], rate_torque['Rate'][rate_torque_idx,2],
+                               rate_torque['Torque'][rate_torque_idx,0], rate_torque['Torque'][rate_torque_idx,1], rate_torque['Torque'][rate_torque_idx,2]]
+            last_rate_torque_idx = rate_torque_idx
+
+    log.append({'t': t, 'gyros': g, 'accels': a, 'u': u, 'baro': baro, 'mag': mag,
+        'pos': gps_pos_val, 'vel': gps_vel_val, 'rpy': rpy, 'rate_torque': rate_torque_val})
 
 import sys
 import os
