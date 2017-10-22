@@ -25,4 +25,5 @@ module4 = Extension('qc_ins',
 setup (name = 'RateTorqueLQG',
         version = '1.0',
         description = 'Rate Torque LQG python test code',
-        ext_modules = [module1, module2, module3, module4])
+        ext_modules = [module4])
+#        ext_modules = [module1, module2, module3, module4])

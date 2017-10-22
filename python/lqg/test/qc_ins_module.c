@@ -285,10 +285,32 @@ static PyMethodDef QcInsMethods[] =
 	{NULL, NULL, 0, NULL}
 };
 
+#if PY_MAJOR_VERSION >= 3
+static struct PyModuleDef moduledef = {
+        PyModuleDef_HEAD_INIT,
+        "qc_ins",
+        NULL,
+        0,
+        QcInsMethods,
+        NULL,
+        NULL,
+        NULL,
+        NULL
+};
+
 PyMODINIT_FUNC
+PyInit_qc_ins(void)
+#else
 initqc_ins(void)
+#endif
 {
-	(void) Py_InitModule("qc_ins", QcInsMethods);
+#if PY_MAJOR_VERSION >= 3
+    PyObject *module = PyModule_Create(&moduledef);
+#else
+    PyObject *module = Py_InitModule("qc_ins", QcInsMethods);
+#endif	
 	import_array();
 	init(NULL, NULL);
+
+	return module;
 }
