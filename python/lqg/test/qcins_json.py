@@ -87,14 +87,14 @@ for i in range(STEPS):
         print("{} / {}".format(i, STEPS))
 
     if np.any(np.isnan(state)):
-        print "NAN encountered"
+        print("NAN encountered")
         break
 
 t_rpy,rpy = get_field('rpy')
 t_gyros,gyros = get_field('gyros')
 t_u,u = get_field('u')
 
-%matplotlib
+#%matplotlib
 #plt.figure(1)
 ax1 = plt.subplot(3,4,1)
 plt.plot(t_rpy, rpy[:,0], history_t, rpy_history[:,0])
