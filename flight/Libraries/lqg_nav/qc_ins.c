@@ -413,9 +413,9 @@ bool qcins_get_rate(uintptr_t qcins_handle, float rate[3])
 	if (!qcins_validate(qcins_state))
 		return false;
 
-	rate[0] = qcins_state->x[8];
-	rate[1] = qcins_state->x[9];
-	rate[2] = qcins_state->x[10];
+	rate[0] = qcins_state->x[8] * 180.0f / (float) M_PI;
+	rate[1] = qcins_state->x[9] * 180.0f / (float) M_PI;
+	rate[2] = qcins_state->x[10] * 180.0f / (float) M_PI;
 	return true;
 }
 
