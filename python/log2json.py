@@ -90,7 +90,8 @@ for i in range(STEPS):
         rate_torque_idx = find(rate_torque['time'] < t)[-1]
         if rate_torque_idx > last_rate_torque_idx:
             rate_torque_val = [rate_torque['Rate'][rate_torque_idx,0], rate_torque['Rate'][rate_torque_idx,1], rate_torque['Rate'][rate_torque_idx,2],
-                               rate_torque['Torque'][rate_torque_idx,0], rate_torque['Torque'][rate_torque_idx,1], rate_torque['Torque'][rate_torque_idx,2]]
+                               rate_torque['Torque'][rate_torque_idx,0], rate_torque['Torque'][rate_torque_idx,1], rate_torque['Torque'][rate_torque_idx,2],
+                               rate_torque['Bias'][rate_torque_idx,0], rate_torque['Bias'][rate_torque_idx,1], rate_torque['Bias'][rate_torque_idx,2]]
             last_rate_torque_idx = rate_torque_idx
 
     log.append({'t': t, 'gyros': g, 'accels': a, 'u': u, 'baro': baro, 'mag': mag,
