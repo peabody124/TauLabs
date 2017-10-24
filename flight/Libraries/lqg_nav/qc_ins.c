@@ -57,6 +57,7 @@ void gyro_correction(const float * restrict x, const float * restrict P, const f
 void accel_correction(const float *restrict x, const float *restrict P, const float *restrict accel,
         const float *restrict H, const float *restrict R, const float *restrict param, float *restrict xnew, float *restrict Pnew);
 void update_state(const float * restrict x, const float *restrict P, float *restrict xnew, float *restrict Pnew);
+void update_state_z(const float * restrict xold, float *restrict xnew);
 void normalize_state(float *x);
 
 enum qcins_state_magic {
@@ -350,6 +351,7 @@ bool qcins_correct_mag(uintptr_t qcins_handle, const float mag[3])
 	const float mag_norm[2] = {mag[0] / mag_len, mag[1] / mag_len};
 
 	mag_correction(qcins_state->x, qcins_state->P, mag_norm, qcins_state->H, qcins_state->R, &qcins_state->params.g, qcins_state->xnew, qcins_state->Pnew);
+	update_state_z(qcins_state->x, qcins_state->xnew); // Only keep change in yaw
 	update_state(qcins_state->xnew, qcins_state->Pnew, qcins_state->x, qcins_state->P);
 	normalize_state(qcins_state->x);
 	return true;
@@ -475,6 +477,19 @@ void update_state(const float * restrict x, const float *restrict P, float *rest
 		xnew[i] = x[i];
 	for (int i = 0; i < NUMP; i++)
 		Pnew[i] = P[i];
+}
+
+// Restrict a change in state to a change in yaw
+void update_state_z(const float * restrict xold, float *restrict xnew)
+{
+	float delta_yaw_direction[4] = {-xold[4+3], -xold[4+2], xold[4+1], xold[4+0]};
+	float delta_q[4] = {xnew[4]-xold[4], xnew[5]-xold[5], xnew[6]-xold[6], xnew[7]-xold[7]};
+	float len = delta_yaw_direction[0]*delta_q[0] + delta_yaw_direction[1]*delta_q[1] +
+				delta_yaw_direction[2]*delta_q[2] + delta_yaw_direction[3]*delta_q[3];
+	xnew[4+0] = xold[4+0] + delta_yaw_direction[0] * len;
+	xnew[4+1] = xold[4+1] + delta_yaw_direction[1] * len;
+	xnew[4+2] = xold[4+2] + delta_yaw_direction[2] * len;
+	xnew[4+3] = xold[4+3] + delta_yaw_direction[3] * len;
 }
 
 void state_prediction(const float * restrict x, const float *u, float Ts, const float *restrict param, float * restrict xnew)
