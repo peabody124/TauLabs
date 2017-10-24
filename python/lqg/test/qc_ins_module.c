@@ -253,15 +253,15 @@ configure(PyObject* self, PyObject* args, PyObject *kwarg)
 	}
 
 	if (vec_init_bias) {
-		float init_bias[15];
+		float init_bias[3];
 		if (!parseFloatVecN(vec_init_bias, init_bias, 3))
 			return NULL;
 		qcins_set_init_bias(qcins_handle, init_bias);
 	}
 
 	if (vec_process_noise) {
-		float process_noise[15];
-		if (!parseFloatVecN(vec_process_noise, process_noise, 15))
+		float process_noise[19];
+		if (!parseFloatVecN(vec_process_noise, process_noise, 19))
 			return NULL;
 		qcins_set_process_noise(qcins_handle, process_noise);
 	}
