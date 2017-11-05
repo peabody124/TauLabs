@@ -1537,7 +1537,9 @@ static int32_t updateQcIns(uintptr_t qcins_handle, bool first_run)
 	qcins_correct_accel_gyro(qcins_handle, accels, gyros);
 
 	if(mag_updated) {
-		// qcins_correct_mag()
+		MagnetometerData magData;
+		MagnetometerGet(&magData);
+		qcins_correct_mag(qcins_handle, &magData.x);
 		mag_updated = false;
 	}
 	
