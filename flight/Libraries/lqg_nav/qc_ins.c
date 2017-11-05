@@ -158,9 +158,9 @@ bool qcins_init(uintptr_t qcins_handle)
 	qcins_state->params.beta_y2 = 1000.0f * DEG2RAD;
 	qcins_state->params.tau = 0.050f;
 	qcins_state->params.mu = 1;
-	qcins_state->params.Be[0] = 1;
-	qcins_state->params.Be[1] = 0;
-	qcins_state->params.Be[2] = 0;
+	qcins_state->params.Be[0] = 0.36;
+	qcins_state->params.Be[1] = -0.03;
+	qcins_state->params.Be[2] = 0.93;
 	
 	return true;
 }
