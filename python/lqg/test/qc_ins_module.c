@@ -100,7 +100,7 @@ static bool parseFloatVec3(PyArrayObject *vec_in, float *vec_out)
 static PyObject*
 pack_state(PyObject* self)
 {
-	const int N = 19;
+	const int N = 23;
 	const int nd = 1;
 	npy_intp dims[nd] = {N};
 	PyArrayObject *state;
@@ -114,6 +114,8 @@ pack_state(PyObject* self)
 	float torque[4];
 	float bias[3];
 	float thrust[1];
+	float out_bias[3];
+	float mu[1];
 
 	bool success = true;
 	success &= qcins_get_altitude(qcins_handle, p);
@@ -123,6 +125,8 @@ pack_state(PyObject* self)
 	success &= qcins_get_torque(qcins_handle, torque);
 	success &= qcins_get_bias(qcins_handle, bias);
 	success &= qcins_get_thrust(qcins_handle, thrust);
+	success &= qcins_get_output_bias(qcins_handle, out_bias);
+	success &= qcins_get_mu(qcins_handle, mu);
 
 	if (!success)
 		return Py_None;
@@ -146,6 +150,10 @@ pack_state(PyObject* self)
 	s[16] = bias[1];
 	s[17] = bias[2];
 	s[18] = thrust[0];
+	s[19] = out_bias[0];
+	s[20] = out_bias[1];
+	s[21] = out_bias[2];
+	s[22] = mu[0];
 
 	return Py_BuildValue("O", state);
 }
@@ -245,7 +253,7 @@ configure(PyObject* self, PyObject* args, PyObject *kwarg)
 	}
 
 	if (!isnan(mu_var)) {
-		qcins_set_mu(qcins_handle, mu_var);
+		qcins_set_init_mu(qcins_handle, mu_var);
 	}
 
 	if (!isnan(init_thrust_var)) {
