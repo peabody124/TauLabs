@@ -149,10 +149,10 @@ pack_state(PyObject* self)
 	s[15] = bias[0];
 	s[16] = bias[1];
 	s[17] = bias[2];
-	s[18] = thrust[0];
-	s[19] = out_bias[0];
-	s[20] = out_bias[1];
-	s[21] = out_bias[2];
+	s[18] = out_bias[0];
+	s[19] = out_bias[1];
+	s[20] = out_bias[2];
+	s[21] = thrust[0];
 	s[22] = mu[0];
 
 	return Py_BuildValue("O", state);
